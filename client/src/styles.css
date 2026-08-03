@@ -638,3 +638,115 @@ body {
   font-size: 13px;
   padding: 8px 18px;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   OPENING SEQUENCE
+   Mimics the classic Price is Right cold open:
+   big logo fades in, podiums pop in one by one as contestants
+   are called, finale flash.
+═══════════════════════════════════════════════════════════════ */
+.pir-opening {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,200,87,0.35), transparent 65%),
+    linear-gradient(180deg, #1c1e42 0%, #14152b 60%, #0f1023 100%);
+  padding: 24px;
+  overflow: hidden;
+}
+
+.pir-opening-logo {
+  text-align: center;
+  animation: pir-open-drop 0.7s cubic-bezier(0.22,1,0.36,1) both;
+}
+@keyframes pir-open-drop {
+  from { opacity: 0; transform: translateY(-40px) scale(0.85); }
+  to   { opacity: 1; transform: none; }
+}
+.pir-opening-title {
+  font-family: "Anton", sans-serif;
+  font-size: clamp(42px, 10vw, 82px);
+  letter-spacing: 4px;
+  color: var(--gold-bright);
+  text-shadow:
+    0 0 40px rgba(255,200,87,0.6),
+    0 4px 0 rgba(0,0,0,0.5);
+  line-height: 1;
+}
+.pir-opening-sub {
+  font-size: clamp(14px, 3vw, 22px);
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.pir-opening-podiums {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  max-width: 700px;
+}
+.pir-opening-podium {
+  background: var(--panel-2);
+  border: 2px solid rgba(255,255,255,0.06);
+  border-radius: 14px;
+  padding: 16px 10px;
+  text-align: center;
+  opacity: 0.2;
+  transform: scale(0.88) translateY(20px);
+  transition: all 0.45s cubic-bezier(0.22,1,0.36,1);
+}
+.pir-opening-podium.lit {
+  opacity: 1;
+  transform: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(255,200,87,0.4), 0 0 30px rgba(255,200,87,0.3);
+  animation: pir-podium-flash 0.5s ease-out;
+}
+@keyframes pir-podium-flash {
+  0%   { box-shadow: 0 0 0 6px rgba(255,200,87,0.9), 0 0 60px rgba(255,200,87,0.7); }
+  100% { box-shadow: 0 0 0 3px rgba(255,200,87,0.4), 0 0 30px rgba(255,200,87,0.3); }
+}
+.pir-opening-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--led-bg);
+  border: 2px solid rgba(255,200,87,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Anton", sans-serif;
+  font-size: 26px;
+  color: var(--gold);
+  margin: 0 auto 8px;
+}
+.pir-opening-podium.lit .pir-opening-avatar {
+  border-color: var(--gold);
+  background: rgba(255,200,87,0.12);
+}
+.pir-opening-name {
+  font-weight: 700;
+  font-size: 14px;
+  min-height: 18px;
+  color: var(--cream);
+}
+
+.pir-opening-finale {
+  font-family: "Anton", sans-serif;
+  font-size: clamp(32px, 7vw, 56px);
+  color: var(--gold-bright);
+  letter-spacing: 4px;
+  text-align: center;
+  animation: pir-finale-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+  text-shadow: 0 0 30px rgba(255,200,87,0.7);
+}
+@keyframes pir-finale-pop {
+  from { opacity: 0; transform: scale(0.5); }
+  to   { opacity: 1; transform: scale(1); }
+}

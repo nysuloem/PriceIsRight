@@ -1,28 +1,15 @@
-// prizeSource.js
+// prizeSource.js — fetches LIVE prices from real Canadian retailer pages.
 //
-// The CATALOG of products is curated (hand-picked, see CANDIDATES below) —
-// there's no realistic way to make that part fully automatic without an
-// official retailer API. What IS live: every time the pool is fetched, we
-// re-check each candidate's current page and pull today's price.
+// The product list is curated (hand-picked URLs), but prices are fetched
+// fresh every 30 minutes so they stay current.
 //
-// - Canadian Tire: price renders as plain server-side text, so this is
-//   reliably scrapeable.
-// - Best Buy Canada: price is loaded client-side (not in the raw HTML), so
-//   the regex below is best-effort and usually falls back to the last-known
-//   price. The product IMAGE is reliable via Best Buy's media CDN, which is
-//   derived from the product's "web code".
-// - Amazon.ca is intentionally NOT included — its robots.txt disallows
-//   automated access.
-// - Roots is a "static" entry (no live source found yet); easy to upgrade
-//   later if we find a reliable way to read roots.com pricing.
-//
-// Run `node prizeSource.js` directly to print the current pool to the
-// console — handy for testing this against the real sites.
+// Run standalone to test:  node prizeSource.js
 
 const FETCH_HEADERS = {
   "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
   "Accept-Language": "en-CA,en;q=0.9",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 };
 
 const CANDIDATES = [
@@ -34,24 +21,22 @@ const CANDIDATES = [
     brand: "Instant Pot",
     retailer: "Canadian Tire",
     fallbackPrice: 159.99,
-    image:
-      "https://commons.wikimedia.org/wiki/Special:FilePath/Instant_Pot_%2849907000991%29.jpg",
-    imageAlt: "An Instant Pot multi-cooker on a kitchen counter",
-    hostDescription:
-      "Tonight's first item up for bid comes to us from Canadian Tire: the Instant Pot Duo V5 with 14 Smart Programs! This six quart marvel combines seven kitchen appliances in one: pressure cooker, slow cooker, rice cooker, steamer, saute pan, yogurt maker, and warmer, with a stainless steel inner pot and one touch programs that get a hearty stew on the table up to seventy percent faster.",
+    image: "https://commons.wikimedia.org/wiki/Special:FilePath/Instant_Pot_%2849907000991%29.jpg",
+    imageAlt: "Instant Pot Duo V5 multi-cooker",
+    // Short 1–2 sentence host description (TTS reads this aloud)
+    hostDescription: "From Canadian Tire — the Instant Pot Duo V5! Seven appliances in one six-quart pot: pressure cooker, slow cooker, rice maker, steamer, sauté pan, yogurt maker, and warmer.",
   },
   {
     id: "keurig-k-express",
     type: "canadianTire",
     url: "https://www.canadiantire.ca/en/pdp/keurig-k-expresstm-single-serve-coffee-maker-black-0430788p.html",
-    name: "Keurig K-Express Single Serve Coffee Maker",
+    name: "Keurig K-Express Coffee Maker",
     brand: "Keurig",
     retailer: "Canadian Tire",
     fallbackPrice: 109.99,
     image: "https://i.ebayimg.com/images/g/ozoAAOSwo7NmNXcA/s-l500.jpg",
-    imageAlt: "A Keurig K-Express single serve coffee maker",
-    hostDescription:
-      "Next up, fresh from Canadian Tire: the Keurig K-Express single serve coffee maker! This slim brewer fits anywhere, under five inches wide, and brews three cup sizes from six to twelve ounces using your favourite K-Cup pods. Hit the strong button for a bolder cup, and back to back brewing means no waiting around for a refill.",
+    imageAlt: "Keurig K-Express single serve coffee maker",
+    hostDescription: "From Canadian Tire — the Keurig K-Express! A slim single-serve brewer that makes six to twelve ounce cups from K-Cup pods, with a strong brew button for when you really need it.",
   },
   {
     id: "nintendo-switch-2",
@@ -62,32 +47,47 @@ const CANDIDATES = [
     brand: "Nintendo",
     retailer: "Best Buy Canada",
     fallbackPrice: 629.99,
-    imageAlt: "The Nintendo Switch 2 console with Joy-Con 2 controllers",
-    hostDescription:
-      "Up next, from Best Buy Canada: the all new Nintendo Switch 2! This hybrid console steps up the original with a bigger seven point nine inch HDR screen, frame rates up to one hundred twenty frames per second, and four K output when docked. It comes with two Joy-Con 2 controllers and is backward compatible with your whole Switch library.",
+    imageAlt: "Nintendo Switch 2 Console",
+    hostDescription: "From Best Buy Canada — the Nintendo Switch 2! A seven point nine inch HDR screen, four-K docked output, and magnetic Joy-Con 2 controllers — and it plays your whole Switch library.",
   },
   {
     id: "roots-original-sweatpant",
     type: "static",
     url: "https://www.roots.com/ca/en/",
-    name: "Organic Original Sweatpant",
+    name: "Roots Organic Original Sweatpant",
     brand: "Roots",
     retailer: "Roots Canada",
-    fallbackPrice: 84.0,
+    fallbackPrice: 84.00,
     image: null,
     imageAlt: "Roots Organic Original Sweatpant",
-    hostDescription:
-      "And here's a true Canadian classic from Roots: the Organic Original Sweatpant! Made from soft fleece blended with organic cotton and recycled fibres, these are the sweats that have been a staple in Canadian closets for generations, comfortable enough for lounging, sharp enough for the airport.",
+    hostDescription: "From Roots Canada — the Organic Original Sweatpant! Soft organic cotton fleece, a true Canadian classic that's been in closets from coast to coast for generations.",
   },
 ];
+
+// Minimum plausible product price — filters out loyalty point values,
+// shipping thresholds, and other incidental dollar amounts on CT pages.
+const MIN_PRICE = 20;
 
 async function fetchHtml(url) {
   const res = await fetch(url, {
     headers: FETCH_HEADERS,
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.text();
+}
+
+// Extract the main product price from a Canadian Tire page.
+// Strategy: find ALL dollar amounts on the page, filter to plausible product
+// prices (>= MIN_PRICE), and take the first one. This avoids grabbing
+// "$2.99 shipping" or "$10 in CT Money" type values.
+function extractCtPrice(html) {
+  const matches = [...html.matchAll(/\$\s?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/g)];
+  for (const m of matches) {
+    const val = parseFloat(m[1].replace(/,/g, ""));
+    if (val >= MIN_PRICE) return val;
+  }
+  return null;
 }
 
 async function fetchOne(candidate) {
@@ -98,31 +98,32 @@ async function fetchOne(candidate) {
   try {
     if (candidate.type === "canadianTire") {
       const html = await fetchHtml(candidate.url);
-      // First "$159.99"-style price on the page is the current price.
-      const priceMatch = html.match(/\$\s?(\d{1,3}(?:,\d{3})*\.\d{2})/);
-      if (priceMatch) {
-        exactPrice = parseFloat(priceMatch[1].replace(/,/g, ""));
+      const price = extractCtPrice(html);
+      if (price !== null) {
+        exactPrice = price;
         priceIsLive = true;
       }
     } else if (candidate.type === "bestBuy") {
       const code = candidate.webCode;
-      image = `https://multimedia.bbycastatic.ca/multimedia/products/500x500/${code.slice(
-        0,
-        3
-      )}/${code.slice(0, 5)}/${code}.jpg`;
-
+      image = `https://multimedia.bbycastatic.ca/multimedia/products/500x500/${code.slice(0,3)}/${code.slice(0,5)}/${code}.jpg`;
       const html = await fetchHtml(candidate.url);
-      const priceMatch = html.match(
-        /"(?:currentPrice|salePrice|regularPrice)"\s*:\s*"?(\d+(?:\.\d{2})?)/
-      );
+      // BBY renders price client-side; try JSON blobs embedded in the page
+      const priceMatch = html.match(/"(?:currentPrice|salePrice|regularPrice)"\s*:\s*"?(\d+(?:\.\d{2})?)/);
       if (priceMatch) {
-        exactPrice = parseFloat(priceMatch[1]);
-        priceIsLive = true;
+        const val = parseFloat(priceMatch[1]);
+        if (val >= MIN_PRICE) { exactPrice = val; priceIsLive = true; }
       }
     }
-    // "static" candidates: nothing to fetch, fallback values are used as-is.
+    // static: use fallback as-is
   } catch (err) {
     console.error(`[prizeSource] ${candidate.id}: ${err.message}`);
+  }
+
+  // Safety net: if live price is suspiciously low, fall back
+  if (priceIsLive && exactPrice < MIN_PRICE) {
+    console.warn(`[prizeSource] ${candidate.id}: live price $${exactPrice} too low, using fallback $${candidate.fallbackPrice}`);
+    exactPrice = candidate.fallbackPrice;
+    priceIsLive = false;
   }
 
   return {
@@ -144,9 +145,8 @@ export async function fetchPrizePool() {
   return Promise.all(CANDIDATES.map(fetchOne));
 }
 
-// Simple in-memory cache so we're not hitting these sites on every poll.
 let cache = { items: null, fetchedAt: 0 };
-const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const CACHE_TTL_MS = 30 * 60 * 1000;
 
 export async function getPrizePool(forceRefresh = false) {
   const stale = Date.now() - cache.fetchedAt > CACHE_TTL_MS;
@@ -163,9 +163,6 @@ export function pickRandomItem(pool, excludeId = null) {
   return list[Math.floor(Math.random() * list.length)];
 }
 
-// Allow running directly: `node prizeSource.js`
 if (import.meta.url === `file://${process.argv[1]}`) {
-  fetchPrizePool().then((items) => {
-    console.log(JSON.stringify(items, null, 2));
-  });
+  fetchPrizePool().then((items) => console.log(JSON.stringify(items, null, 2)));
 }
