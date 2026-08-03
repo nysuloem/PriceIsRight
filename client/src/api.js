@@ -12,10 +12,10 @@ async function request(path, options = {}) {
 
 export const createRoom = () => request("/rooms", { method: "POST" });
 
-export const joinRoom = (code, name) =>
+export const joinRoom = (code, name, photo) =>
   request(`/rooms/${code}/join`, {
     method: "POST",
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, photo: photo || null }),
   });
 
 export const getState = (code) => request(`/rooms/${code}/state`);
@@ -52,3 +52,7 @@ export const restartGame = (code, mode) =>
 
 export const ttsUrl = (text, voice) =>
   `${BASE}/tts?text=${encodeURIComponent(text)}${voice ? `&voice=${voice}` : ""}`;
+
+// Returns the URL to fetch a human player's photo (served by the server).
+export const playerPhotoUrl = (code, playerId) =>
+  `${BASE}/rooms/${code}/photo/${playerId}`;
