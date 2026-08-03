@@ -3,8 +3,9 @@ import { QRCodeSVG } from "qrcode.react";
 import { Mic2, Bot, Trophy, Sparkles, ArrowRight, ChefHat, ExternalLink } from "lucide-react";
 import {
   getState, startGame, callNext, advance,
-  resolveAITurn, nextTurn, restartGame, ttsUrl, playerPhotoUrl,
+  resolveAITurn, nextTurn, restartGame, ttsUrl, playerPhotoUrl, getConfig,
 } from "./api.js";
+import OpeningSequence from "./OpeningSequence.jsx";
 
 const POLL_MS = 1200;
 
@@ -12,11 +13,11 @@ const POLL_MS = 1200;
 // playTTS — fetch audio from the server and play it.
 // onDone fires when it ends, or after 1.5 s on error.
 // ---------------------------------------------------------------------------
-function playTTS(audioEl, text, onDone) {
+function playTTS(audioEl, text, onDone, voice) {
   if (!text) { onDone(); return; }
   let fired = false;
   const fire = () => { if (fired) return; fired = true; onDone(); };
-  audioEl.src = ttsUrl(text);
+  audioEl.src = ttsUrl(text, voice);
   audioEl.onended = fire;
   audioEl.onerror = () => setTimeout(fire, 1500);
   audioEl.play().catch(() => setTimeout(fire, 1500));
@@ -30,10 +31,8 @@ export default function HostView({ code }) {
   const [phase, setPhase] = useState("lobby"); // "lobby" | "opening" | "game"
   const [error, setError] = useState("");
   const [readyToBid, setReadyToBid] = useState(false);
+  const [config, setConfig] = useState({ hostName: "Robbie Archer", announcerVoice: "echo", hostVoice: "onyx" });
   const lastSeqRef = useRef(-1);
-
-  // One <audio> element, never unmounted. Lives in a hidden div outside the
-  // conditional render tree so React never recreates it.
   const audioRef = useRef(null);
 
   // Poll server state
@@ -61,37 +60,41 @@ export default function HostView({ code }) {
     const el = audioRef.current;
     const safely = (fn) => fn().catch((e) => setError(e.message));
 
+    const voice = config.hostVoice || "onyx";
     if (type === "welcome") {
       if (!text) return;
-      playTTS(el, text, () => safely(() => callNext(code)));
+      playTTS(el, text, () => safely(() => callNext(code)), voice);
     } else if (type === "call") {
       const last = state.callIndex >= state.contestants.length - 1;
-      playTTS(el, text, () => safely(() => last ? advance(code, "item") : callNext(code)));
+      playTTS(el, text, () => safely(() => last ? advance(code, "item") : callNext(code)), voice);
     } else if (type === "itemIntro") {
       setReadyToBid(false);
-      playTTS(el, text, () => setReadyToBid(true));
+      playTTS(el, text, () => setReadyToBid(true), voice);
     } else if (type === "prompt") {
       const c = state.contestants[state.turn];
-      if (c?.isAI) playTTS(el, text, () => safely(() => resolveAITurn(code)));
-      else playTTS(el, text, () => {});
+      if (c?.isAI) playTTS(el, text, () => safely(() => resolveAITurn(code)), voice);
+      else playTTS(el, text, () => {}, voice);
     } else if (type === "bidResult") {
       const last = state.turn >= state.contestants.length - 1;
-      playTTS(el, text, () => safely(() => last ? advance(code, "reveal") : nextTurn(code)));
+      playTTS(el, text, () => safely(() => last ? advance(code, "reveal") : nextTurn(code)), voice);
     } else if (type === "reveal") {
-      playTTS(el, text, () => {});
+      playTTS(el, text, () => {}, voice);
     }
   }, [state, code, phase]);
 
   const action = (fn) => () => fn().catch((e) => setError(e.message));
 
-  // "Start Game" button — unlock audio with the gesture, then begin opening
-  const handleStart = () => {
-    // Prime the audio element with a short silent data URI so the browser
-    // records a user-gesture play() on this element. This is the only
-    // reliable cross-browser way to unlock autoplay.
+  // "Start Game" — fetch config, unlock audio, begin opening
+  const handleStart = async () => {
+    // Unlock browser autoplay with a silent data URI on this gesture
     const el = audioRef.current;
     el.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
     el.play().then(() => { el.pause(); el.src = ""; }).catch(() => {});
+    // Fetch host config
+    try {
+      const cfg = await getConfig();
+      setConfig(cfg);
+    } catch { /* use defaults */ }
     setPhase("opening");
   };
 
@@ -112,7 +115,8 @@ export default function HostView({ code }) {
       {phase === "opening" && state && (
         <OpeningSequence
           players={state.players}
-          audioRef={audioRef}
+          hostName={config.hostName}
+          announcerVoice={config.announcerVoice}
           onDone={handleOpeningDone}
         />
       )}
@@ -154,76 +158,6 @@ export default function HostView({ code }) {
         </div>
       )}
     </>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Opening sequence
-// ---------------------------------------------------------------------------
-function OpeningSequence({ players, audioRef, onDone }) {
-  const [step, setStep] = useState(0);
-  // 0 = fanfare, 1..n = call player n-1, n+1 = finale
-  const [litPodiums, setLitPodiums] = useState([]);
-  const ranRef = useRef(false);
-
-  const advance = useCallback((s) => {
-    const el = audioRef.current;
-
-    if (s === 0) {
-      playTTS(el,
-        "Here it comes — television's most exciting game of fantastic prizes! The Bidding Game!",
-        () => setStep(players.length > 0 ? 1 : players.length + 1)
-      );
-    } else if (s <= players.length) {
-      const idx = s - 1;
-      const name = players[idx].name;
-      setLitPodiums((p) => [...p, idx]);
-      playTTS(el, `${name}... come on down!`,
-        () => setStep(s + 1)
-      );
-    } else {
-      // finale
-      playTTS(el, "Let's play The Bidding Game!", () => setTimeout(onDone, 600));
-    }
-  }, [players, audioRef, onDone]);
-
-  useEffect(() => {
-    if (ranRef.current) return;
-    ranRef.current = true;
-    advance(0);
-  }, [advance]);
-
-  useEffect(() => {
-    if (step === 0) return; // handled by the init effect above
-    advance(step);
-  }, [step]);
-
-  const slots = Math.max(4, players.length);
-
-  return (
-    <div className="pir-opening">
-      <div className="pir-opening-logo">
-        <div className="pir-opening-title">Come On Down!</div>
-        <div className="pir-opening-sub">The Bidding Game</div>
-      </div>
-      <div className="pir-opening-podiums"
-        style={{ gridTemplateColumns: `repeat(${Math.min(slots, 4)}, 1fr)` }}>
-        {Array.from({ length: Math.min(slots, 4) }).map((_, i) => {
-          const lit = litPodiums.includes(i);
-          const p = players[i];
-          return (
-            <div key={i} className={`pir-opening-podium${lit ? " lit" : ""}`}>
-              <div className="pir-opening-avatar">{lit && p ? p.name[0].toUpperCase() : "?"}</div>
-              <div className="pir-opening-name">{lit && p ? p.name : "???"}</div>
-              <div className="pir-led dim">$ — — —</div>
-            </div>
-          );
-        })}
-      </div>
-      {step > players.length && (
-        <div className="pir-opening-finale">Let's play!</div>
-      )}
-    </div>
   );
 }
 

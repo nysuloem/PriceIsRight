@@ -169,6 +169,15 @@ app.get(
   })
 );
 
+// Config — exposes host name and voice to the client.
+app.get("/api/config", (req, res) => {
+  res.json({
+    hostName: process.env.HOST_NAME || "Robbie Archer",
+    announcerVoice: process.env.ANNOUNCER_VOICE || "echo",
+    hostVoice: process.env.HOST_VOICE || "onyx",
+  });
+});
+
 // Inspect the current live prize pool. ?refresh=1 forces a re-fetch.
 app.get(
   "/api/prizes",

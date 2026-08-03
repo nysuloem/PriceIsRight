@@ -56,3 +56,5 @@ export const ttsUrl = (text, voice) =>
 // Returns the URL to fetch a human player's photo (served by the server).
 export const playerPhotoUrl = (code, playerId) =>
   `${BASE}/rooms/${code}/photo/${playerId}`;
+
+export const getConfig = () => request("/config");
