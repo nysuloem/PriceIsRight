@@ -7,17 +7,18 @@ const POLL_MS = 1200;
 export default function PlayerView({ code }) {
   const [state, setState] = useState(null);
   const [error, setError] = useState("");
-  const [playerId, setPlayerId] = useState(() =>
-    localStorage.getItem(`pir_player_${code}`)
+  const [playerId, setPlayerId] = useState(
+    () => localStorage.getItem(`pir_player_${code}`)
   );
   const [name, setName] = useState("");
-  const [photo, setPhoto] = useState(null);
-  const [photoMode, setPhotoMode] = useState(null); // "camera" | null
+  const [photo, setPhoto] = useState(null);       // base64 data URL or null
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [bidDraft, setBidDraft] = useState("");
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const fileRef = useRef(null);
 
+  // Poll server state
   useEffect(() => {
     let stopped = false;
     const tick = async () => {
@@ -33,50 +34,51 @@ export default function PlayerView({ code }) {
     return () => { stopped = true; clearInterval(id); };
   }, [code]);
 
-  // Stop camera on unmount
+  // Stop any open camera stream on unmount
   useEffect(() => {
     return () => { streamRef.current?.getTracks().forEach((t) => t.stop()); };
   }, []);
 
-  // ── Camera helpers ──────────────────────────────────────────────────
+  // When cameraOpen becomes true, the <video> element is now in the DOM.
+  // Assign srcObject here so we know the ref is ready.
+  useEffect(() => {
+    if (!cameraOpen || !streamRef.current) return;
+    const vid = videoRef.current;
+    if (vid) {
+      vid.srcObject = streamRef.current;
+      vid.play().catch(() => {});
+    }
+  }, [cameraOpen]);
+
   const startCamera = useCallback(async () => {
     setError("");
     if (!navigator.mediaDevices?.getUserMedia) {
-      setError("Camera not supported in this browser — try uploading a photo.");
+      setError("Camera not supported — try uploading a photo instead.");
       return;
     }
     try {
-      // Minimal constraints — iOS Safari rejects explicit width/height constraints
-      // on getUserMedia. facingMode as { ideal } works on both iOS and Android.
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: "user" } },
         audio: false,
       });
       streamRef.current = stream;
-      setPhotoMode("camera");
-      // Assign srcObject after the <video> element renders (next tick)
-      requestAnimationFrame(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play().catch(() => {});
-        }
-      });
+      setCameraOpen(true); // render the <video>, then the useEffect above wires it up
     } catch (err) {
-      console.error("Camera error:", err);
-      setError("Camera not available — try uploading a photo instead.");
+      console.error("Camera error:", err.name, err.message);
+      setError(`Camera error (${err.name}) — try uploading a photo instead.`);
     }
   }, []);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
-    setPhotoMode(null);
+    setCameraOpen(false);
   }, []);
 
   const takeSnapshot = useCallback(() => {
-    const video = videoRef.current;
-    if (!video || !video.videoWidth) {
-      setError("Camera not ready yet — wait a moment and try again.");
+    const vid = videoRef.current;
+    if (!vid || !vid.videoWidth) {
+      setError("Camera feed not ready — wait a moment and try again.");
       return;
     }
     const SIZE = 320;
@@ -84,14 +86,13 @@ export default function PlayerView({ code }) {
     canvas.width = SIZE;
     canvas.height = SIZE;
     const ctx = canvas.getContext("2d");
-    // Centre-crop to square
-    const s = Math.min(video.videoWidth, video.videoHeight);
-    const ox = (video.videoWidth - s) / 2;
-    const oy = (video.videoHeight - s) / 2;
-    // Mirror horizontally so the captured image matches the mirrored preview
+    const s = Math.min(vid.videoWidth, vid.videoHeight);
+    const ox = (vid.videoWidth - s) / 2;
+    const oy = (vid.videoHeight - s) / 2;
+    // Mirror to match the previewed selfie
     ctx.translate(SIZE, 0);
     ctx.scale(-1, 1);
-    ctx.drawImage(video, ox, oy, s, s, 0, 0, SIZE, SIZE);
+    ctx.drawImage(vid, ox, oy, s, s, 0, 0, SIZE, SIZE);
     setPhoto(canvas.toDataURL("image/jpeg", 0.75));
     stopCamera();
   }, [stopCamera]);
@@ -99,8 +100,7 @@ export default function PlayerView({ code }) {
   const handleFileUpload = useCallback((e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Reset so the same file can be re-selected if needed
-    e.target.value = "";
+    e.target.value = ""; // allow re-selecting same file
     const reader = new FileReader();
     reader.onload = (ev) => {
       const img = new Image();
@@ -111,9 +111,7 @@ export default function PlayerView({ code }) {
         canvas.height = SIZE;
         const ctx = canvas.getContext("2d");
         const s = Math.min(img.width, img.height);
-        const ox = (img.width - s) / 2;
-        const oy = (img.height - s) / 2;
-        ctx.drawImage(img, ox, oy, s, s, 0, 0, SIZE, SIZE);
+        ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, SIZE, SIZE);
         setPhoto(canvas.toDataURL("image/jpeg", 0.75));
       };
       img.src = ev.target.result;
@@ -123,18 +121,18 @@ export default function PlayerView({ code }) {
 
   const doJoin = async (e) => {
     e.preventDefault();
+    setError("");
     try {
       const data = await joinRoom(code, name.trim(), photo);
       localStorage.setItem(`pir_player_${code}`, data.playerId);
       localStorage.setItem(`pir_name_${code}`, name.trim());
       setPlayerId(data.playerId);
-      setError("");
-    } catch (e) {
-      setError(e.message);
+    } catch (err) {
+      setError(err.message);
     }
   };
 
-  // ── Not yet connected ───────────────────────────────────────────────
+  // ── Not connected yet ──────────────────────────────────────────────
   if (!state) {
     return (
       <div className="pir-root pir-loading">
@@ -144,14 +142,14 @@ export default function PlayerView({ code }) {
     );
   }
 
-  // ── Need to join ────────────────────────────────────────────────────
+  // ── Join screen ────────────────────────────────────────────────────
   if (!playerId) {
     if (state.phase !== "lobby") {
       return (
         <div className="pir-root pir-player pir-center">
           <h1 className="pir-title">Come On Down!</h1>
           <p className="pir-helptext">
-            This game has already started — ask the host for a new room code.
+            Game already started — ask the host for a new room code.
           </p>
         </div>
       );
@@ -162,23 +160,16 @@ export default function PlayerView({ code }) {
         <h1 className="pir-title">Come On Down!</h1>
         <div className="pir-subtitle">Room {code}</div>
 
-        {/* ── Photo capture area ── */}
         <div className="pir-photo-area">
-          {photoMode === "camera" ? (
+          {cameraOpen ? (
             <div className="pir-camera-box">
-              {/* playsInline required on iOS to prevent fullscreen takeover */}
-              <video
-                ref={videoRef}
-                playsInline
-                muted
-                autoPlay
-                className="pir-camera-feed"
-              />
+              {/* playsInline prevents iOS from going fullscreen */}
+              <video ref={videoRef} playsInline muted className="pir-camera-feed" />
               <div className="pir-camera-controls">
-                <button className="pir-btn" type="button" onClick={takeSnapshot}>
+                <button type="button" className="pir-btn" onClick={takeSnapshot}>
                   <Camera size={18} /> Take Photo
                 </button>
-                <button className="pir-btn secondary" type="button" onClick={stopCamera}>
+                <button type="button" className="pir-btn secondary" onClick={stopCamera}>
                   <X size={18} /> Cancel
                 </button>
               </div>
@@ -186,12 +177,8 @@ export default function PlayerView({ code }) {
           ) : photo ? (
             <div className="pir-photo-preview">
               <img src={photo} alt="Your photo" />
-              <button
-                className="pir-photo-clear"
-                type="button"
-                onClick={() => setPhoto(null)}
-                title="Remove photo"
-              >
+              <button type="button" className="pir-photo-clear"
+                onClick={() => setPhoto(null)} title="Remove photo">
                 <X size={16} />
               </button>
             </div>
@@ -199,21 +186,17 @@ export default function PlayerView({ code }) {
             <div className="pir-photo-placeholder">
               <div className="pir-photo-prompt">Add a photo (optional)</div>
               <div className="pir-photo-btns">
-                <button className="pir-btn secondary small" type="button" onClick={startCamera}>
+                <button type="button" className="pir-btn secondary small"
+                  onClick={startCamera}>
                   <Camera size={15} /> Selfie
                 </button>
-                <button className="pir-btn secondary small" type="button"
+                <button type="button" className="pir-btn secondary small"
                   onClick={() => fileRef.current?.click()}>
                   <Upload size={15} /> Upload
                 </button>
               </div>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                style={{ display: "none" }}
-                onChange={handleFileUpload}
-              />
+              <input ref={fileRef} type="file" accept="image/*"
+                style={{ display: "none" }} onChange={handleFileUpload} />
             </div>
           )}
         </div>
@@ -223,19 +206,20 @@ export default function PlayerView({ code }) {
             placeholder="Your name"
             value={name}
             maxLength={24}
-            onChange={(e) => setName(e.target.value)}
             autoFocus
+            onChange={(e) => setName(e.target.value)}
           />
           <button className="pir-btn" type="submit" disabled={!name.trim()}>
             <Check size={18} /> Join Game
           </button>
         </form>
+
         {error && <div className="pir-error">{error}</div>}
       </div>
     );
   }
 
-  // ── In the game ─────────────────────────────────────────────────────
+  // ── In game ────────────────────────────────────────────────────────
   const myIndex = state.contestants.findIndex((c) => c.id === playerId);
   const me = state.contestants[myIndex];
   const myName = me?.name || localStorage.getItem(`pir_name_${code}`) || "You";
@@ -251,7 +235,13 @@ export default function PlayerView({ code }) {
         </div>
       )}
 
-      {state.phase === "calling" && <CallingPhase state={state} myIndex={myIndex} />}
+      {state.phase === "calling" && (
+        <div className="pir-panel pir-center">
+          {myIndex !== -1 && myIndex <= state.callIndex
+            ? <p>You've been called — watch the big screen!</p>
+            : <p>Get ready — the host is introducing everyone…</p>}
+        </div>
+      )}
 
       {state.phase === "item" && state.item && (
         <div className="pir-panel pir-center">
@@ -278,20 +268,11 @@ export default function PlayerView({ code }) {
         />
       )}
 
-      {state.phase === "reveal" && <RevealPhase state={state} myIndex={myIndex} />}
+      {state.phase === "reveal" && (
+        <RevealPhase state={state} myIndex={myIndex} />
+      )}
 
       {error && <div className="pir-error">{error}</div>}
-    </div>
-  );
-}
-
-function CallingPhase({ state, myIndex }) {
-  const called = myIndex !== -1 && myIndex <= state.callIndex;
-  return (
-    <div className="pir-panel pir-center">
-      {called
-        ? <p>You're on stage! Watch the big screen.</p>
-        : <p>Get ready — the host is introducing everyone…</p>}
     </div>
   );
 }
@@ -369,8 +350,8 @@ function RevealPhase({ state, myIndex }) {
 }
 
 function PlayerItemImage({ item }) {
-  const [errored, setErrored] = useState(false);
-  if (errored || !item.image) {
+  const [err, setErr] = useState(false);
+  if (err || !item.image) {
     return (
       <div className="pir-item-frame pir-centered-frame">
         <div className="pir-item-placeholder"><span>{item.name}</span></div>
@@ -379,7 +360,7 @@ function PlayerItemImage({ item }) {
   }
   return (
     <div className="pir-item-frame pir-centered-frame">
-      <img src={item.image} alt={item.imageAlt} onError={() => setErrored(true)} />
+      <img src={item.image} alt={item.imageAlt} onError={() => setErr(true)} />
     </div>
   );
 }
