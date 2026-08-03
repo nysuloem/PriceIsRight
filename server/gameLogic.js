@@ -1,11 +1,24 @@
-// Pure helpers for contestant lineup, AI bids, and winner calculation.
+// Pure helper functions for building the contestant lineup, simulating
+// AI bids, and figuring out who's closest without going over.
 
-// First names only — no hometowns.
+// First names only — no hometowns, per design decision.
 export const AI_NAMES = [
-  "Priya", "Doug", "Marie", "Trent", "Babs", "Kyle",
-  "Noor", "Gord", "Yvonne", "Faisal", "Owen", "Tasha",
-  "Reggie", "Sandeep", "Colleen", "Mack", "Iris", "Dex",
-  "Wren", "Theo", "Zara", "Clint", "Luz", "Pasha",
+  "Priya",
+  "Doug",
+  "Marie",
+  "Trent",
+  "Babs",
+  "Kyle",
+  "Noor",
+  "Gord",
+  "Yvonne",
+  "Faisal",
+  "Owen",
+  "Tasha",
+  "Reggie",
+  "Sandeep",
+  "Colleen",
+  "Mack",
 ];
 
 export const STRATEGIES = ["cautious", "confident", "wildcard", "plusOne"];
@@ -19,51 +32,35 @@ export function shuffle(arr) {
   return a;
 }
 
-// DiceBear "fun-emoji" style avatar — unique per name, no API key needed.
-export function aiAvatarUrl(name) {
-  const seed = encodeURIComponent(name + "-pir");
-  return `https://api.dicebear.com/9.x/fun-emoji/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
-}
-
-// Build a lineup from however many humans joined (0–MAX_PLAYERS),
-// padding to at least MIN_SEATS with AI contestants.
-const MIN_SEATS = 4;
-
+// Build a 4-seat lineup from whichever human players have joined,
+// filling any remaining seats with AI contestants.
 export function buildLineup(players) {
   const namePool = shuffle(AI_NAMES);
   const stratPool = shuffle(STRATEGIES);
-  const usedNames = new Set(players.map((p) => p.name));
 
-  const lineup = players.map((p) => ({
+  const lineup = players.slice(0, 4).map((p) => ({
     id: p.id,
     name: p.name,
     isAI: false,
-    strategy: null,
     bid: null,
-    photo: p.photo || null,        // base64 data URL or null
   }));
 
-  const needed = Math.max(0, MIN_SEATS - lineup.length);
   let aiCount = 0;
-  let nameIdx = 0;
-  while (aiCount < needed) {
-    // Skip AI names that clash with a human player's name
-    while (usedNames.has(namePool[nameIdx % namePool.length])) nameIdx++;
-    const name = namePool[nameIdx % namePool.length];
-    nameIdx++;
+  while (lineup.length < 4) {
     lineup.push({
       id: `ai-${aiCount}`,
-      name,
+      name: namePool[aiCount % namePool.length],
       isAI: true,
       strategy: stratPool[aiCount % stratPool.length],
       bid: null,
-      photo: aiAvatarUrl(name),
     });
-    aiCount++;
+    aiCount += 1;
   }
   return lineup;
 }
 
+// Simulate an AI contestant's bid given their assigned "personality" and
+// the bids placed so far this round.
 export function computeAIBid(strategy, price, previousBids) {
   const prev = previousBids.filter((b) => b != null);
   switch (strategy) {
@@ -84,8 +81,8 @@ export function computeAIBid(strategy, price, previousBids) {
   }
 }
 
-// Closest bid without going over wins. Ties are co-winners.
-// If everyone goes over, nobody wins.
+// Closest bid without going over wins. If everyone goes over, nobody wins.
+// Ties (same diff) are co-winners.
 export function computeWinners(contestants, price) {
   const diffs = contestants.map((c) =>
     c.bid != null && c.bid <= price ? price - c.bid : null
