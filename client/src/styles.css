@@ -477,3 +477,164 @@ body {
   margin-top: 12px;
   font-size: 13px;
 }
+
+/* ---- Lobby layout: QR + player list side by side ---- */
+.pir-lobby-layout {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.pir-lobby-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 180px;
+}
+.pir-qr-box {
+  background: rgba(255, 248, 231, 0.06);
+  border: 2px solid var(--gold);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 0 24px rgba(255, 200, 87, 0.2);
+}
+.pir-lobby-players {
+  flex: 1;
+  min-width: 160px;
+}
+.pir-lobby-player-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 15px;
+}
+
+/* ---- Avatar (podium photo) ---- */
+.pir-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 200, 87, 0.4);
+  display: block;
+  margin: 0 auto 6px;
+  background: var(--led-bg);
+}
+.pir-avatar-winner {
+  border-color: var(--led-green);
+  box-shadow: 0 0 10px rgba(108, 255, 184, 0.5);
+}
+.pir-avatar-placeholder {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--panel-2);
+  border: 2px solid rgba(255, 200, 87, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Anton", sans-serif;
+  font-size: 22px;
+  color: var(--gold);
+  margin: 0 auto 6px;
+}
+/* Small avatar for lobby player list */
+.pir-avatar-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--panel-2);
+  border: 1px solid rgba(255, 200, 87, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--gold);
+  flex-shrink: 0;
+}
+.pir-avatar-human {
+  background: rgba(255, 200, 87, 0.15);
+}
+
+/* ---- Photo capture (PlayerView join screen) ---- */
+.pir-photo-area {
+  margin: 10px 0 6px;
+}
+.pir-camera-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.pir-camera-feed {
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--gold);
+  box-shadow: 0 0 20px rgba(255, 200, 87, 0.3);
+  transform: scaleX(-1); /* mirror for selfie */
+}
+.pir-camera-controls {
+  display: flex;
+  gap: 10px;
+}
+.pir-photo-preview {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  margin: 0 auto;
+}
+.pir-photo-preview img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--gold);
+  box-shadow: 0 0 20px rgba(255, 200, 87, 0.3);
+}
+.pir-photo-clear {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--red);
+  border: none;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pir-photo-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  background: var(--panel-2);
+  border: 2px dashed rgba(255, 200, 87, 0.3);
+  border-radius: 12px;
+}
+.pir-photo-prompt {
+  font-size: 13px;
+  color: var(--muted);
+}
+.pir-photo-btns {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Small button variant */
+.pir-btn.small {
+  font-size: 13px;
+  padding: 8px 18px;
+}

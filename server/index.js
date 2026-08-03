@@ -7,6 +7,7 @@ import {
   getRoom,
   publicState,
   joinRoom,
+  getPlayerPhoto,
   startGame,
   callNext,
   advance,
@@ -22,7 +23,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "4mb" })); // allow base64 photo uploads
 
 // Wraps a route handler so thrown errors become JSON error responses
 // instead of crashing the process.
@@ -58,8 +59,26 @@ app.post(
   "/api/rooms/:code/join",
   wrap(async (req, res) => {
     const room = requireRoom(req);
-    const player = joinRoom(room, req.body?.name);
+    const player = joinRoom(room, req.body?.name, req.body?.photo);
     res.json({ playerId: player.id, ...publicState(room) });
+  })
+);
+
+// Serve a player's photo by ID — called by the host view for podium display.
+// Separate from publicState to keep polling payloads small.
+app.get(
+  "/api/rooms/:code/photo/:playerId",
+  wrap(async (req, res) => {
+    const room = requireRoom(req);
+    const photo = getPlayerPhoto(room, req.params.playerId);
+    if (!photo) return res.status(404).json({ error: "No photo" });
+    // photo is a data URL like "data:image/jpeg;base64,..."
+    const [header, b64] = photo.split(",");
+    const mime = header.replace("data:", "").replace(";base64", "");
+    const buf = Buffer.from(b64, "base64");
+    res.set("Content-Type", mime);
+    res.set("Cache-Control", "public, max-age=3600");
+    res.send(buf);
   })
 );
 

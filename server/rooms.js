@@ -1,23 +1,13 @@
-// rooms.js
-//
-// In-memory room store + the bidding game's state machine. Each room moves
-// through: lobby -> calling -> item -> bidding -> reveal. The host client
-// drives progression by calling the action functions below in response to
-// `hostLine` changes (see HostView for the orchestration logic).
-
 import { randomUUID } from "crypto";
 import {
-  buildLineup,
-  computeAIBid,
-  computeWinners,
-  STRATEGIES,
-  shuffle,
+  buildLineup, computeAIBid, computeWinners, STRATEGIES, shuffle,
 } from "./gameLogic.js";
 import { getPrizePool, pickRandomItem } from "./prizeSource.js";
 
 const rooms = new Map();
-const ROOM_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
-const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // no I/O, avoids confusion
+const ROOM_TTL_MS = 4 * 60 * 60 * 1000;
+const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+const MAX_PLAYERS = 8;   // how many humans can join
 
 function genCode() {
   let code;
@@ -36,9 +26,9 @@ export function createRoom() {
     code,
     createdAt: Date.now(),
     updatedAt: Date.now(),
-    phase: "lobby", // lobby | calling | item | bidding | reveal
-    players: [], // humans who joined: { id, name }
-    contestants: [], // 4 seats, built at start: { id, name, isAI, strategy?, bid }
+    phase: "lobby",
+    players: [],
+    contestants: [],
     item: null,
     callIndex: -1,
     turn: 0,
@@ -55,12 +45,17 @@ export function getRoom(code) {
   return room || null;
 }
 
+// Strip base64 photo from public state to keep polling payloads small;
+// the photo is sent once at join time and the client caches it locally.
 export function publicState(room) {
   return {
     code: room.code,
     phase: room.phase,
-    players: room.players,
-    contestants: room.contestants,
+    players: room.players.map(({ id, name, hasPhoto }) => ({ id, name, hasPhoto: !!hasPhoto })),
+    contestants: room.contestants.map((c) => ({
+      ...c,
+      photo: c.isAI ? c.photo : undefined, // AI avatars are a URL (small), human photos excluded
+    })),
     item: room.item,
     callIndex: room.callIndex,
     turn: room.turn,
@@ -73,13 +68,25 @@ function setHostLine(room, text, type) {
   room.hostLine = { seq: room.hostLine.seq + 1, text, type };
 }
 
-export function joinRoom(room, name) {
+export function joinRoom(room, name, photoDataUrl) {
   if (room.phase !== "lobby") throw new Error("Game already started");
-  if (room.players.length >= 4) throw new Error("Room is full");
+  if (room.players.length >= MAX_PLAYERS) throw new Error("Room is full");
   const cleanName = (name || "").trim().slice(0, 24) || "Player";
-  const player = { id: randomUUID(), name: cleanName };
+  // Validate photo is a data URL if provided; silently drop if malformed.
+  let photo = null;
+  if (photoDataUrl && typeof photoDataUrl === "string" && photoDataUrl.startsWith("data:image/")) {
+    // Limit size to ~2MB base64
+    if (photoDataUrl.length < 2_800_000) photo = photoDataUrl;
+  }
+  const player = { id: randomUUID(), name: cleanName, photo, hasPhoto: !!photo };
   room.players.push(player);
   return player;
+}
+
+// Called by the host to fetch a specific player's photo (for podium display).
+export function getPlayerPhoto(room, playerId) {
+  const p = room.players.find((pl) => pl.id === playerId);
+  return p?.photo || null;
 }
 
 export async function startGame(room) {
@@ -99,9 +106,7 @@ export function callNext(room) {
   if (room.callIndex < room.contestants.length - 1) {
     room.callIndex += 1;
     const c = room.contestants[room.callIndex];
-    const extra = c.isAI
-      ? " You're our newest AI contestant on the Bidding Game."
-      : "";
+    const extra = c.isAI ? " You're our newest AI contestant on the Bidding Game." : "";
     setHostLine(room, `${c.name}, come on down!${extra}`, "call");
   }
 }
@@ -118,8 +123,7 @@ function revealLine(room) {
     line += " Everybody went over. Nobody's winning this one tonight.";
   } else {
     const names = winnerIndices.map((i) => contestants[i].name).join(" and ");
-    line +=
-      winnerIndices.length > 1 ? ` ${names} both win it!` : ` ${names} wins it!`;
+    line += winnerIndices.length > 1 ? ` ${names} both win it!` : ` ${names} wins it!`;
   }
   return line;
 }
@@ -166,8 +170,7 @@ export function nextTurn(room) {
   if (room.phase !== "bidding") throw new Error("Bidding isn't open");
   const c = room.contestants[room.turn];
   if (!c || c.bid == null) throw new Error("Current bid not set yet");
-  if (room.turn >= room.contestants.length - 1)
-    throw new Error("Already at the last turn");
+  if (room.turn >= room.contestants.length - 1) throw new Error("Already at last turn");
   room.turn += 1;
   promptTurn(room);
 }
@@ -197,7 +200,6 @@ export async function restart(room, mode) {
   }
 }
 
-// Periodically clear out stale rooms.
 setInterval(() => {
   const now = Date.now();
   for (const [code, room] of rooms) {
