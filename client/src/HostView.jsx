@@ -51,6 +51,14 @@ export default function HostView({ code }) {
     return () => { stopped = true; clearInterval(id); };
   }, [code]);
 
+  // When we enter game phase, prime lastSeqRef to the current seq so we
+  // don't accidentally replay the "welcome" line from startGame.
+  useEffect(() => {
+    if (phase === "game" && state?.hostLine) {
+      lastSeqRef.current = state.hostLine.seq;
+    }
+  }, [phase]);
+
   // Drive host lines (game phase only)
   useEffect(() => {
     if (phase !== "game" || !state?.hostLine) return;
@@ -84,24 +92,29 @@ export default function HostView({ code }) {
 
   const action = (fn) => () => fn().catch((e) => setError(e.message));
 
-  // "Start Game" — fetch config, unlock audio, begin opening
+  // "Start Game" — unlock audio, start game (builds lineup), then show opening
   const handleStart = async () => {
     // Unlock browser autoplay with a silent data URI on this gesture
     const el = audioRef.current;
     el.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
     el.play().then(() => { el.pause(); el.src = ""; }).catch(() => {});
-    // Fetch host config
+    // Fetch config and start game in parallel
     try {
-      const cfg = await getConfig();
+      const [cfg] = await Promise.all([
+        getConfig().catch(() => ({})),
+        startGame(code),
+      ]);
       setConfig(cfg);
-    } catch { /* use defaults */ }
+    } catch (e) { setError(e.message); return; }
     setPhase("opening");
   };
 
-  const handleOpeningDone = async () => {
+  // Opening is done — game is already started, just switch to game phase
+  const handleOpeningDone = () => {
     setPhase("game");
-    try { await startGame(code); } catch (e) { setError(e.message); }
   };
+
+
 
   const joinUrl = typeof window !== "undefined"
     ? `${window.location.origin}/play/${code}`
@@ -114,7 +127,8 @@ export default function HostView({ code }) {
 
       {phase === "opening" && state && (
         <OpeningSequence
-          players={state.players}
+          contestants={state.contestants}
+          roomCode={code}
           hostName={config.hostName}
           announcerVoice={config.announcerVoice}
           onDone={handleOpeningDone}
