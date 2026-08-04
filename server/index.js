@@ -15,6 +15,7 @@ import {
   resolveAITurn,
   nextTurn,
   restart,
+  resetBids,
 } from "./rooms.js";
 import { getTTS } from "./tts.js";
 import { getPrizePool } from "./prizeSource.js";
@@ -140,6 +141,15 @@ app.post(
   wrap(async (req, res) => {
     const room = requireRoom(req);
     nextTurn(room);
+    res.json(publicState(room));
+  })
+);
+
+app.post(
+  "/api/rooms/:code/reset-bids",
+  wrap(async (req, res) => {
+    const room = requireRoom(req);
+    resetBids(room);
     res.json(publicState(room));
   })
 );

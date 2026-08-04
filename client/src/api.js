@@ -58,3 +58,6 @@ export const playerPhotoUrl = (code, playerId) =>
   `${BASE}/rooms/${code}/photo/${playerId}`;
 
 export const getConfig = () => request("/config");
+
+export const resetBids = (code) =>
+  request(`/rooms/${code}/reset-bids`, { method: 'POST' });

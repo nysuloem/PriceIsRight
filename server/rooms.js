@@ -61,6 +61,7 @@ export function publicState(room) {
     turn: room.turn,
     hostLine: room.hostLine,
     winnerIndices: room.winnerIndices,
+    revealType: room.revealType || null,
   };
 }
 
@@ -118,14 +119,26 @@ function promptTurn(room) {
 
 function revealLine(room) {
   const { item, contestants, winnerIndices } = room;
-  let line = `The actual retail price is $${item.price}!`;
-  if (winnerIndices.length === 0) {
-    line += " Everybody went over. Nobody's winning this one tonight.";
-  } else {
-    const names = winnerIndices.map((i) => contestants[i].name).join(" and ");
-    line += winnerIndices.length > 1 ? ` ${names} both win it!` : ` ${names} wins it!`;
+  const price = item.price;
+
+  // Check for exact bid
+  const exactBidder = contestants.find(c => c.bid === price);
+  if (exactBidder) {
+    return { text: `The actual retail price is $${price}! And ${exactBidder.name} bid EXACTLY that! That is an exact bid — ${exactBidder.name} wins an extra one hundred dollars!`, type: "exactBid" };
   }
-  return line;
+
+  // All overbid
+  if (winnerIndices.length === 0) {
+    const bids = contestants.map(c => c.bid).filter(b => b != null);
+    const lowest = Math.min(...bids);
+    const lowestName = contestants.find(c => c.bid === lowest)?.name || "someone";
+    return { text: `The actual retail price is $${price}. You have all overbid! The lowest bid was ${lowestName} at $${lowest}. Nobody wins — let's try again!`, type: "overbid" };
+  }
+
+  // Normal winner
+  const names = winnerIndices.map((i) => contestants[i].name).join(" and ");
+  const winLine = winnerIndices.length > 1 ? `${names} both win it!` : `${names} wins it!`;
+  return { text: `The actual retail price is $${price}! ${winLine}`, type: "reveal" };
 }
 
 export function advance(room, to) {
@@ -144,7 +157,9 @@ export function advance(room, to) {
     if (room.phase !== "bidding") throw new Error("Bad phase for 'reveal'");
     room.phase = "reveal";
     room.winnerIndices = computeWinners(room.contestants, room.item.price);
-    setHostLine(room, revealLine(room), "reveal");
+    const reveal = revealLine(room);
+    room.revealType = reveal.type; // "reveal" | "overbid" | "exactBid"
+    setHostLine(room, reveal.text, reveal.type);
   } else {
     throw new Error(`Unknown target: ${to}`);
   }
@@ -166,6 +181,18 @@ export function resolveAITurn(room) {
   const prevBids = room.contestants.slice(0, room.turn).map((x) => x.bid);
   c.bid = computeAIBid(c.strategy, room.item.price, prevBids);
   setHostLine(room, `${c.name} bids $${c.bid}!`, "bidResult");
+}
+
+// Reset all bids and return to bidding phase (used after all-overbid)
+export function resetBids(room) {
+  if (room.phase !== "reveal") throw new Error("Not in reveal phase");
+  room.contestants.forEach(c => { c.bid = null; });
+  room.phase = "bidding";
+  room.turn = 0;
+  room.winnerIndices = [];
+  room.revealType = null;
+  const c = room.contestants[0];
+  setHostLine(room, `Alright ${c.name} — what's your bid this time?`, "prompt");
 }
 
 export function nextTurn(room) {

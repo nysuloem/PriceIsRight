@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Mic2, Bot, Trophy, Sparkles, ArrowRight, ChefHat, ExternalLink } from "lucide-react";
+import { Mic2, Bot, Trophy, Sparkles, ChefHat, ExternalLink } from "lucide-react";
 import {
   getState, startGame, callNext, advance,
-  resolveAITurn, nextTurn, restartGame, ttsUrl, playerPhotoUrl, getConfig,
+  resolveAITurn, nextTurn, restartGame, resetBids, ttsUrl, playerPhotoUrl, getConfig,
 } from "./api.js";
 import OpeningSequence from "./OpeningSequence.jsx";
 
@@ -26,11 +26,47 @@ function playTTS(audioEl, text, onDone, voice, style = "host") {
 // ---------------------------------------------------------------------------
 // HostView
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Sound effects — generated via Web Audio API, no files needed
+// ---------------------------------------------------------------------------
+function playBuzzer() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(120, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.8);
+    gain.gain.setValueAtTime(0.6, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.8);
+  } catch (e) { console.warn("buzzer failed", e); }
+}
+
+function playAlarm() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    for (let i = 0; i < 3; i++) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.value = 880;
+      const t = ctx.currentTime + i * 0.25;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.5, t + 0.05);
+      gain.gain.linearRampToValueAtTime(0, t + 0.2);
+      osc.start(t); osc.stop(t + 0.25);
+    }
+  } catch (e) { console.warn("alarm failed", e); }
+}
+
 export default function HostView({ code }) {
   const [state, setState] = useState(null);
   const [phase, setPhase] = useState("lobby"); // "lobby" | "opening" | "game"
   const [error, setError] = useState("");
-  const [readyToBid, setReadyToBid] = useState(false);
   const [config, setConfig] = useState({ hostName: "Robbie Archer", announcerVoice: "echo", hostVoice: "onyx" });
   const lastSeqRef = useRef(-1);
   const audioRef = useRef(null);       // host voice
@@ -67,18 +103,26 @@ export default function HostView({ code }) {
     if (type === "welcome" || type === "call") {
       return; // opening already did this — ignore
     } else if (type === "itemIntro") {
-      setReadyToBid(false);
       const parts = text.split("||");
       const hostPart = parts[0] || "";
       const announcerPart = parts[1] || "";
       const ann = announcerRef.current;
       const annVoice = config.announcerVoice || "echo";
-      // Host speaks first, then announcer describes the prize
+      let advancedToBidding = false;
+      const afterAnnounce = () => {
+        if (advancedToBidding) return;
+        advancedToBidding = true;
+        safely(() => advance(code, "bidding"));
+      };
+      // Safety net: if TTS takes too long or fails, advance anyway after 15s
+      const safetyTimer = setTimeout(afterAnnounce, 15000);
+      // Host introduces, announcer describes, then auto-advance to bidding
       playTTS(el, hostPart, () => {
         if (announcerPart && ann) {
-          playTTS(ann, announcerPart, () => setReadyToBid(true), annVoice, "announcer");
+          playTTS(ann, announcerPart, () => { clearTimeout(safetyTimer); afterAnnounce(); }, annVoice, "announcer");
         } else {
-          setReadyToBid(true);
+          clearTimeout(safetyTimer);
+          afterAnnounce();
         }
       }, voice);
     } else if (type === "prompt") {
@@ -90,6 +134,19 @@ export default function HostView({ code }) {
       playTTS(el, text, () => safely(() => last ? advance(code, "reveal") : nextTurn(code)), voice);
     } else if (type === "reveal") {
       playTTS(el, text, () => {}, voice);
+    } else if (type === "overbid") {
+      playBuzzer();
+      setTimeout(() => {
+        playTTS(el, text, () => {
+          // Auto-reset bids after host finishes speaking
+          setTimeout(() => safely(() => resetBids(code)), 1200);
+        }, voice);
+      }, 900); // let buzzer play first
+    } else if (type === "exactBid") {
+      playAlarm();
+      setTimeout(() => {
+        playTTS(el, text, () => {}, voice);
+      }, 800);
     }
   }, [state, code, phase]);
 
@@ -194,8 +251,7 @@ export default function HostView({ code }) {
               )}
               {state.phase === "calling" && <CallingView state={state} code={code} />}
               {state.phase === "item" && (
-                <ItemView state={state} readyToBid={readyToBid}
-                  onReady={action(() => advance(code, "bidding"))} />
+                <ItemView state={state} />
               )}
               {state.phase === "bidding" && <BiddingView state={state} code={code} />}
               {state.phase === "reveal" && (
@@ -275,7 +331,7 @@ function CallingView({ state, code }) {
 // ---------------------------------------------------------------------------
 // Item
 // ---------------------------------------------------------------------------
-function ItemView({ state, readyToBid, onReady }) {
+function ItemView({ state }) {
   const { item } = state;
   return (
     <>
@@ -289,11 +345,6 @@ function ItemView({ state, readyToBid, onReady }) {
             <div className="pir-item-desc">{item.hostDescription}</div>
           </div>
         </div>
-      </div>
-      <div className="pir-actions">
-        <button className="pir-btn" disabled={!readyToBid} onClick={onReady}>
-          Lock In Your Bids <ArrowRight size={18} />
-        </button>
       </div>
     </>
   );
@@ -316,13 +367,45 @@ function BiddingView({ state, code }) {
 // Reveal
 // ---------------------------------------------------------------------------
 function RevealView({ state, code, onBidAgain, onNewPlayers }) {
-  const { item, contestants, winnerIndices } = state;
+  const { item, contestants, winnerIndices, revealType } = state;
+  const isExact = revealType === "exactBid";
+  const isOverbid = revealType === "overbid";
+  const exactWinner = isExact ? contestants.find(c => c.bid === item.price) : null;
+
+  // Overbid screen — bids will be reset automatically by TTS completion
+  if (isOverbid) {
+    const bids = contestants.map(c => c.bid).filter(b => b != null);
+    const lowest = bids.length ? Math.min(...bids) : 0;
+    const lowestName = contestants.find(c => c.bid === lowest)?.name || "";
+    return (
+      <>
+        <div className="pir-winner-banner" style={{ color: "var(--red)", fontSize: "clamp(20px,4vw,30px)" }}>
+          🚫 Everyone overbid! Resetting…
+        </div>
+        <div className="pir-price-reveal">
+          <div className="label">Actual Retail Price</div>
+          <div className="price">${item.price}</div>
+        </div>
+        <ContestantRow contestants={contestants} showBids showDiff itemPrice={item.price} code={code} />
+        <p className="pir-helptext">Lowest bid: {lowestName} at ${lowest} — still too high!</p>
+      </>
+    );
+  }
+
   return (
     <>
       <div className="pir-price-reveal">
         <div className="label">Actual Retail Price</div>
         <div className="price">${item.price}</div>
       </div>
+
+      {isExact && exactWinner && (
+        <div className="pir-exact-bid-banner">
+          <div className="pir-exact-label">🎯 EXACT BID! +$100</div>
+          <CanadianHundred />
+        </div>
+      )}
+
       {winnerIndices.length > 0 ? (
         <div className="pir-winner-banner">
           <Trophy size={26} />
@@ -334,11 +417,11 @@ function RevealView({ state, code, onBidAgain, onNewPlayers }) {
           Everybody went over — nobody wins this one.
         </div>
       )}
+
       <ContestantRow contestants={contestants} winnerIndices={winnerIndices}
         showBids showDiff itemPrice={item.price} code={code} />
       <div className="pir-fineprint">
-        {item.name} · {item.retailer} · ${item.exactPrice?.toFixed(2)}
-        {item.priceIsLive ? " (live)" : " (last known)"}, rounded to ${item.price} for play
+        {item.name} · {item.retailer} · ${item.price}
       </div>
       <div className="pir-actions">
         <button className="pir-btn" onClick={onBidAgain}>
@@ -347,6 +430,43 @@ function RevealView({ state, code, onBidAgain, onNewPlayers }) {
         <button className="pir-btn secondary" onClick={onNewPlayers}>New Players</button>
       </div>
     </>
+  );
+}
+
+// Canadian $100 bill — SVG illustration
+function CanadianHundred() {
+  return (
+    <div className="pir-hundred-wrap">
+      <svg viewBox="0 0 340 160" xmlns="http://www.w3.org/2000/svg" className="pir-hundred-bill">
+        {/* Bill background */}
+        <rect width="340" height="160" rx="8" fill="#e8f5e0" />
+        {/* Brown border stripe */}
+        <rect width="340" height="160" rx="8" fill="none" stroke="#5a7a3a" strokeWidth="6" />
+        {/* Left colour block */}
+        <rect x="0" y="0" width="60" height="160" rx="8" fill="#b8d4a0" />
+        <rect x="55" y="0" width="10" height="160" fill="#b8d4a0" />
+        {/* Security thread */}
+        <rect x="105" y="0" width="4" height="160" fill="#7aaa5a" opacity="0.6" />
+        {/* Large "100" */}
+        <text x="190" y="95" fontFamily="Georgia,serif" fontSize="52" fontWeight="bold"
+          fill="#2d5a1a" textAnchor="middle" opacity="0.9">100</text>
+        {/* CANADA text */}
+        <text x="190" y="118" fontFamily="Arial,sans-serif" fontSize="11"
+          fill="#2d5a1a" textAnchor="middle" letterSpacing="4">CANADA</text>
+        {/* Maple leaf watermark */}
+        <text x="58" y="95" fontFamily="Arial" fontSize="36" fill="#5a7a3a"
+          textAnchor="middle" opacity="0.7">🍁</text>
+        {/* Right side denomination */}
+        <text x="310" y="60" fontFamily="Georgia,serif" fontSize="22" fontWeight="bold"
+          fill="#2d5a1a" textAnchor="middle" transform="rotate(90,310,60)">100</text>
+        {/* Serial number */}
+        <text x="140" y="140" fontFamily="monospace" fontSize="8"
+          fill="#2d5a1a" opacity="0.6">HDA 2847291</text>
+        {/* Top text */}
+        <text x="190" y="24" fontFamily="Arial,sans-serif" fontSize="8"
+          fill="#2d5a1a" textAnchor="middle" letterSpacing="1">BANK OF CANADA · BANQUE DU CANADA</text>
+      </svg>
+    </div>
   );
 }
 
