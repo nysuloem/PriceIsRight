@@ -92,13 +92,14 @@ export default function HostView({ code }) {
 
   const action = (fn) => () => fn().catch((e) => setError(e.message));
 
-  // "Start Game" — unlock audio, start game (builds lineup), then show opening
+  // "Start Game" — unlock audio, start game (builds lineup), wait for
+  // contestants to appear in state, THEN show opening.
   const handleStart = async () => {
-    // Unlock browser autoplay with a silent data URI on this gesture
     const el = audioRef.current;
+    // Unlock browser autoplay with a silent data URI triggered by this gesture
     el.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
     el.play().then(() => { el.pause(); el.src = ""; }).catch(() => {});
-    // Fetch config and start game in parallel
+
     try {
       const [cfg] = await Promise.all([
         getConfig().catch(() => ({})),
@@ -106,10 +107,21 @@ export default function HostView({ code }) {
       ]);
       setConfig(cfg);
     } catch (e) { setError(e.message); return; }
+
+    // Poll until the server state has contestants populated (it's immediate
+    // but the React state might not have caught up from the poll interval yet)
+    for (let i = 0; i < 10; i++) {
+      const s = await getState(code).catch(() => null);
+      if (s?.contestants?.length > 0) {
+        setState(s);
+        break;
+      }
+      await new Promise(r => setTimeout(r, 200));
+    }
+
     setPhase("opening");
   };
 
-  // Opening is done — game is already started, just switch to game phase
   const handleOpeningDone = () => {
     setPhase("game");
   };
