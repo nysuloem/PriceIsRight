@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, Component } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Mic2, Bot, Trophy, Sparkles, ChefHat, ExternalLink } from "lucide-react";
+import { Mic2, Bot, Trophy, Sparkles, ArrowRight, ChefHat, ExternalLink } from "lucide-react";
 import {
   getState, startGame, callNext, advance,
   resolveAITurn, nextTurn, restartGame, resetBids, ttsUrl, playerPhotoUrl, getConfig,
