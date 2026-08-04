@@ -187,15 +187,19 @@ function normalizeShopifyProduct(config, product) {
 }
 
 async function fetchShopifyRetailer(config) {
-  const url = `${config.baseUrl}/products.json?limit=250`;
-  const response = await fetchData(url);
-  const data = await response.json();
-  if (!Array.isArray(data.products)) throw new Error("Invalid product feed");
-
-  return data.products
-    .map((product) => normalizeShopifyProduct(config, product))
-    .filter(Boolean)
-    .sort((a, b) => a.name.localeCompare(b.name));
+  try {
+    const url = `${config.baseUrl}/products.json?limit=250`;
+    const response = await fetchData(url);
+    const data = await response.json();
+    if (!Array.isArray(data.products)) throw new Error("Invalid product feed");
+    return data.products
+      .map((product) => normalizeShopifyProduct(config, product))
+      .filter(Boolean)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  } catch (err) {
+    console.warn(`[prizeSource] ${config.retailer}: ${err.message}`);
+    return [];
+  }
 }
 
 function isSuitableBestBuyProduct(product) {
@@ -242,19 +246,23 @@ async function fetchBestBuyProducts(wanted = 160) {
   const products = [];
   const seen = new Set();
 
-  // Multiple pages are needed because marketplace listings are discarded.
   for (let page = 1; page <= 12 && products.length < wanted; page += 1) {
-    const url =
-      `https://www.bestbuy.ca/api/v2/json/search?categoryid=20001` +
-      `&page=${page}&pageSize=100`;
-    const response = await fetchData(url);
-    const data = await response.json();
-    for (const rawProduct of data.products || []) {
-      const product = normalizeBestBuyProduct(rawProduct);
-      if (product && !seen.has(product.id)) {
-        seen.add(product.id);
-        products.push(product);
+    try {
+      const url =
+        `https://www.bestbuy.ca/api/v2/json/search?categoryid=20001` +
+        `&page=${page}&pageSize=100`;
+      const response = await fetchData(url);
+      const data = await response.json();
+      for (const rawProduct of data.products || []) {
+        const product = normalizeBestBuyProduct(rawProduct);
+        if (product && !seen.has(product.id)) {
+          seen.add(product.id);
+          products.push(product);
+        }
       }
+    } catch (err) {
+      console.warn(`[prizeSource] Best Buy page ${page}: ${err.message}`);
+      break; // stop trying more pages if one fails
     }
   }
 
@@ -389,8 +397,16 @@ let cache = { items: null, fetchedAt: 0 };
 export async function getPrizePool(forceRefresh = false) {
   const stale = Date.now() - cache.fetchedAt > CACHE_TTL_MS;
   if (!cache.items || stale || forceRefresh) {
-    cache.items = await fetchPrizePool();
-    cache.fetchedAt = Date.now();
+    try {
+      cache.items = await fetchPrizePool();
+      cache.fetchedAt = Date.now();
+    } catch (err) {
+      console.error("[prizeSource] fetchPrizePool failed:", err.message);
+      // Always return at least the curated fallbacks so the game never crashes
+      if (!cache.items) {
+        cache.items = await Promise.all(CURATED_FALLBACKS.map(fetchCuratedFallback));
+      }
+    }
   }
   return cache.items;
 }
