@@ -13,11 +13,11 @@ const POLL_MS = 1200;
 // playTTS — fetch audio from the server and play it.
 // onDone fires when it ends, or after 1.5 s on error.
 // ---------------------------------------------------------------------------
-function playTTS(audioEl, text, onDone, voice) {
+function playTTS(audioEl, text, onDone, voice, style = "host") {
   if (!text) { onDone(); return; }
   let fired = false;
   const fire = () => { if (fired) return; fired = true; onDone(); };
-  audioEl.src = ttsUrl(text, voice, "host");
+  audioEl.src = ttsUrl(text, voice, style);
   audioEl.onended = fire;
   audioEl.onerror = () => setTimeout(fire, 1500);
   audioEl.play().catch(() => setTimeout(fire, 1500));
@@ -33,7 +33,8 @@ export default function HostView({ code }) {
   const [readyToBid, setReadyToBid] = useState(false);
   const [config, setConfig] = useState({ hostName: "Robbie Archer", announcerVoice: "echo", hostVoice: "onyx" });
   const lastSeqRef = useRef(-1);
-  const audioRef = useRef(null);
+  const audioRef = useRef(null);       // host voice
+  const announcerRef = useRef(null);   // announcer voice (for prize descriptions)
 
   // Poll server state
   useEffect(() => {
@@ -51,14 +52,6 @@ export default function HostView({ code }) {
     return () => { stopped = true; clearInterval(id); };
   }, [code]);
 
-  // When we enter game phase, prime lastSeqRef to the current seq so we
-  // don't accidentally replay the "welcome" line from startGame.
-  useEffect(() => {
-    if (phase === "game" && state?.hostLine) {
-      lastSeqRef.current = state.hostLine.seq;
-    }
-  }, [phase]);
-
   // Drive host lines (game phase only)
   useEffect(() => {
     if (phase !== "game" || !state?.hostLine) return;
@@ -68,16 +61,26 @@ export default function HostView({ code }) {
     const el = audioRef.current;
     const safely = (fn) => fn().catch((e) => setError(e.message));
 
-    const voice = config.hostVoice || "onyx";
-    if (type === "welcome") {
-      if (!text) return;
-      playTTS(el, text, () => safely(() => callNext(code)), voice);
-    } else if (type === "call") {
-      const last = state.callIndex >= state.contestants.length - 1;
-      playTTS(el, text, () => safely(() => last ? advance(code, "item") : callNext(code)), voice);
+    const voice = config.hostVoice || "echo";
+    // "welcome" and "call" types are handled by the opening sequence.
+    // The game loop only handles item onwards.
+    if (type === "welcome" || type === "call") {
+      return; // opening already did this — ignore
     } else if (type === "itemIntro") {
       setReadyToBid(false);
-      playTTS(el, text, () => setReadyToBid(true), voice);
+      const parts = text.split("||");
+      const hostPart = parts[0] || "";
+      const announcerPart = parts[1] || "";
+      const ann = announcerRef.current;
+      const annVoice = config.announcerVoice || "echo";
+      // Host speaks first, then announcer describes the prize
+      playTTS(el, hostPart, () => {
+        if (announcerPart && ann) {
+          playTTS(ann, announcerPart, () => setReadyToBid(true), annVoice, "announcer");
+        } else {
+          setReadyToBid(true);
+        }
+      }, voice);
     } else if (type === "prompt") {
       const c = state.contestants[state.turn];
       if (c?.isAI) playTTS(el, text, () => safely(() => resolveAITurn(code)), voice);
@@ -122,7 +125,29 @@ export default function HostView({ code }) {
     setPhase("opening");
   };
 
-  const handleOpeningDone = () => {
+  const handleOpeningDone = async () => {
+    // The opening already called all contestants — skip the server's "calling"
+    // phase by advancing straight through it to "item".
+    // First call-next enough times to exhaust the calling phase,
+    // then advance to item.
+    try {
+      // Fast-forward: call all contestants server-side (sets callIndex)
+      const s = await getState(code);
+      const needed = (s?.contestants?.length || 4);
+      for (let i = 0; i <= needed; i++) {
+        await callNext(code).catch(() => {});
+      }
+      // Now advance to item
+      await advance(code, "item");
+      // Get the latest state and prime the seq BEFORE entering game phase
+      const fresh = await getState(code);
+      if (fresh) {
+        setState(fresh);
+        lastSeqRef.current = fresh.hostLine.seq - 1; // -1 so the next effect fires
+      }
+    } catch (e) {
+      console.error("handleOpeningDone:", e);
+    }
     setPhase("game");
   };
 
@@ -134,15 +159,16 @@ export default function HostView({ code }) {
 
   return (
     <>
-      {/* Audio element is ALWAYS in the DOM — never conditionally rendered */}
+      {/* Audio elements always in DOM */}
       <audio ref={audioRef} style={{ display: "none" }} />
+      <audio ref={announcerRef} style={{ display: "none" }} />
 
       {phase === "opening" && state && (
         <OpeningSequence
           contestants={state.contestants}
           roomCode={code}
-          hostName={config.hostName}
           announcerVoice={config.announcerVoice}
+          hostVoice={config.hostVoice}
           onDone={handleOpeningDone}
         />
       )}

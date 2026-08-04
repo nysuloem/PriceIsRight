@@ -113,7 +113,7 @@ export function callNext(room) {
 
 function promptTurn(room) {
   const c = room.contestants[room.turn];
-  setHostLine(room, `${c.name}, what's your bid?`, "prompt");
+  setHostLine(room, `Alright ${c.name} — what's your bid?`, "prompt");
 }
 
 function revealLine(room) {
@@ -130,9 +130,11 @@ function revealLine(room) {
 
 export function advance(room, to) {
   if (to === "item") {
-    if (room.phase !== "calling") throw new Error("Bad phase for 'item'");
+    if (room.phase !== "calling" && room.phase !== "item") throw new Error("Bad phase for 'item'");
     room.phase = "item";
-    setHostLine(room, room.item.hostDescription, "itemIntro");
+    // "||" separates host line from announcer description — client splits on it
+    const hostLine = "Here's the first prize up for bids!";
+    setHostLine(room, `${hostLine}||${room.item.hostDescription}`, "itemIntro");
   } else if (to === "bidding") {
     if (room.phase !== "item") throw new Error("Bad phase for 'bidding'");
     room.phase = "bidding";
