@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, Component } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Mic2, Bot, Trophy, Sparkles, ChefHat, ExternalLink } from "lucide-react";
 import {
@@ -26,6 +26,28 @@ function playTTS(audioEl, text, onDone, voice, style = "host") {
 // ---------------------------------------------------------------------------
 // HostView
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Error boundary — shows a message instead of blank screen on crash
+// ---------------------------------------------------------------------------
+class ErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="pir-root" style={{ textAlign: "center", paddingTop: "20vh" }}>
+          <div className="pir-title" style={{ fontSize: 28 }}>Something went wrong</div>
+          <p className="pir-helptext" style={{ marginTop: 16 }}>{this.state.error.message}</p>
+          <button className="pir-btn" style={{ marginTop: 20 }} onClick={() => window.location.reload()}>
+            Reload
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Sound effects — generated via Web Audio API, no files needed
 // ---------------------------------------------------------------------------
@@ -63,7 +85,7 @@ function playAlarm() {
   } catch (e) { console.warn("alarm failed", e); }
 }
 
-export default function HostView({ code }) {
+function HostViewInner({ code }) {
   const [state, setState] = useState(null);
   const [phase, setPhase] = useState("lobby"); // "lobby" | "opening" | "game"
   const [error, setError] = useState("");
@@ -555,5 +577,13 @@ function ItemImage({ item }) {
     <div className="pir-item-frame">
       <img src={item.image} alt={item.imageAlt} onError={() => setErr(true)} />
     </div>
+  );
+}
+
+export default function HostView({ code }) {
+  return (
+    <ErrorBoundary>
+      <HostViewInner code={code} />
+    </ErrorBoundary>
   );
 }

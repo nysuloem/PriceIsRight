@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { THEME_B64 } from "./themeMusic.js";
 import { ttsUrl, playerPhotoUrl } from "./api.js";
 
 // ---------------------------------------------------------------------------
@@ -77,13 +76,18 @@ export default function OpeningSequence({
   }
 
   async function runSequence() {
-    // 1. Start theme
+    // 1. Start theme — load lazily so it doesn't block page render
     const theme = themeRef.current;
     if (theme) {
-      theme.src = THEME_B64;
-      theme.volume = 0.28;
-      theme.loop = true;
-      await theme.play().catch(() => {});
+      try {
+        const { THEME_B64 } = await import("./themeMusic.js");
+        theme.src = THEME_B64;
+        theme.volume = 0.28;
+        theme.loop = true;
+        await theme.play().catch(() => {});
+      } catch (err) {
+        console.warn("[OpeningSequence] theme music failed to load:", err.message);
+      }
     }
     await wait(600);
 
