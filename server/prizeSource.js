@@ -1,18 +1,40 @@
-// prizeSource.js — fetches LIVE prices from real Canadian retailer pages.
+// prizeSource.js — builds a 500+ item prize pool from Canadian retailer feeds.
 //
-// The product list is curated (hand-picked URLs), but prices are fetched
-// fresh every 30 minutes so they stay current.
+// Prices are in CAD and deliberately use the REGULAR price. Temporary sale,
+// coupon, loyalty, financing, marketplace, open-box, and refurbished prices
+// are ignored. The public API is compatible with the original module.
 //
-// Run standalone to test:  node prizeSource.js
+// Run standalone to test: node prizeSource.js
 
 const FETCH_HEADERS = {
   "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
   "Accept-Language": "en-CA,en;q=0.9",
-  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  Accept: "application/json,text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
 };
 
-const CANDIDATES = [
+const MIN_PRICE = 20;
+const MAX_PRICE = 25000;
+const TARGET_POOL_SIZE = 520;
+const PER_RETAILER_TARGET = 70;
+const CACHE_TTL_MS = 30 * 60 * 1000;
+const REQUEST_TIMEOUT_MS = 15000;
+
+// These are first-party Canadian storefronts. Shopify's public product feed
+// supplies current CAD prices, product URLs, vendor names, and product images.
+const SHOPIFY_RETAILERS = [
+  { retailer: "Province of Canada", baseUrl: "https://provinceofcanada.com" },
+  { retailer: "Peace Collective", baseUrl: "https://www.peace-collective.com" },
+  { retailer: "Knix Canada", baseUrl: "https://knix.ca" },
+  { retailer: "Herschel Supply Canada", baseUrl: "https://herschel.ca" },
+  { retailer: "Saje Natural Wellness", baseUrl: "https://www.saje.ca" },
+  { retailer: "Mastermind Toys", baseUrl: "https://mastermindtoys.com" },
+  { retailer: "Snuggle Bugz", baseUrl: "https://snugglebugz.ca" },
+];
+
+// A small set of hand-curated fallbacks is retained so the game still has
+// prizes if every live retailer is temporarily unavailable.
+const CURATED_FALLBACKS = [
   {
     id: "instant-pot-duo-v5",
     type: "canadianTire",
@@ -23,8 +45,8 @@ const CANDIDATES = [
     fallbackPrice: 159.99,
     image: "https://commons.wikimedia.org/wiki/Special:FilePath/Instant_Pot_%2849907000991%29.jpg",
     imageAlt: "Instant Pot Duo V5 multi-cooker",
-    // Short 1–2 sentence host description (TTS reads this aloud)
-    hostDescription: "From Canadian Tire — the Instant Pot Duo V5! Seven appliances in one six-quart pot: pressure cooker, slow cooker, rice maker, steamer, sauté pan, yogurt maker, and warmer.",
+    hostDescription:
+      "From Canadian Tire — the Instant Pot Duo V5! Seven appliances in one six-quart pot, including a pressure cooker, slow cooker, rice maker, steamer, and warmer.",
   },
   {
     id: "keurig-k-express",
@@ -36,7 +58,8 @@ const CANDIDATES = [
     fallbackPrice: 109.99,
     image: "https://i.ebayimg.com/images/g/ozoAAOSwo7NmNXcA/s-l500.jpg",
     imageAlt: "Keurig K-Express single serve coffee maker",
-    hostDescription: "From Canadian Tire — the Keurig K-Express! A slim single-serve brewer that makes six to twelve ounce cups from K-Cup pods, with a strong brew button for when you really need it.",
+    hostDescription:
+      "From Canadian Tire — the Keurig K-Express! A slim single-serve brewer with cup-size choices and a strong-brew setting.",
   },
   {
     id: "nintendo-switch-2",
@@ -47,8 +70,11 @@ const CANDIDATES = [
     brand: "Nintendo",
     retailer: "Best Buy Canada",
     fallbackPrice: 629.99,
+    image:
+      "https://multimedia.bbycastatic.ca/multimedia/products/500x500/192/19296/19296507.jpg",
     imageAlt: "Nintendo Switch 2 Console",
-    hostDescription: "From Best Buy Canada — the Nintendo Switch 2! A seven point nine inch HDR screen, four-K docked output, and magnetic Joy-Con 2 controllers — and it plays your whole Switch library.",
+    hostDescription:
+      "From Best Buy Canada — the Nintendo Switch 2! A portable game system with a high-definition display, docked TV play, and magnetic Joy-Con 2 controllers.",
   },
   {
     id: "roots-original-sweatpant",
@@ -57,73 +83,220 @@ const CANDIDATES = [
     name: "Roots Organic Original Sweatpant",
     brand: "Roots",
     retailer: "Roots Canada",
-    fallbackPrice: 84.00,
+    fallbackPrice: 84,
     image: null,
     imageAlt: "Roots Organic Original Sweatpant",
-    hostDescription: "From Roots Canada — the Organic Original Sweatpant! Soft organic cotton fleece, a true Canadian classic that's been in closets from coast to coast for generations.",
+    hostDescription:
+      "From Roots Canada — the Organic Original Sweatpant! Soft organic cotton fleece in a classic Canadian design.",
   },
 ];
 
-// Minimum plausible product price — filters out loyalty point values,
-// shipping thresholds, and other incidental dollar amounts on CT pages.
-const MIN_PRICE = 20;
-
-async function fetchHtml(url) {
-  const res = await fetch(url, {
-    headers: FETCH_HEADERS,
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.text();
+function slugify(value) {
+  return String(value)
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
 }
 
-// Extract the main product price from a Canadian Tire page.
-// Strategy: find ALL dollar amounts on the page, filter to plausible product
-// prices (>= MIN_PRICE), and take the first one. This avoids grabbing
-// "$2.99 shipping" or "$10 in CT Money" type values.
-function extractCtPrice(html) {
-  const matches = [...html.matchAll(/\$\s?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/g)];
-  for (const m of matches) {
-    const val = parseFloat(m[1].replace(/,/g, ""));
-    if (val >= MIN_PRICE) return val;
+function asMoney(value) {
+  const parsed = Number.parseFloat(String(value ?? "").replace(/[$,]/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function plausiblePrice(value) {
+  return Number.isFinite(value) && value >= MIN_PRICE && value <= MAX_PRICE;
+}
+
+function stripMarkup(value) {
+  return String(value || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\*\*/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function trimForSpeech(value, maxLength = 210) {
+  const clean = stripMarkup(value);
+  if (clean.length <= maxLength) return clean;
+  const shortened = clean.slice(0, maxLength - 1).replace(/\s+\S*$/, "");
+  return `${shortened}.`;
+}
+
+function makeHostDescription(retailer, name, description) {
+  const detail = trimForSpeech(description);
+  const intro = `From ${retailer} — ${name}!`;
+  if (!detail || detail.toLowerCase() === name.toLowerCase()) return intro;
+  return `${intro} ${detail}`;
+}
+
+async function fetchData(url) {
+  const response = await fetch(url, {
+    headers: FETCH_HEADERS,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response;
+}
+
+function chooseShopifyRegularPrice(product) {
+  const available = (product.variants || []).filter((variant) => variant.available !== false);
+  const variants = available.length ? available : product.variants || [];
+  const prices = variants
+    .map((variant) => {
+      const sellingPrice = asMoney(variant.price);
+      const compareAtPrice = asMoney(variant.compare_at_price);
+      // Shopify compare_at_price is the crossed-out regular price during a sale.
+      return compareAtPrice && compareAtPrice > sellingPrice ? compareAtPrice : sellingPrice;
+    })
+    .filter(plausiblePrice);
+  return prices.length ? Math.min(...prices) : null;
+}
+
+function normalizeShopifyProduct(config, product) {
+  const regularPrice = chooseShopifyRegularPrice(product);
+  if (!regularPrice || !product.handle || !product.title) return null;
+
+  const image = product.images?.[0]?.src || product.image?.src || null;
+  const brand = stripMarkup(product.vendor) || config.retailer;
+  const name = stripMarkup(product.title);
+  const url = `${config.baseUrl}/products/${product.handle}`;
+
+  return {
+    id: `${slugify(config.retailer)}-${product.id}`,
+    name,
+    brand,
+    retailer: config.retailer,
+    exactPrice: regularPrice,
+    price: Math.round(regularPrice),
+    priceIsLive: true,
+    priceKind: "regular",
+    currency: "CAD",
+    url,
+    image,
+    imageAlt: name,
+    category: stripMarkup(product.product_type) || "General merchandise",
+    hostDescription: makeHostDescription(config.retailer, name, product.body_html),
+  };
+}
+
+async function fetchShopifyRetailer(config) {
+  const url = `${config.baseUrl}/products.json?limit=250`;
+  const response = await fetchData(url);
+  const data = await response.json();
+  if (!Array.isArray(data.products)) throw new Error("Invalid product feed");
+
+  return data.products
+    .map((product) => normalizeShopifyProduct(config, product))
+    .filter(Boolean)
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function isSuitableBestBuyProduct(product) {
+  const text = `${product.name || ""} ${product.shortDescription || ""}`.toLowerCase();
+  const excluded = /\b(open[ -]?box|refurbished|renewed|used|pre-owned|monthly financing|digital download)\b/;
+  const firstParty = product.isMarketplace === false || product.seller?.name === "Best Buy";
+  return (
+    firstParty &&
+    product.isVisible !== false &&
+    !excluded.test(text) &&
+    plausiblePrice(asMoney(product.regularPrice))
+  );
+}
+
+function normalizeBestBuyProduct(product) {
+  if (!isSuitableBestBuyProduct(product)) return null;
+  const regularPrice = asMoney(product.regularPrice);
+  const name = stripMarkup(product.name);
+  const url = new URL(product.productUrl, "https://www.bestbuy.ca").href;
+
+  return {
+    id: `best-buy-${product.sku}`,
+    name,
+    brand: name.split(/\s+/)[0] || "Best Buy",
+    retailer: "Best Buy Canada",
+    exactPrice: regularPrice,
+    price: Math.round(regularPrice),
+    priceIsLive: true,
+    priceKind: "regular",
+    currency: "CAD",
+    url,
+    image: product.highResImage || product.thumbnailImage || null,
+    imageAlt: name,
+    category: stripMarkup(product.categoryName) || "Electronics",
+    hostDescription: makeHostDescription(
+      "Best Buy Canada",
+      name,
+      product.shortDescription,
+    ),
+  };
+}
+
+async function fetchBestBuyProducts(wanted = 160) {
+  const products = [];
+  const seen = new Set();
+
+  // Multiple pages are needed because marketplace listings are discarded.
+  for (let page = 1; page <= 12 && products.length < wanted; page += 1) {
+    const url =
+      `https://www.bestbuy.ca/api/v2/json/search?categoryid=20001` +
+      `&page=${page}&pageSize=100`;
+    const response = await fetchData(url);
+    const data = await response.json();
+    for (const rawProduct of data.products || []) {
+      const product = normalizeBestBuyProduct(rawProduct);
+      if (product && !seen.has(product.id)) {
+        seen.add(product.id);
+        products.push(product);
+      }
+    }
+  }
+
+  return products;
+}
+
+// Extract regular/list price from structured page data. This is intentionally
+// conservative: an ambiguous page falls back instead of risking a sale price.
+function extractRegularPrice(html) {
+  const patterns = [
+    /"regularPrice"\s*:\s*"?(\d[\d,]*(?:\.\d{1,2})?)/i,
+    /"listPrice"\s*:\s*"?(\d[\d,]*(?:\.\d{1,2})?)/i,
+    /"compareAtPrice"\s*:\s*"?(\d[\d,]*(?:\.\d{1,2})?)/i,
+  ];
+  for (const pattern of patterns) {
+    const match = html.match(pattern);
+    const value = match ? asMoney(match[1]) : null;
+    if (plausiblePrice(value)) return value;
   }
   return null;
 }
 
-async function fetchOne(candidate) {
+async function fetchCuratedFallback(candidate) {
   let exactPrice = candidate.fallbackPrice;
   let priceIsLive = false;
   let image = candidate.image || null;
 
   try {
-    if (candidate.type === "canadianTire") {
-      const html = await fetchHtml(candidate.url);
-      const price = extractCtPrice(html);
-      if (price !== null) {
-        exactPrice = price;
+    if (candidate.type !== "static") {
+      const html = await (await fetchData(candidate.url)).text();
+      const regularPrice = extractRegularPrice(html);
+      if (regularPrice !== null) {
+        exactPrice = regularPrice;
         priceIsLive = true;
       }
-    } else if (candidate.type === "bestBuy") {
-      const code = candidate.webCode;
-      image = `https://multimedia.bbycastatic.ca/multimedia/products/500x500/${code.slice(0,3)}/${code.slice(0,5)}/${code}.jpg`;
-      const html = await fetchHtml(candidate.url);
-      // BBY renders price client-side; try JSON blobs embedded in the page
-      const priceMatch = html.match(/"(?:currentPrice|salePrice|regularPrice)"\s*:\s*"?(\d+(?:\.\d{2})?)/);
-      if (priceMatch) {
-        const val = parseFloat(priceMatch[1]);
-        if (val >= MIN_PRICE) { exactPrice = val; priceIsLive = true; }
-      }
     }
-    // static: use fallback as-is
-  } catch (err) {
-    console.error(`[prizeSource] ${candidate.id}: ${err.message}`);
-  }
-
-  // Safety net: if live price is suspiciously low, fall back
-  if (priceIsLive && exactPrice < MIN_PRICE) {
-    console.warn(`[prizeSource] ${candidate.id}: live price $${exactPrice} too low, using fallback $${candidate.fallbackPrice}`);
-    exactPrice = candidate.fallbackPrice;
-    priceIsLive = false;
+    if (candidate.type === "bestBuy" && candidate.webCode && !image) {
+      const code = candidate.webCode;
+      image = `https://multimedia.bbycastatic.ca/multimedia/products/500x500/${code.slice(0, 3)}/${code.slice(0, 5)}/${code}.jpg`;
+    }
+  } catch (error) {
+    console.warn(`[prizeSource] ${candidate.id}: ${error.message}; using fallback`);
   }
 
   return {
@@ -134,19 +307,84 @@ async function fetchOne(candidate) {
     exactPrice,
     price: Math.round(exactPrice),
     priceIsLive,
+    priceKind: "regular",
+    currency: "CAD",
     url: candidate.url,
     image,
     imageAlt: candidate.imageAlt,
+    category: candidate.category || "General merchandise",
     hostDescription: candidate.hostDescription,
   };
 }
 
+function deduplicate(items) {
+  const ids = new Set();
+  const urls = new Set();
+  return items.filter((item) => {
+    if (!item || ids.has(item.id) || urls.has(item.url)) return false;
+    ids.add(item.id);
+    urls.add(item.url);
+    return true;
+  });
+}
+
+// Interleaving prevents one large retailer from crowding the others out.
+function interleaveRetailers(groups, targetSize) {
+  const result = [];
+  const positions = groups.map(() => 0);
+  let added = true;
+
+  while (result.length < targetSize && added) {
+    added = false;
+    for (let i = 0; i < groups.length && result.length < targetSize; i += 1) {
+      const item = groups[i][positions[i]];
+      if (item) {
+        result.push(item);
+        positions[i] += 1;
+        added = true;
+      }
+    }
+  }
+  return deduplicate(result);
+}
+
 export async function fetchPrizePool() {
-  return Promise.all(CANDIDATES.map(fetchOne));
+  const settled = await Promise.allSettled([
+    ...SHOPIFY_RETAILERS.map(fetchShopifyRetailer),
+    fetchBestBuyProducts(PER_RETAILER_TARGET * 2),
+  ]);
+
+  const groups = settled.map((result, index) => {
+    if (result.status === "fulfilled") return result.value;
+    const source = SHOPIFY_RETAILERS[index]?.retailer || "Best Buy Canada";
+    console.warn(`[prizeSource] ${source}: ${result.reason?.message || result.reason}`);
+    return [];
+  });
+
+  // Give each source an equal initial quota, then use every remaining product
+  // as a fill pool if a smaller retailer has fewer than 70 eligible products.
+  const quotaGroups = groups.map((group) => group.slice(0, PER_RETAILER_TARGET));
+  let items = interleaveRetailers(quotaGroups, TARGET_POOL_SIZE);
+
+  if (items.length < TARGET_POOL_SIZE) {
+    const overflow = groups.flatMap((group) => group.slice(PER_RETAILER_TARGET));
+    items = deduplicate([...items, ...overflow]).slice(0, TARGET_POOL_SIZE);
+  }
+
+  const curated = await Promise.all(CURATED_FALLBACKS.map(fetchCuratedFallback));
+  items = deduplicate([...items, ...curated]);
+
+  if (items.length < 500) {
+    console.warn(
+      `[prizeSource] Only ${items.length} prizes were available; ` +
+        "one or more retailer feeds may be temporarily unavailable.",
+    );
+  }
+
+  return items;
 }
 
 let cache = { items: null, fetchedAt: 0 };
-const CACHE_TTL_MS = 30 * 60 * 1000;
 
 export async function getPrizePool(forceRefresh = false) {
   const stale = Date.now() - cache.fetchedAt > CACHE_TTL_MS;
@@ -158,11 +396,32 @@ export async function getPrizePool(forceRefresh = false) {
 }
 
 export function pickRandomItem(pool, excludeId = null) {
-  const candidates = excludeId ? pool.filter((p) => p.id !== excludeId) : pool;
+  const candidates = excludeId ? pool.filter((item) => item.id !== excludeId) : pool;
   const list = candidates.length ? candidates : pool;
   return list[Math.floor(Math.random() * list.length)];
 }
 
+export function summarizePrizePool(pool) {
+  const byRetailer = {};
+  for (const item of pool) {
+    byRetailer[item.retailer] = (byRetailer[item.retailer] || 0) + 1;
+  }
+  return {
+    total: pool.length,
+    live: pool.filter((item) => item.priceIsLive).length,
+    regularPrice: pool.filter((item) => item.priceKind === "regular").length,
+    retailers: byRetailer,
+  };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
-  fetchPrizePool().then((items) => console.log(JSON.stringify(items, null, 2)));
+  fetchPrizePool()
+    .then((items) => {
+      console.log(JSON.stringify(summarizePrizePool(items), null, 2));
+      console.log(JSON.stringify(items.slice(0, 5), null, 2));
+    })
+    .catch((error) => {
+      console.error(error);
+      process.exitCode = 1;
+    });
 }
