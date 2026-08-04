@@ -47,7 +47,7 @@ export default function OpeningSequence({ contestants, roomCode, hostName, annou
       const el = voiceRef.current;
       let fired = false;
       const fire = () => { if (fired) return; fired = true; resolve(); };
-      el.src = ttsUrl(text, announcerVoice);
+      el.src = ttsUrl(text, announcerVoice, "announcer");
       el.volume = 1.0;
       el.onended = fire;
       el.onerror = () => setTimeout(fire, 1500);

@@ -17,7 +17,7 @@ function playTTS(audioEl, text, onDone, voice) {
   if (!text) { onDone(); return; }
   let fired = false;
   const fire = () => { if (fired) return; fired = true; onDone(); };
-  audioEl.src = ttsUrl(text, voice);
+  audioEl.src = ttsUrl(text, voice, "host");
   audioEl.onended = fire;
   audioEl.onerror = () => setTimeout(fire, 1500);
   audioEl.play().catch(() => setTimeout(fire, 1500));

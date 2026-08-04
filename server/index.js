@@ -160,8 +160,9 @@ app.get(
   wrap(async (req, res) => {
     const text = (req.query.text || "").toString().trim().slice(0, 600);
     if (!text) return res.status(400).json({ error: "Missing text" });
-    const voice = (req.query.voice || process.env.HOST_VOICE || "onyx").toString();
-    const audio = await getTTS(text, voice);
+    const voice = (req.query.voice || process.env.HOST_VOICE || "echo").toString();
+    const style = (req.query.style || "host").toString();
+    const audio = await getTTS(text, voice, style);
     if (!audio) return res.status(503).json({ error: "TTS unavailable" });
     res.set("Content-Type", "audio/mpeg");
     res.set("Cache-Control", "public, max-age=86400");
@@ -174,7 +175,7 @@ app.get("/api/config", (req, res) => {
   res.json({
     hostName: process.env.HOST_NAME || "Robbie Archer",
     announcerVoice: process.env.ANNOUNCER_VOICE || "echo",
-    hostVoice: process.env.HOST_VOICE || "onyx",
+    hostVoice: process.env.HOST_VOICE || "echo",
   });
 });
 
