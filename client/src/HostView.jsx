@@ -5,6 +5,7 @@ import {
   getState, startGame, callNext, advance,
   resolveAITurn, nextTurn, restartGame, resetBids, ttsUrl, playerPhotoUrl, getConfig,
   startPricingGame,
+  beginPricingGame,
   revealReplacement,
 } from "./api.js";
 import OpeningSequence from "./OpeningSequence.jsx";
@@ -100,6 +101,14 @@ function playAlarm() {
   } catch (e) { console.warn("alarm failed", e); }
 }
 
+function playSuccess() {
+  try { const ctx=new (window.AudioContext||window.webkitAudioContext)(); [523,659,784,1047].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.1;o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.25,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.28);o.start(t);o.stop(t+.3);}); } catch {}
+}
+
+function playWomp() {
+  try { const ctx=new (window.AudioContext||window.webkitAudioContext)(); [220,174,130].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.34;o.type="triangle";o.connect(g);g.connect(ctx.destination);o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(f*.65,t+.3);g.gain.setValueAtTime(.35,t);g.gain.exponentialRampToValueAtTime(.001,t+.32);o.start(t);o.stop(t+.34);}); } catch {}
+}
+
 function HostViewInner({ code }) {
   const [state, setState] = useState(null);
   const [phase, setPhase] = useState("lobby"); // "lobby" | "opening" | "game"
@@ -109,6 +118,18 @@ function HostViewInner({ code }) {
   const audioRef = useRef(null);       // host voice
   const announcerRef = useRef(null);   // announcer voice (for prize descriptions)
   const speechRunRef = useRef(0);
+  const lastOutcomeRef = useRef(0);
+
+  useEffect(() => { if (state?.isDemo && phase !== "game") setPhase("game"); }, [state?.isDemo]);
+
+  useEffect(() => {
+    const event = state?.pricingGame?.lastOutcome;
+    if (!event || event.seq === lastOutcomeRef.current) return;
+    lastOutcomeRef.current = event.seq;
+    if (event.kind === "success" || event.kind === "win") playSuccess();
+    else if (event.kind === "loss") playWomp();
+    else if (event.kind === "failure") playBuzzer();
+  }, [state?.pricingGame?.lastOutcome]);
 
   // Poll server state
   useEffect(() => {
@@ -205,10 +226,19 @@ function HostViewInner({ code }) {
             : restartGame(code, "sameLineup")), voice);
         });
       }, 800);
+    } else if (type === "pricingGameIntro") {
+      const game = state.pricingGame;
+      const hostIntro = `${text} ${game.instructions}`;
+      const prizes = game.introPrizes || [];
+      const announce = (index) => {
+        if (index >= prizes.length) return safely(() => beginPricingGame(code));
+        playTTS(ann, prizes[index].announcerText, () => current(() => announce(index + 1)), config.announcerVoice || "onyx", "announcer");
+      };
+      playTTS(el, hostIntro, () => current(() => announce(0)), voice, "host");
     } else if (type === "pricingGame" || type === "pricingPrompt") {
       playTTS(el, text, () => {}, voice);
     } else if (type === "pricingResult") {
-      playTTS(el, text, () => safely(() => restartGame(code, "sameLineup")), voice);
+      playTTS(el, text, () => { if (!state.isDemo) safely(() => restartGame(code, "sameLineup")); }, voice);
     }
   }, [state, code, phase]);
 
@@ -318,6 +348,7 @@ function HostViewInner({ code }) {
               {state.phase === "lobby" && (
                 <Lobby state={state} code={code} joinUrl={joinUrl} onStart={handleStart} />
               )}
+              {state.phase === "demoLobby" && <DemoLobby state={state} joinUrl={joinUrl} />}
               {state.phase === "calling" && <CallingView state={state} code={code} />}
               {state.phase === "replacement" && <ReplacementView state={state} code={code} />}
               {state.phase === "item" && (
@@ -330,7 +361,7 @@ function HostViewInner({ code }) {
                   onNextRound={forceAction(() => restartGame(code, "sameLineup"))}
                   onNewPlayers={action(() => restartGame(code, "newPlayers"))} />
               )}
-              {state.phase === "pricingGame" && (
+              {(state.phase === "pricingIntro" || state.phase === "pricingGame") && (
                 <PricingGameView game={state.pricingGame} />
               )}
             </>
@@ -341,6 +372,10 @@ function HostViewInner({ code }) {
       )}
     </>
   );
+}
+
+function DemoLobby({ state, joinUrl }) {
+  return <div className="pir-panel pir-center"><h2 className="pir-pricing-title">PRICING GAME TEST</h2><div className="pir-qr-box" style={{margin:"20px auto",width:"fit-content"}}><QRCodeSVG value={joinUrl} size={220} fgColor="#fff8e7" bgColor="transparent" /></div><p className="pir-helptext">Scan with a phone, enter the contestant's name, and the game will begin on this screen.</p><b>{state.players.length ? "Contestant connected — get ready!" : "Waiting for contestant…"}</b></div>;
 }
 
 // ---------------------------------------------------------------------------
@@ -525,18 +560,20 @@ export function PricingGameView({ game }) {
 
       {game.type === "plinko" && (
         <div className="pir-plinko-board">
-          <div className="pir-plinko-pegs">{Array.from({ length: 35 }, (_, i) => <i key={i} />)}</div>
+          {game.stage === "qualify" && <GameCards items={[game.qualifiers[game.qualifierIndex]].filter(Boolean)} />}
+          <div className="pir-plinko-drop-line">{Array.from({length:9},(_,i)=><span key={i}>{i+1}</span>)}</div>
+          <div className="pir-plinko-field"><div className="pir-plinko-pegs">{Array.from({ length: 63 }, (_, i) => <i key={i} />)}</div>{game.lastDrop && <div key={game.lastDrop.id} className="pir-plinko-chip" style={{"--start":game.lastDrop.start,"--land":game.lastDrop.landing}} />}</div>
           <div className="pir-plinko-slots">{game.slots.map((v,i) => <span key={i}>${v}</span>)}</div>
-          <b>{game.chipsLeft} chip{game.chipsLeft === 1 ? "" : "s"} left</b>
+          <b>{game.stage === "qualify" ? `${game.chips} chip${game.chips === 1 ? "" : "s"} earned` : `${game.chipsLeft} chip${game.chipsLeft === 1 ? "" : "s"} left`}</b>
         </div>
       )}
       {game.type === "cliffHangers" && (
         <div className="pir-cliff"><div className="pir-climber" style={{ left: `${Math.min(100, game.climber * 4)}%` }}>🧗</div><div className="pir-cliff-track" /><b>Step {game.climber} / 25</b></div>
       )}
-      {game.type === "punchABunch" && <div className="pir-punch-grid">{game.options.map(n => <span key={n}>{n}</span>)}</div>}
-      {game.type === "diceGame" && <div className="pir-price-digits"><span>{game.firstDigit}</span>{game.revealed.map((n,i)=><span key={i}>{n ?? "?"}</span>)}</div>}
+      {game.type === "punchABunch" && <><div className="pir-punch-status">PUNCHES EARNED: {game.punches}</div>{game.stage === "qualify" ? <GameCards items={[game.qualifiers[game.qualifierIndex]].filter(Boolean)} /> : <div className="pir-punch-grid">{Array.from({length:50},(_,i)=><span key={i} className={game.punched?.includes(i)?"punched":""}>{game.punched?.includes(i)?"💥":i+1}</span>)}</div>}</>}
+      {game.type === "diceGame" && <><GameCards items={[game.car]} /><div className="pir-dice-board"><div className="pir-price-digits"><span>{game.firstDigit}</span>{game.revealed.map((n,i)=><span key={i} className={game.correct[i]===false?"wrong":game.correct[i]===true?"right":""}>{n ?? "?"}</span>)}</div><div className="pir-dice-columns">{game.rolls.map((roll,i)=><div key={i}><div className={`pir-die ${i===game.digitIndex&&game.stage==="roll"?"rolling":""}`}>{roll ?? "–"}</div><b>{game.choices[i] || "WAITING"}</b><small>{game.correct[i]===true?"✓ RIGHT":game.correct[i]===false?"✕ WRONG":"LOCKED"}</small></div>)}</div></div></>}
       {game.type === "groceryGame" && <><div className="pir-register">TOTAL ${game.total.toFixed(2)}</div><GameCards items={game.items} /></>}
-      {game.type === "holeInOne" && <><div className="pir-golf-green">⛳<span>{game.distance ? `${game.distance} lines away` : "Order the products"}</span></div><GameCards items={game.items} /></>}
+      {game.type === "oneAway" && <><GameCards items={[game.car]} /><div className="pir-price-digits">{game.shownDigits.map((n,i)=><span key={i}>{game.answers[i] ? n+(game.answers[i]==="Higher"?1:-1) : n}</span>)}</div>{game.rightCount != null && <div className="pir-pricing-clue">{game.rightCount} RIGHT</div>}</>}
       {game.type === "clockGame" && <><div className="pir-clock">{game.secondsLeft}</div><GameCards items={game.items} /></>}
       {game.type === "anyNumber" && <div className="pir-any-number">{game.boards.map(b => <div key={b.label}><b>{b.label}</b><div className="pir-price-digits">{b.cells.map((n,i)=><span key={i}>{n ?? "_"}</span>)}</div></div>)}</div>}
       {game.type === "grandGame" && <><div className="pir-grand-money">${game.winnings}</div><div>Target: under ${game.target}</div><GameCards items={game.items} /></>}
@@ -551,7 +588,7 @@ export function PricingGameView({ game }) {
 }
 
 function GameCards({ items = [] }) {
-  return <div className="pir-game-cards">{items.map((item,i)=><div key={item.id ?? i} className={item.used || item.selected ? "used" : ""}><b>{item.name}</b>{item.shownPrice != null && <span>${item.shownPrice}</span>}</div>)}</div>;
+  return <div className="pir-game-cards">{items.map((item,i)=><div key={item.id ?? i} className={item.used || item.selected ? "used" : ""}>{item.image && <img src={item.image} alt="" onError={e=>{e.currentTarget.style.display="none"}} />}<b>{item.brand && <small>{item.brand}</small>}{item.name}</b>{item.description && <p>{item.description}</p>}{item.shownPrice != null && <span>${item.shownPrice}</span>}</div>)}</div>;
 }
 
 // Canadian $100 bill — SVG illustration
