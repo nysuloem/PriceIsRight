@@ -106,6 +106,9 @@ export default function OpeningSequence({
 
     await wait(400);
 
+    await announce("You are the first four contestants on The Price Is Right!");
+    await wait(350);
+
     // 4. Hand off to host
     await announce("And now... here's your host!");
     await wait(300);
@@ -119,8 +122,6 @@ export default function OpeningSequence({
   function photoSrc(c) {
     return c.isAI ? c.photo : playerPhotoUrl(roomCode, c.id);
   }
-
-  const cols = Math.min(contestants.length, 4);
 
   return (
     <div className="pir-opening">
@@ -137,45 +138,41 @@ export default function OpeningSequence({
           Building the lineup…
         </p>
       ) : (
-        <>
-          <div className="pir-opening-podiums"
-            style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-            {contestants.slice(0, 4).map((c, i) => (
-              <ContestantPodium key={c.id} contestant={c}
-                revealed={revealed.includes(i)} src={photoSrc(c)} />
-            ))}
-          </div>
-          {contestants.length > 4 && (
-            <div className="pir-opening-podiums"
-              style={{ gridTemplateColumns: `repeat(${Math.min(contestants.length - 4, 4)}, 1fr)`, marginTop: 10 }}>
-              {contestants.slice(4).map((c, i) => (
-                <ContestantPodium key={c.id} contestant={c}
-                  revealed={revealed.includes(i + 4)} src={photoSrc(c)} />
-              ))}
-            </div>
-          )}
-        </>
+        <div className="pir-podium-row pir-opening-row">
+          {contestants.map((c, i) => (
+            <ContestantPodium key={c.id} contestant={c}
+              revealed={revealed.includes(i)} active={i === revealed.at(-1)} src={photoSrc(c)} />
+          ))}
+        </div>
       )}
     </div>
   );
 }
 
-function ContestantPodium({ contestant, revealed, src }) {
+function ContestantPodium({ contestant, revealed, active, src }) {
   const [imgErr, setImgErr] = useState(false);
   return (
-    <div className={`pir-opening-podium${revealed ? " lit" : ""}`}>
-      <div className="pir-opening-avatar-wrap">
+    <div className={`pir-podium${revealed ? " called" : ""}${active ? " active" : ""}`}>
+      <div className="pir-contestant-upper">
+        <div className="pir-podium-mic" aria-hidden="true">
+          <span className="pir-mic-head" />
+          <span className="pir-mic-stem" />
+        </div>
         {revealed && src && !imgErr ? (
-          <img src={src} alt={contestant.name} className="pir-opening-photo"
+          <img src={src} alt={contestant.name} className="pir-avatar"
             onError={() => setImgErr(true)} />
         ) : (
-          <div className="pir-opening-avatar">
+          <div className="pir-avatar pir-avatar-placeholder">
             {revealed ? contestant.name[0].toUpperCase() : "?"}
           </div>
         )}
+        <div className="pir-podium-nameplate">
+          <div className="pir-podium-name">{revealed ? contestant.name : "???"}</div>
+        </div>
       </div>
-      <div className="pir-opening-name">{revealed ? contestant.name : "???"}</div>
-      <div className="pir-led dim">$ — — —</div>
+      <div className="pir-podium-console">
+        <div className="pir-led dim">$ — — —</div>
+      </div>
     </div>
   );
 }

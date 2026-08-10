@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import {
-  buildLineup, computeAIBid, computeWinners, STRATEGIES, shuffle,
+  buildLineup, computeAIBid, computeWinners, makeAIContestant, STRATEGIES, shuffle,
 } from "./gameLogic.js";
 import { getPrizePool, pickRandomItem } from "./prizeSource.js";
 import { createPricingGame, playPricingGame, publicPricingGame } from "./pricingGames.js";
@@ -35,8 +35,12 @@ export function createRoom() {
     turn: 0,
     winnerIndices: [],
     usedPrizeIds: [],
+    usedPrizeFamilies: [],
+    prizeCategoryCounts: {},
     playedPricingGames: [],
     pricingGame: null,
+    showcaseContestants: [],
+    replacementContestantId: null,
     hostLine: { seq: 0, text: "", type: "welcome" },
   };
   rooms.set(code, room);
@@ -67,6 +71,8 @@ export function publicState(room) {
     winnerIndices: room.winnerIndices,
     revealType: room.revealType || null,
     pricingGame: publicPricingGame(room.pricingGame),
+    showcaseContestants: room.showcaseContestants.map(({ id, name, isAI }) => ({ id, name, isAI })),
+    replacementContestantId: room.replacementContestantId,
   };
 }
 
@@ -80,9 +86,17 @@ async function selectFreshPrize(room) {
     // every available prize has genuinely been used in this room.
     if (!unused.length) { room.usedPrizeIds = []; unused = pool; }
   }
-  const item = pickRandomItem(unused);
+  const newFamilies = unused.filter(item => !room.usedPrizeFamilies.includes(item.prizeFamily));
+  if (newFamilies.length) unused = newFamilies;
+  // Prefer the least-used category in this room, which prevents a run of
+  // apparel even when retailer feeds contain many clothing products.
+  const minimum = Math.min(...unused.map(item => room.prizeCategoryCounts[item.bidCategory] || 0));
+  const balanced = unused.filter(item => (room.prizeCategoryCounts[item.bidCategory] || 0) === minimum);
+  const item = pickRandomItem(balanced.length ? balanced : unused);
   if (!item) throw new Error("No prizes are currently available");
   room.usedPrizeIds.push(item.id);
+  room.usedPrizeFamilies.push(item.prizeFamily);
+  room.prizeCategoryCounts[item.bidCategory] = (room.prizeCategoryCounts[item.bidCategory] || 0) + 1;
   return item;
 }
 
@@ -163,10 +177,11 @@ function revealLine(room) {
 
 export function advance(room, to) {
   if (to === "item") {
-    if (room.phase !== "calling" && room.phase !== "item") throw new Error("Bad phase for 'item'");
+    if (room.phase !== "calling" && room.phase !== "item" && room.phase !== "replacement") throw new Error("Bad phase for 'item'");
+    const firstItem = room.phase === "calling";
     room.phase = "item";
     // "||" separates host line from announcer description — client splits on it
-    const hostLine = "Here's the first prize up for bids!";
+    const hostLine = firstItem ? "Here's the first prize up for bids!" : "Here's the next prize up for bids!";
     setHostLine(room, `${hostLine}||${room.item.hostDescription}`, "itemIntro");
   } else if (to === "bidding") {
     if (room.phase !== "item") throw new Error("Bad phase for 'bidding'");
@@ -208,7 +223,9 @@ export function submitBid(room, playerId, amount) {
   const c = room.contestants[room.turn];
   if (!c || c.id !== playerId) throw new Error("Not your turn");
   if (c.bid != null) throw new Error("Already bid");
-  c.bid = Math.max(0, Math.min(9999, Math.round(Number(amount) || 0)));
+  const bid = Math.max(1, Math.min(9999, Math.round(Number(amount) || 0)));
+  if (room.contestants.some(other => other.bid === bid)) throw new Error("That bid has already been used");
+  c.bid = bid;
   setHostLine(room, `${c.name} bids $${c.bid}!`, "bidResult");
 }
 
@@ -217,7 +234,7 @@ export function resolveAITurn(room) {
   const c = room.contestants[room.turn];
   if (!c || !c.isAI || c.bid != null) throw new Error("Invalid AI turn");
   const prevBids = room.contestants.slice(0, room.turn).map((x) => x.bid);
-  c.bid = computeAIBid(c.strategy, room.item.price, prevBids);
+  c.bid = computeAIBid(c.strategy, room.item.price, prevBids, room.turn, room.contestants.length);
   setHostLine(room, `${c.name} bids $${c.bid}!`, "bidResult");
 }
 
@@ -252,21 +269,41 @@ export async function restart(room, mode) {
     room.turn = 0;
     room.winnerIndices = [];
     room.usedPrizeIds = [];
+    room.usedPrizeFamilies = [];
+    room.prizeCategoryCounts = {};
     room.playedPricingGames = [];
     room.pricingGame = null;
+    room.showcaseContestants = [];
+    room.replacementContestantId = null;
     setHostLine(room, "", "welcome");
   } else {
-    room.contestants = room.contestants.map((c) => ({
+    const winnerIndex = room.winnerIndices[0];
+    const winner = room.contestants[winnerIndex];
+    if (winner) room.showcaseContestants.push({ ...winner, bid: null });
+    room.contestants = room.contestants.filter((_, index) => index !== winnerIndex).map((c) => ({
       ...c,
       bid: null,
       strategy: c.isAI ? shuffle(STRATEGIES)[0] : c.strategy,
     }));
+
+    const unavailable = new Set([
+      ...room.contestants.map(c => c.id),
+      ...room.showcaseContestants.map(c => c.id),
+    ]);
+    const waitingHuman = room.players.find(player => !unavailable.has(player.id));
+    const replacement = waitingHuman
+      ? { id: waitingHuman.id, name: waitingHuman.name, isAI: false, strategy: null, bid: null, photo: waitingHuman.photo || null }
+      : makeAIContestant([...room.contestants, ...room.showcaseContestants], room.showcaseContestants.length);
+    room.contestants.push(replacement);
+    room.replacementContestantId = replacement.id;
     room.item = await selectFreshPrize(room);
     room.turn = 0;
     room.winnerIndices = [];
     room.pricingGame = null;
-    room.phase = "item";
-    setHostLine(room, `Here's the next prize up for bids!||${room.item.hostDescription}`, "itemIntro");
+    room.phase = "replacement";
+    setHostLine(room,
+      `We need a new contestant!||Here's one for you... ${replacement.name}, come on down! You're the next contestant on The Price Is Right!`,
+      "replacementIntro");
   }
 }
 

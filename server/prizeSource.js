@@ -336,6 +336,63 @@ function deduplicate(items) {
   });
 }
 
+export function prizeCategory(item) {
+  const text = `${item.category || ""} ${item.name || ""}`.toLowerCase();
+  if (/\b(tv|television|laptop|computer|tablet|phone|camera|speaker|headphone|console|gaming|electronics?)\b/.test(text)) return "Electronics";
+  if (/\b(toy|game|puzzle|doll|lego|playset|scooter)\b/.test(text)) return "Toys & Games";
+  if (/\b(baby|infant|stroller|car seat|crib|nursery|toddler)\b/.test(text)) return "Baby & Family";
+  if (/\b(kitchen|cook|coffee|toaster|blender|mixer|furniture|lamp|bedding|blanket|vacuum|home)\b/.test(text)) return "Home & Kitchen";
+  if (/\b(skincare|beauty|shampoo|conditioner|makeup|wellness|oil|cream|lotion|diffuser)\b/.test(text)) return "Beauty & Wellness";
+  if (/\b(backpack|luggage|bag|wallet|watch|sunglasses|travel)\b/.test(text)) return "Travel & Accessories";
+  if (/\b(outdoor|camp|bike|sport|fitness|golf|hockey|garden)\b/.test(text)) return "Sports & Outdoors";
+  if (/\b(shirt|tee|t-shirt|hoodie|sweater|sweatshirt|pant|jogger|legging|dress|bra|underwear|sock|jacket|coat|apparel|clothing)\b/.test(text)) return "Apparel";
+  return "General Merchandise";
+}
+
+// Deliberately broad: once a T-shirt has appeared in a room, another T-shirt
+// is not considered a fresh experience merely because its colour or logo is
+// different.
+export function prizeFamily(item) {
+  const text = `${item.category || ""} ${item.name || ""}`.toLowerCase();
+  const families = [
+    ["t-shirt", /\b(t-?shirt|tee)\b/], ["hoodie", /\b(hoodie|sweatshirt)\b/],
+    ["sweater", /\b(sweater|cardigan|crewneck)\b/], ["pants", /\b(sweatpant|jogger|legging|trouser|pants?)\b/],
+    ["underwear", /\b(bra|underwear|brief|boxer)\b/], ["socks", /\bsocks?\b/],
+    ["outerwear", /\b(jacket|coat|parka|vest)\b/], ["backpack", /\b(backpack|rucksack)\b/],
+    ["luggage", /\b(luggage|suitcase|duffel)\b/], ["stroller", /\bstroller\b/],
+    ["car-seat", /\bcar seat\b/], ["headphones", /\b(headphone|earbud|headset)\b/],
+    ["speaker", /\bspeaker\b/], ["television", /\b(tv|television)\b/], ["computer", /\b(laptop|computer|chromebook)\b/],
+    ["game-console", /\b(console|nintendo switch|playstation|xbox)\b/], ["coffee-maker", /\b(coffee maker|espresso|keurig)\b/],
+    ["skincare", /\b(serum|face cream|moisturizer|cleanser|skincare)\b/], ["diffuser", /\bdiffuser\b/],
+    ["board-game", /\b(board game|puzzle|card game)\b/], ["building-toy", /\b(lego|building set|blocks)\b/],
+  ];
+  const matched = families.find(([, regex]) => regex.test(text));
+  if (matched) return matched[0];
+  const normalized = (item.name || "prize").toLowerCase()
+    .replace(/\b(men'?s|women'?s|kids?'?|black|white|blue|red|green|pink|grey|gray|small|medium|large|new|classic|original)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).slice(0, 4).join("-");
+  return normalized || item.id;
+}
+
+function enrichPrize(item) {
+  return { ...item, bidCategory: prizeCategory(item), prizeFamily: prizeFamily(item) };
+}
+
+function reduceSimilarPrizes(items) {
+  const familyCounts = new Map();
+  const apparelLimit = 36;
+  let apparelCount = 0;
+  return items.filter(item => {
+    const family = item.prizeFamily;
+    const count = familyCounts.get(family) || 0;
+    if (count >= 3) return false;
+    if (item.bidCategory === "Apparel" && apparelCount >= apparelLimit) return false;
+    familyCounts.set(family, count + 1);
+    if (item.bidCategory === "Apparel") apparelCount += 1;
+    return true;
+  });
+}
+
 // Interleaving prevents one large retailer from crowding the others out.
 function interleaveRetailers(groups, targetSize) {
   const result = [];
@@ -380,11 +437,11 @@ export async function fetchPrizePool() {
   }
 
   const curated = await Promise.all(CURATED_FALLBACKS.map(fetchCuratedFallback));
-  items = deduplicate([...items, ...curated]);
+  items = reduceSimilarPrizes(deduplicate([...items, ...curated]).map(enrichPrize));
 
-  if (items.length < 500) {
+  if (items.length < 200) {
     console.warn(
-      `[prizeSource] Only ${items.length} prizes were available; ` +
+      `[prizeSource] Only ${items.length} varied prizes were available; ` +
         "one or more retailer feeds may be temporarily unavailable.",
     );
   }

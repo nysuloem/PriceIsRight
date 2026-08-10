@@ -745,6 +745,10 @@ body {
   padding: 24px;
   overflow: hidden;
 }
+.pir-opening-row {
+  width: min(100%, 820px);
+  margin: 10px auto 0;
+}
 
 .pir-opening-logo {
   text-align: center;

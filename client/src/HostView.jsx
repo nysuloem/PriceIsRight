@@ -145,6 +145,13 @@ function HostViewInner({ code }) {
     // The game loop only handles item onwards.
     if (type === "welcome" || type === "call") {
       return; // opening already did this — ignore
+    } else if (type === "replacementIntro") {
+      const [hostPart = "", announcerPart = ""] = text.split("||");
+      const annVoice = config.announcerVoice || "echo";
+      playTTS(el, hostPart, () => current(() => {
+        if (announcerPart && ann) playTTS(ann, announcerPart, () => safely(() => advance(code, "item")), annVoice, "announcer");
+        else safely(() => advance(code, "item"));
+      }), voice);
     } else if (type === "itemIntro") {
       const parts = text.split("||");
       const hostPart = parts[0] || "";
@@ -301,6 +308,7 @@ function HostViewInner({ code }) {
                 <Lobby state={state} code={code} joinUrl={joinUrl} onStart={handleStart} />
               )}
               {state.phase === "calling" && <CallingView state={state} code={code} />}
+              {state.phase === "replacement" && <ReplacementView state={state} code={code} />}
               {state.phase === "item" && (
                 <ItemView state={state} />
               )}
@@ -371,6 +379,16 @@ function CallingView({ state, code }) {
       <Caption icon={<Mic2 size={20} />}
         text={state.hostLine.text || "Let's meet today's contestants…"} />
       <ContestantRow contestants={state.contestants} highlight={state.callIndex} code={code} />
+    </>
+  );
+}
+
+function ReplacementView({ state, code }) {
+  const replacementIndex = state.contestants.findIndex(c => c.id === state.replacementContestantId);
+  return (
+    <>
+      <Caption icon={<Mic2 size={20} />} text="We need a new contestant!" />
+      <ContestantRow contestants={state.contestants} activeTurn={replacementIndex} code={code} />
     </>
   );
 }

@@ -34,7 +34,9 @@ export function buildLineup(players) {
   const stratPool = shuffle(STRATEGIES);
   const usedNames = new Set(players.map((p) => p.name));
 
-  const lineup = players.map((p) => ({
+  // Contestants' Row always contains exactly four people. Extra humans remain
+  // in the room's waiting queue and are called after a winner leaves.
+  const lineup = players.slice(0, MIN_SEATS).map((p) => ({
     id: p.id,
     name: p.name,
     isAI: false,
@@ -64,27 +66,62 @@ export function buildLineup(players) {
   return lineup;
 }
 
-export function computeAIBid(strategy, price, previousBids) {
+export function makeAIContestant(existingContestants = [], sequence = 0) {
+  const usedNames = new Set(existingContestants.map(c => c.name));
+  const name = shuffle(AI_NAMES).find(candidate => !usedNames.has(candidate)) || `Player ${sequence + 1}`;
+  return {
+    id: `ai-${Date.now()}-${sequence}-${Math.random().toString(36).slice(2, 7)}`,
+    name,
+    isAI: true,
+    strategy: shuffle(STRATEGIES)[0],
+    bid: null,
+    photo: aiAvatarUrl(name),
+  };
+}
+
+export function computeAIBid(strategy, price, previousBids, position = 0, totalBidders = 4) {
   const prev = previousBids.filter((b) => b != null);
+  // AI contestants do not know the actual retail price; price is used to
+  // create a noisy private estimate, just as a human has an approximate idea.
+  const estimate = Math.max(1, Math.round(price * (0.72 + Math.random() * 0.42)));
+  const isLast = position === totalBidders - 1;
+
+  // Classic final-bid strategy: if every existing bid appears too high, bid
+  // $1. Otherwise bid one dollar above the strongest plausible bid.
+  if (isLast && prev.length) {
+    const plausible = prev.filter(bid => bid < estimate);
+    if (!plausible.length) return 1;
+    const strategic = Math.max(...plausible) + 1;
+    if (!prev.includes(strategic)) return strategic;
+  }
+
+  let bid;
   switch (strategy) {
     case "cautious":
-      return Math.max(1, Math.round(price * (0.5 + Math.random() * 0.25)));
+      bid = Math.max(1, Math.round(estimate * (0.72 + Math.random() * 0.16)));
+      break;
     case "wildcard":
-      return Math.max(1, Math.round(price * (0.3 + Math.random() * 1.0)));
+      bid = Math.max(1, Math.round(estimate * (0.55 + Math.random() * 0.8)));
+      break;
     case "plusOne": {
       if (prev.length > 0) {
         const maxPrev = Math.max(...prev);
-        if (maxPrev > 0 && maxPrev < price * 1.5) return maxPrev + 1;
+        if (maxPrev > 0 && maxPrev < estimate) bid = maxPrev + 1;
       }
-      return Math.max(1, Math.round(price * (0.85 + Math.random() * 0.13)));
+      if (bid == null) bid = estimate;
+      break;
     }
     case "confident":
     default:
-      return Math.max(1, Math.round(price * (0.85 + Math.random() * 0.13)));
+      bid = estimate;
   }
+  // Duplicate bids are not allowed on the show. Nudge upward until unique.
+  while (prev.includes(bid) && bid < 9999) bid += 1;
+  return Math.min(9999, bid);
 }
 
-// Closest bid without going over wins. Ties are co-winners.
+// Closest bid without going over wins. Duplicate bids are rejected before
+// this point, so there is always at most one winner.
 // If everyone goes over, nobody wins.
 export function computeWinners(contestants, price) {
   const diffs = contestants.map((c) =>

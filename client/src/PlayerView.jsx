@@ -243,6 +243,14 @@ export default function PlayerView({ code }) {
         </div>
       )}
 
+      {state.phase === "replacement" && (
+        <div className="pir-panel pir-center">
+          {state.replacementContestantId === playerId
+            ? <p><b>Come on down!</b> You are the next contestant on The Price Is Right!</p>
+            : <p>A new contestant is being called—watch the big screen!</p>}
+        </div>
+      )}
+
       {state.phase === "item" && state.item && (
         <div className="pir-panel pir-center">
           <PlayerItemImage item={state.item} />
