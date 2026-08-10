@@ -1,204 +1,113 @@
 const SMALL_ITEMS = [
-  { name: "Coffee filters", price: 6 }, { name: "Travel mug", price: 18 },
-  { name: "Toaster", price: 42 }, { name: "Hair dryer", price: 36 },
-  { name: "Desk lamp", price: 29 }, { name: "Electric kettle", price: 55 },
-  { name: "Blender", price: 68 }, { name: "Throw blanket", price: 32 },
-  { name: "Board game", price: 27 }, { name: "Bluetooth speaker", price: 74 },
+  { name: "Electric kettle", brand: "Hamilton Beach", description: "A compact stainless-steel electric kettle.", price: 55, image: "https://images.unsplash.com/photo-1594213114663-d94db9b17125?auto=format&fit=crop&w=600&q=80" },
+  { name: "Personal blender", brand: "Ninja", description: "A personal blender with two travel cups.", price: 79, image: "https://images.unsplash.com/photo-1570222094114-d054a817e56b?auto=format&fit=crop&w=600&q=80" },
+  { name: "Desk lamp", brand: "Globe Electric", description: "An adjustable LED task lamp.", price: 32, image: "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=600&q=80" },
+  { name: "Bluetooth speaker", brand: "JBL", description: "A portable water-resistant wireless speaker.", price: 74, image: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?auto=format&fit=crop&w=600&q=80" },
+  { name: "Toaster", brand: "Black+Decker", description: "A two-slice extra-wide-slot toaster.", price: 46, image: "https://images.unsplash.com/photo-1583722799618-179f37a8b80d?auto=format&fit=crop&w=600&q=80" },
+  { name: "Hair dryer", brand: "Conair", description: "A lightweight ionic hair dryer.", price: 38, image: "https://images.unsplash.com/photo-1522338242992-e1a54906a8da?auto=format&fit=crop&w=600&q=80" },
+  { name: "Waffle maker", brand: "Cuisinart", description: "A round non-stick waffle maker.", price: 67, image: "https://images.unsplash.com/photo-1562376552-0d160a2f238d?auto=format&fit=crop&w=600&q=80" },
+  { name: "Digital scale", brand: "Starfrit", description: "A glass-top digital kitchen scale.", price: 29, image: "https://images.unsplash.com/photo-1591261730799-ee4e6c2d16d7?auto=format&fit=crop&w=600&q=80" },
 ];
 
 const GROCERIES = [
-  { name: "Pasta sauce", price: 4.79 }, { name: "Cereal", price: 6.49 },
-  { name: "Dish soap", price: 3.69 }, { name: "Peanut butter", price: 5.99 },
-  { name: "Frozen pizza", price: 7.49 }, { name: "Coffee", price: 9.99 },
-  { name: "Crackers", price: 3.29 }, { name: "Shampoo", price: 8.49 },
+  { name: "Vanilla Ice Cream", brand: "Chapman's", description: "Four litres of Canadian-made vanilla ice cream.", price: 8.99, image: "https://www.chapmans.ca/wp-content/uploads/2022/11/Original-Vanilla-4L.png" },
+  { name: "Maple Crème Cookies", brand: "Dare", description: "Canadian maple-leaf sandwich cookies with crème filling.", price: 4.49, image: "https://www.darefoods.com/wp-content/uploads/2021/03/Dare-Ultimate-Maple-Creme.png" },
+  { name: "Cheezies", brand: "Hawkins", description: "A 210-gram bag of crunchy Canadian cheese snacks.", price: 4.29, image: "https://hawkinscheezies.com/wp-content/uploads/2020/08/cheezies-bag.png" },
+  { name: "Coffee Crisp", brand: "Nestlé", description: "A four-pack of coffee-flavoured wafer bars.", price: 3.99, image: "https://www.madewithnestle.ca/sites/default/files/2024-02/coffee-crisp-4-pack.png" },
+  { name: "Original Macaroni & Cheese", brand: "Kraft Dinner", description: "A 200-gram box of classic Canadian comfort food.", price: 2.19, image: "https://assets.kraftfoods.com/recipe_images/opendeploy/110084_640x428.jpg" },
+  { name: "Ginger Ale", brand: "Canada Dry", description: "A twelve-pack of 355-millilitre cans.", price: 8.49, image: "https://www.canadadry.ca/images/product-ginger-ale.png" },
+  { name: "All Dressed Chips", brand: "Ruffles", description: "A 200-gram bag of all-dressed potato chips.", price: 4.79, image: "https://www.tastyrewards.com/sites/default/files/2023-09/ruffles-all-dressed.png" },
+  { name: "Maple Cookies", brand: "Leclerc", description: "Maple-leaf cookies made in Canada.", price: 3.49, image: "https://leclerc.ca/wp-content/uploads/2021/03/maple-leaf-cookies.png" },
 ];
 
-const GAME_NAMES = [
-  "plinko", "cliffHangers", "punchABunch", "diceGame", "groceryGame",
-  "holeInOne", "clockGame", "anyNumber", "grandGame", "shellGame",
+const CARS = [
+  { name: "2026 Hyundai Elantra Essential", brand: "Hyundai", description: "A compact sedan with an automatic transmission, heated front seats, and modern safety technology.", price: 26135, image: "https://images.unsplash.com/photo-1619767886558-efdc259cde1a?auto=format&fit=crop&w=1200&q=85" },
+  { name: "2026 Toyota Corolla LE", brand: "Toyota", description: "A fuel-efficient sedan with automatic climate control and a touchscreen multimedia system.", price: 28164, image: "https://images.unsplash.com/photo-1623869675781-80aa31012a5a?auto=format&fit=crop&w=1200&q=85" },
+  { name: "2026 Nissan Sentra S", brand: "Nissan", description: "A comfortable compact sedan with intelligent emergency braking and smartphone integration.", price: 25146, image: "https://images.unsplash.com/photo-1609521263047-f8f205293f24?auto=format&fit=crop&w=1200&q=85" },
 ];
 
-const pick = (items) => items[Math.floor(Math.random() * items.length)];
-const shuffle = (items) => {
-  const copy = [...items];
-  for (let i = copy.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-};
+const GAME_NAMES = ["plinko", "cliffHangers", "punchABunch", "diceGame", "groceryGame", "oneAway", "clockGame", "anyNumber", "grandGame", "shellGame"];
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
+const shuffle = (a) => { const c = [...a]; for (let i=c.length-1;i>0;i-=1) { const j=Math.floor(Math.random()*(i+1)); [c[i],c[j]]=[c[j],c[i]]; } return c; };
 const money = (n) => `$${Number(n).toLocaleString("en-CA", { maximumFractionDigits: 2 })}`;
+const prizeIntro = (p) => ({ name:p.name, brand:p.brand, description:p.description, image:p.image, announcerText:`It's ${p.brand}'s ${p.name}! ${p.description}` });
 
-function base(type, title, playerId, playerName, instructions) {
-  return { type, title, playerId, playerName, instructions, status: "playing", result: "", winnings: 0, history: [] };
+function base(type,title,player,instructions,introPrizes=[]) {
+  return { type,title,playerId:player.id,playerName:player.name,instructions,introPrizes,status:"playing",result:"",winnings:0,history:[],eventSeq:0,lastOutcome:null };
+}
+function outcome(g, kind, text) { g.eventSeq += 1; g.lastOutcome={ kind,text,seq:g.eventSeq }; }
+function finish(g, won, text, winnings=g.winnings) { g.status=won?"won":"lost"; g.result=text; g.winnings=winnings; g.mode="done"; g.options=[]; outcome(g,won?"win":"loss",text); }
+function wrongTwoDigit(actual) {
+  const s=String(actual).padStart(2,"0"); const correctPosition=Math.random()<.5?0:1;
+  let wrong=String(Math.floor(Math.random()*9)+1); while(wrong===s[1-correctPosition]) wrong=String(Math.floor(Math.random()*9)+1);
+  const shown=correctPosition===0?s[0]+wrong:wrong+s[1];
+  return { shownPrice:Number(shown), correctDigit:s[correctPosition], correctPosition };
 }
 
 function makePlinko(player) {
-  return { ...base("plinko", "PLINKO", player.id, player.name, "Drop three chips. Each chip bounces into a cash slot."),
-    chipsLeft: 3, slots: [100, 500, 1000, 0, 10000, 0, 1000, 500, 100], prompt: "Choose where to drop chip 1.", mode: "choice",
-    options: ["1", "2", "3", "4", "5", "6", "7", "8", "9"] };
-}
-
-function makeCliff(player) {
-  const items = shuffle(SMALL_ITEMS).slice(0, 3);
-  return { ...base("cliffHangers", "CLIFF HANGERS", player.id, player.name, "Price three small prizes. Every dollar you miss moves the climber one step; 25 steps is the limit."),
-    items: items.map(({ name }) => ({ name })), _prices: items.map(i => i.price), itemIndex: 0, climber: 0,
-    prompt: `What is the price of the ${items[0].name}?`, mode: "number" };
+  const q=shuffle(SMALL_ITEMS.filter(x=>x.price>=10&&x.price<100)).slice(0,3).map(p=>({...prizeIntro(p),actual:p.price,...wrongTwoDigit(p.price)}));
+  return {...base("plinko","PLINKO",player,"You get one free chip and can win three more. For each small prize, choose the correct digit in its displayed price. Then tap a drop position and watch every chip travel down the board.",q), stage:"qualify",qualifierIndex:0,qualifiers:q.map(({actual,correctDigit,correctPosition,...x})=>x),_qualifierPrices:q.map(x=>x.actual),_qualifierCorrect:q.map(x=>x.correctDigit),chips:1,chipsLeft:0,slots:[100,500,1000,0,10000,0,1000,500,100],prompt:`Choose the correct digit in the price of the ${q[0].name}.`,mode:"choice",options:String(q[0].shownPrice).padStart(2,"0").split(""),lastDrop:null};
 }
 
 function makePunch(player) {
-  return { ...base("punchABunch", "PUNCH-A-BUNCH", player.id, player.name, "Pick one square and punch through it to reveal your cash prize."),
-    prompt: "Choose a square to punch!", mode: "choice", options: Array.from({ length: 16 }, (_, i) => String(i + 1)),
-    _values: shuffle([100,100,250,250,500,500,500,1000,1000,2500,2500,5000,5000,10000,25000,50000]) };
+  const prizes=shuffle(SMALL_ITEMS).slice(0,3); const shown=prizes.map((p,i)=>p.price+(i%2?9:-8));
+  return {...base("punchABunch","PUNCH-A-BUNCH",player,"Earn up to three punches by deciding whether each small prize is higher or lower than its wrong price. Then punch the board and decide whether to keep the cash or give it back for another punch.",prizes.map(prizeIntro)),stage:"qualify",qualifierIndex:0,qualifiers:prizes.map((p,i)=>({...prizeIntro(p),shownPrice:shown[i]})),_qualifierPrices:prizes.map(p=>p.price),punches:0,punchesLeft:0,prompt:`Is the ${prizes[0].name} higher or lower than ${money(shown[0])}?`,mode:"choice",options:["Higher","Lower"],_values:shuffle([100,100,250,250,500,500,1000,1000,2500,2500,5000,5000,10000,10000,25000,50000,...Array(34).fill(0).map((_,i)=>[100,250,500,1000][i%4])]),punched:[],offer:null};
 }
 
+function diceCar() { return pick(CARS.filter(c=>String(c.price).slice(1).split("").every(d=>Number(d)>=1&&Number(d)<=6))); }
 function makeDice(player) {
-  const digits = Array.from({ length: 4 }, () => 1 + Math.floor(Math.random() * 6));
-  return { ...base("diceGame", "DICE GAME", player.id, player.name, "Roll for each hidden digit. If the roll is not exact, decide whether the correct digit is higher or lower."),
-    firstDigit: 3, _digits: digits, revealed: [null, null, null, null], digitIndex: 0, stage: "roll",
-    prompt: "Roll the first die.", mode: "choice", options: ["Roll"] };
+  const car=diceCar()||CARS[2]; const digits=String(car.price).split("").map(Number);
+  return {...base("diceGame","DICE GAME",player,"Roll four dice for the last four digits of the car. Exact rolls light immediately; otherwise choose higher or lower. All choices are revealed one at a time after the final roll.",[{...prizeIntro(car),announcerText:`IT'S A NEW CAR! ${car.description}`}]),car:prizeIntro(car),firstDigit:digits[0],_digits:digits.slice(1),rolls:[null,null,null,null],choices:[null,null,null,null],revealed:[null,null,null,null],correct:[null,null,null,null],digitIndex:0,stage:"roll",prompt:"Roll the first die.",mode:"choice",options:["Roll"],rollSeq:0};
 }
 
 function makeGrocery(player) {
-  const items = shuffle(GROCERIES).slice(0, 5);
-  return { ...base("groceryGame", "GROCERY GAME", player.id, player.name, "Buy quantities of grocery items. Win by reaching $20–$22 without going over."),
-    items: items.map(i => ({ name: i.name, used: false })), _prices: items.map(i => i.price), total: 0,
-    prompt: "Choose an item.", mode: "choice", options: items.map((i, n) => `${n + 1}. ${i.name}`), stage: "item" };
+  const items=shuffle(GROCERIES).slice(0,5);
+  return {...base("groceryGame","GROCERY GAME",player,"Buy any quantity of each grocery item. Reach a total from $20 to $22 without going over $22.",items.map(prizeIntro)),items:items.map((x,i)=>({...prizeIntro(x),id:i,used:false})),_prices:items.map(x=>x.price),total:0,prompt:"Choose a Canadian grocery item.",mode:"choice",options:items.map((x,i)=>`${i+1}. ${x.brand} ${x.name}`),stage:"item"};
 }
 
-function makeHole(player) {
-  const items = shuffle(GROCERIES).slice(0, 6);
-  return { ...base("holeInOne", "HOLE IN ONE (OR TWO)", player.id, player.name, "Put the six items in ascending price order to move closer, then take up to two putts."),
-    items: items.map((i, index) => ({ id: index, name: i.name })), _prices: items.map(i => i.price),
-    prompt: "Tap the products from least to most expensive.", mode: "order", stage: "order", attempts: 2 };
+function makeOneAway(player) {
+  const car=pick(CARS); const actual=String(car.price).split("").map(Number); const shown=actual.map(d=>d===0?1:d===9?8:d+(Math.random()<.5?-1:1));
+  return {...base("oneAway","ONE AWAY",player,"Every digit shown is exactly one away from the car's true price. Choose higher or lower for each digit, hear how many are right, then make one final correction.",[prizeIntro(car)]),car:prizeIntro(car),shownDigits:shown,_digits:actual,answers:[],stage:"choose",digitIndex:0,prompt:`Should the first digit be one higher or one lower than ${shown[0]}?`,mode:"choice",options:["Higher","Lower"],rightCount:null};
 }
 
-function makeClock(player) {
-  const items = shuffle(SMALL_ITEMS.filter(i => i.price >= 25)).slice(0, 2);
-  return { ...base("clockGame", "CLOCK GAME", player.id, player.name, "You have 30 seconds to price two prizes. After every guess, the host tells you higher or lower."),
-    items: items.map(i => ({ name: i.name })), _prices: items.map(i => i.price), itemIndex: 0, _startedAt: Date.now(),
-    prompt: `Guess the price of the ${items[0].name}.`, mode: "number", clue: "30 seconds starts now!", secondsLeft: 30 };
-}
+function makeCliff(player) { const items=shuffle(SMALL_ITEMS).slice(0,3); return {...base("cliffHangers","CLIFF HANGERS",player,"Price three small prizes. Every dollar you miss moves the climber one step; 25 steps is the limit.",items.map(prizeIntro)),items:items.map(prizeIntro),_prices:items.map(i=>i.price),itemIndex:0,climber:0,prompt:`What is the price of the ${items[0].name}?`,mode:"number"}; }
+function makeClock(player) { const items=shuffle(SMALL_ITEMS.filter(i=>i.price>=25)).slice(0,2); return {...base("clockGame","CLOCK GAME",player,"You have 30 seconds to price two prizes. After every guess, the host tells you higher or lower.",items.map(prizeIntro)),items:items.map(prizeIntro),_prices:items.map(i=>i.price),itemIndex:0,_startedAt:Date.now(),prompt:`Guess the price of the ${items[0].name}.`,mode:"number",clue:"30 seconds starts now!",secondsLeft:30}; }
+function makeAnyNumber(player) { const car=[3,...shuffle([0,1,2,4,5,6,7,8,9]).slice(0,4)], remaining=shuffle([0,1,2,4,5,6,7,8,9].filter(d=>!car.slice(1).includes(d))), small=remaining.slice(0,3), pig=remaining.slice(3,5); const carPrize=CARS[0]; return {...base("anyNumber","ANY NUMBER",player,"Call digits. You win the first price you completely reveal.",[prizeIntro(carPrize)]),boards:[{label:"Car",cells:[3,null,null,null,null]},{label:"Prize",cells:[null,null,null]},{label:"Piggy Bank",cells:[null,null]}],_answers:[car,small,pig],usedDigits:[3],prompt:"Choose a digit.",mode:"choice",options:[0,1,2,4,5,6,7,8,9].map(String)}; }
+function makeGrand(player) { const target=6, cheap=shuffle(GROCERIES.filter(i=>i.price<target)).slice(0,4), pricey=shuffle(GROCERIES.filter(i=>i.price>=target)).slice(0,2), items=shuffle([...cheap,...pricey]); return {...base("grandGame","GRAND GAME",player,"Pick the four products priced below the target. Each correct pick multiplies your money by ten.",items.map(prizeIntro)),target,items:items.map(i=>({...prizeIntro(i),selected:false})),_prices:items.map(i=>i.price),prompt:`Pick a product under ${money(target)}.`,mode:"choice",options:items.map((i,n)=>`${n+1}. ${i.name}`),correct:0,winnings:1}; }
+function makeShell(player) { const items=shuffle(SMALL_ITEMS).slice(0,3), shown=items.map((x,i)=>x.price+(i%2?-8:9)); return {...base("shellGame","SHELL GAME",player,"Win shells by deciding whether each small prize is higher or lower than its shown price, then find the hidden ball.",items.map(prizeIntro)),items:items.map((x,i)=>({...prizeIntro(x),shownPrice:shown[i]})),_prices:items.map(i=>i.price),itemIndex:0,shells:0,_ball:Math.floor(Math.random()*4),prompt:`${items[0].name}: higher or lower than ${money(shown[0])}?`,mode:"choice",options:["Higher","Lower"],stage:"prices"}; }
 
-function makeAnyNumber(player) {
-  const car = [3, ...shuffle([0,1,2,4,5,6,7,8,9]).slice(0, 4)];
-  const remaining = shuffle([0,1,2,4,5,6,7,8,9].filter(d => !car.slice(1).includes(d)));
-  const small = remaining.slice(0, 3); const pig = remaining.slice(3, 5);
-  return { ...base("anyNumber", "ANY NUMBER", player.id, player.name, "Call digits. You win the first price you completely reveal."),
-    boards: [{ label: "Car", cells: [3,null,null,null,null] }, { label: "Prize", cells: [null,null,null] }, { label: "Piggy Bank", cells: [null,null] }],
-    _answers: [car, small, pig], usedDigits: [3], prompt: "Choose a digit.", mode: "choice", options: [0,1,2,4,5,6,7,8,9].map(String) };
-}
+const FACTORIES={plinko:makePlinko,cliffHangers:makeCliff,punchABunch:makePunch,diceGame:makeDice,groceryGame:makeGrocery,oneAway:makeOneAway,clockGame:makeClock,anyNumber:makeAnyNumber,grandGame:makeGrand,shellGame:makeShell};
+export const PRICING_GAME_TYPES=[...GAME_NAMES];
+export function createPricingGameForType(type,player){ if(!FACTORIES[type]) throw new Error(`Unknown pricing game: ${type}`); return FACTORIES[type](player); }
+export function createPricingGame(player,previous=[]){ const a=GAME_NAMES.filter(x=>!previous.includes(x)); return FACTORIES[pick(a.length?a:GAME_NAMES)](player); }
 
-function makeGrand(player) {
-  const target = 6;
-  const cheap = shuffle(GROCERIES.filter(i => i.price < target)).slice(0, 4);
-  const pricey = shuffle(GROCERIES.filter(i => i.price >= target)).slice(0, 2);
-  const items = shuffle([...cheap, ...pricey]);
-  return { ...base("grandGame", "GRAND GAME", player.id, player.name, "Pick the four products priced below the target. Each correct pick multiplies your money by ten."),
-    target, items: items.map(i => ({ name: i.name, selected: false })), _prices: items.map(i => i.price),
-    prompt: `Pick a product under ${money(target)}.`, mode: "choice", options: items.map((i,n) => `${n + 1}. ${i.name}`), correct: 0, winnings: 1 };
-}
-
-function makeShell(player) {
-  const items = shuffle(SMALL_ITEMS).slice(0, 3);
-  const displayed = items.map((item, i) => item.price + (i % 2 ? -8 : 9));
-  return { ...base("shellGame", "SHELL GAME", player.id, player.name, "Win shells by deciding whether each small prize is higher or lower than its shown price, then find the hidden ball."),
-    items: items.map((i,n) => ({ name: i.name, shownPrice: displayed[n] })), _prices: items.map(i => i.price), itemIndex: 0, shells: 0,
-    _ball: Math.floor(Math.random() * 4), prompt: `${items[0].name}: higher or lower than ${money(displayed[0])}?`, mode: "choice", options: ["Higher", "Lower"], stage: "prices" };
-}
-
-const FACTORIES = { plinko: makePlinko, cliffHangers: makeCliff, punchABunch: makePunch, diceGame: makeDice,
-  groceryGame: makeGrocery, holeInOne: makeHole, clockGame: makeClock, anyNumber: makeAnyNumber,
-  grandGame: makeGrand, shellGame: makeShell };
-
-export function createPricingGameForType(type, player) {
-  if (!FACTORIES[type]) throw new Error(`Unknown pricing game: ${type}`);
-  return FACTORIES[type](player);
-}
-
-export function createPricingGame(player, previousTypes = []) {
-  const available = GAME_NAMES.filter(name => !previousTypes.includes(name));
-  const type = pick(available.length ? available : GAME_NAMES);
-  return FACTORIES[type](player);
-}
-
-function finish(g, won, text, winnings = g.winnings) {
-  g.status = won ? "won" : "lost"; g.result = text; g.winnings = winnings; g.mode = "done"; g.options = [];
-}
-
-export function playPricingGame(g, action) {
-  if (!g || g.status !== "playing") throw new Error("Pricing game is not active");
-  const choice = String(action.choice ?? "");
-  const value = Math.round(Number(action.value));
-  if (g.type === "plinko") {
-    const drop = Math.max(0, Math.min(8, Number(choice) - 1));
-    const landing = Math.max(0, Math.min(8, drop + Math.floor(Math.random() * 5) - 2));
-    const won = g.slots[landing]; g.winnings += won; g.chipsLeft -= 1;
-    g.history.push(`Chip landed in ${money(won)}.`);
-    if (!g.chipsLeft) finish(g, g.winnings > 0, `You won ${money(g.winnings)} on Plinko!`);
-    else g.prompt = `Choose where to drop chip ${4 - g.chipsLeft}.`;
-  } else if (g.type === "cliffHangers") {
-    if (!Number.isFinite(value)) throw new Error("Enter a price");
-    const actual = g._prices[g.itemIndex]; const error = Math.abs(value - actual); g.climber += error;
-    g.history.push(`${g.items[g.itemIndex].name}: guessed ${money(value)}, actual ${money(actual)} — ${error} step${error === 1 ? "" : "s"}.`);
-    g.itemIndex += 1;
-    if (g.climber > 25) finish(g, false, "The climber went over the cliff!");
-    else if (g.itemIndex === 3) finish(g, true, `You kept the climber safe at step ${g.climber}!`);
-    else g.prompt = `What is the price of the ${g.items[g.itemIndex].name}?`;
-  } else if (g.type === "punchABunch") {
-    const index = Math.max(0, Math.min(15, Number(choice) - 1));
-    const won = g._values[index]; finish(g, true, `Square ${index + 1} held ${money(won)}!`, won);
-  } else if (g.type === "diceGame") {
-    const target = g._digits[g.digitIndex];
-    if (g.stage === "roll") {
-      const roll = 1 + Math.floor(Math.random() * 6); g.roll = roll;
-      if (roll === target) { g.revealed[g.digitIndex] = target; g.history.push(`Rolled ${roll}: exact!`); g.digitIndex += 1; }
-      else { g.stage = "direction"; g.prompt = `You rolled ${roll}. Is the digit higher or lower?`; g.options = roll === 1 ? ["Higher"] : roll === 6 ? ["Lower"] : ["Higher", "Lower"]; return g; }
-    } else {
-      const correct = choice.toLowerCase() === (target > g.roll ? "higher" : "lower");
-      g.history.push(`Rolled ${g.roll}, chose ${choice}: ${correct ? "correct" : `wrong — it was ${target}`}.`);
-      if (!correct) return finish(g, false, "That direction was incorrect. The car stays on the lot.");
-      g.revealed[g.digitIndex] = target; g.digitIndex += 1; g.stage = "roll";
-    }
-    if (g.digitIndex === 4) finish(g, true, `You won the ${money(Number(`${g.firstDigit}${g._digits.join("")}`))} car!`);
-    else { g.prompt = `Roll die ${g.digitIndex + 1}.`; g.mode = "choice"; g.options = ["Roll"]; }
-  } else if (g.type === "groceryGame") {
-    if (g.stage === "item") { const index = Number(choice.split(".")[0]) - 1; if (g.items[index]?.used) throw new Error("That item was already used"); g.selected = index; g.stage = "quantity"; g.mode = "number"; g.prompt = `How many ${g.items[index].name} would you like?`; }
-    else { const qty = Math.max(1, Math.min(20, value)); const i = g.selected; const add = Number((g._prices[i] * qty).toFixed(2)); g.total = Number((g.total + add).toFixed(2)); g.items[i].used = true; g.history.push(`${qty} × ${g.items[i].name} = ${money(add)}; total ${money(g.total)}.`);
-      if (g.total >= 20 && g.total <= 22) finish(g, true, `Perfect shopping! Your total is ${money(g.total)}.`);
-      else if (g.total > 22 || g.items.every(x => x.used)) finish(g, false, `Your final total is ${money(g.total)}.`);
-      else { g.stage = "item"; g.mode = "choice"; g.options = g.items.map((x,n) => x.used ? null : `${n + 1}. ${x.name}`).filter(Boolean); g.prompt = "Choose another item."; }
-    }
-  } else if (g.type === "holeInOne") {
-    if (g.stage === "order") { const order = Array.isArray(action.order) ? action.order.map(Number) : []; if (new Set(order).size !== 6) throw new Error("Order all six products");
-      let correctLinks = 0; for (let i = 1; i < order.length; i += 1) if (g._prices[order[i]] > g._prices[order[i - 1]]) correctLinks += 1;
-      g.distance = 6 - correctLinks; g.stage = "putt"; g.mode = "choice"; g.options = ["Left", "Centre", "Right"]; g.prompt = `You are ${g.distance} line${g.distance === 1 ? "" : "s"} away. Aim your first putt.`;
-    } else { const chance = Math.max(0.25, 0.9 - g.distance * 0.1); const made = Math.random() < chance; g.history.push(`${choice} putt: ${made ? "in the hole!" : "missed"}.`); g.attempts -= 1;
-      if (made) finish(g, true, "Hole in one! You win the grand prize!"); else if (!g.attempts) finish(g, false, "Both putts just missed."); else g.prompt = "Hole in one… or two! Aim your second putt.";
-    }
-  } else if (g.type === "clockGame") {
-    g.secondsLeft = Math.max(0, 30 - Math.floor((Date.now() - g._startedAt) / 1000)); if (!g.secondsLeft) return finish(g, false, "Time is up!");
-    if (!Number.isFinite(value)) throw new Error("Enter a price"); const actual = g._prices[g.itemIndex];
-    if (value === actual) { g.history.push(`${g.items[g.itemIndex].name}: ${money(actual)} — correct!`); g.itemIndex += 1; if (g.itemIndex === 2) return finish(g, true, `Both prizes won with ${g.secondsLeft} seconds left!`); g.prompt = `Now price the ${g.items[1].name}.`; g.clue = `${g.secondsLeft} seconds left!`; }
-    else { g.clue = actual > value ? "Higher!" : "Lower!"; g.prompt = `${g.clue} Guess again — ${g.secondsLeft} seconds left.`; }
-  } else if (g.type === "anyNumber") {
-    const digit = Number(choice); if (g.usedDigits.includes(digit)) throw new Error("Digit already chosen"); g.usedDigits.push(digit); g.options = g.options.filter(x => Number(x) !== digit);
-    for (let b = 0; b < g._answers.length; b += 1) for (let c = 0; c < g._answers[b].length; c += 1) if (g._answers[b][c] === digit) g.boards[b].cells[c] = digit;
-    const done = g.boards.findIndex(b => b.cells.every(x => x !== null)); if (done >= 0) finish(g, done === 0, `You completed the ${g.boards[done].label} price!`); else g.prompt = "Choose another digit.";
-  } else if (g.type === "grandGame") {
-    const index = Number(choice.split(".")[0]) - 1; if (g.items[index]?.selected) throw new Error("Already selected"); g.items[index].selected = true; const actual = g._prices[index];
-    g.history.push(`${g.items[index].name}: ${money(actual)}.`); if (actual >= g.target) finish(g, false, `That item was not below ${money(g.target)}.`, g.correct < 4 ? g.winnings : 0);
-    else { g.correct += 1; g.winnings *= 10; if (g.correct === 4) finish(g, true, "Four correct products — you won $10,000!", 10000); else { g.options = g.items.map((x,n) => x.selected ? null : `${n + 1}. ${x.name}`).filter(Boolean); g.prompt = `Correct! You have ${money(g.winnings)}. Pick another product under ${money(g.target)}.`; } }
-  } else if (g.type === "shellGame") {
-    if (g.stage === "prices") { const i = g.itemIndex; const correct = choice.toLowerCase() === (g._prices[i] > g.items[i].shownPrice ? "higher" : "lower"); if (correct) g.shells += 1; g.history.push(`${g.items[i].name}: ${choice} was ${correct ? "correct" : "incorrect"}.`); g.itemIndex += 1;
-      if (g.itemIndex === 3) { if (!g.shells) return finish(g, false, "No shells were earned."); g.stage = "shell"; g.prompt = `You earned ${g.shells} chance${g.shells === 1 ? "" : "s"}. Pick a shell.`; g.options = ["1","2","3","4"]; }
-      else g.prompt = `${g.items[g.itemIndex].name}: higher or lower than ${money(g.items[g.itemIndex].shownPrice)}?`;
-    } else { const hit = Number(choice) - 1 === g._ball; g.shells -= 1; if (hit) finish(g, true, `The ball was under shell ${choice}!`); else if (!g.shells) finish(g, false, `The ball was under shell ${g._ball + 1}.`); else { g.options = g.options.filter(x => x !== choice); g.prompt = `Empty! You have ${g.shells} pick${g.shells === 1 ? "" : "s"} left.`; } }
-  }
+export function playPricingGame(g,action={}) {
+  if(!g||g.status!=="playing") throw new Error("Pricing game is not active"); const choice=String(action.choice??""); const value=Math.round(Number(action.value));
+  if(g.type==="plinko") {
+    if(g.stage==="qualify") { const i=g.qualifierIndex, q=g.qualifiers[i], correct=choice===g._qualifierCorrect[i]; if(correct){g.chips+=1;g.history.push(`${q.name}: ${money(g._qualifierPrices[i])} — correct! You won the prize and a chip.`);outcome(g,"success","Correct — another Plinko chip!");}else{g.history.push(`${q.name}: the correct digit was ${g._qualifierCorrect[i]}.`);outcome(g,"failure","That digit was not correct.");} g.qualifierIndex+=1; if(g.qualifierIndex===3){g.stage="drop";g.chipsLeft=g.chips;g.mode="drop";g.options=[];g.prompt=`Tap one of the nine drop positions for chip 1 of ${g.chips}.`;}else{const n=g.qualifiers[g.qualifierIndex];g.options=String(n.shownPrice).padStart(2,"0").split("");g.prompt=`Choose the correct digit in the price of the ${n.name}.`;} }
+    else { const start=Math.max(0,Math.min(8,Number(action.position??choice)-1)); let col=start; const path=[col]; for(let r=0;r<12;r+=1){col=Math.max(0,Math.min(8,col+(Math.random()<.5?-1:1)));path.push(col);} const won=g.slots[col];g.winnings+=won;g.chipsLeft-=1;g.lastDrop={id:g.eventSeq+1,start,path,landing:col,value:won};g.history.push(`Chip landed in ${money(won)}.`);outcome(g,won?"success":"failure",`The chip landed on ${money(won)}.`);if(!g.chipsLeft)finish(g,g.winnings>0,`You won ${money(g.winnings)} on Plinko!`);else g.prompt=`Tap a drop position for your next chip. ${g.chipsLeft} remaining.`; }
+  } else if(g.type==="punchABunch") {
+    if(g.stage==="qualify") { const i=g.qualifierIndex, actual=g._qualifierPrices[i], shown=g.qualifiers[i].shownPrice, correct=choice.toLowerCase()===(actual>shown?"higher":"lower"); if(correct){g.punches+=1;outcome(g,"success","Correct — you earned a punch!");}else outcome(g,"failure","No punch for that prize.");g.history.push(`${g.qualifiers[i].name}: ${money(actual)} — ${correct?"correct":"incorrect"}.`);g.qualifierIndex+=1;if(g.qualifierIndex===3){if(!g.punches)return finish(g,false,"No punches were earned.");g.punchesLeft=g.punches;g.stage="punch";g.options=Array.from({length:50},(_,n)=>String(n+1));g.prompt=`You earned ${g.punches} punch${g.punches===1?"":"es"}. Pick a hole.`;}else{const n=g.qualifiers[g.qualifierIndex];g.prompt=`Is the ${n.name} higher or lower than ${money(n.shownPrice)}?`;} }
+    else if(g.stage==="punch") { const i=Math.max(0,Math.min(49,Number(choice)-1));if(g.punched.includes(i))throw new Error("That hole has already been punched");g.punched.push(i);g.punchesLeft-=1;g.offer=g._values[i];g.winnings=g.offer;g.history.push(`Hole ${i+1} held ${money(g.offer)}.`);outcome(g,"success",`You found ${money(g.offer)}!`);if(!g.punchesLeft)finish(g,true,`Your final punch is worth ${money(g.offer)}!`,g.offer);else{g.stage="decision";g.options=["Keep it","Punch again"];g.prompt=`You found ${money(g.offer)}. Keep it, or give it back for another punch?`;} }
+    else if(choice.toLowerCase().startsWith("keep"))finish(g,true,`You kept ${money(g.offer)}!`,g.offer);else{g.stage="punch";g.options=Array.from({length:50},(_,n)=>g.punched.includes(n)?null:String(n+1)).filter(Boolean);g.prompt=`Pick another hole. ${g.punchesLeft} punch${g.punchesLeft===1?"":"es"} left.`;}
+  } else if(g.type==="diceGame") {
+    if(g.stage==="roll") { const i=g.digitIndex, roll=1+Math.floor(Math.random()*6);g.rolls[i]=roll;g.rollSeq+=1;if(roll===g._digits[i]){g.choices[i]="Exact";g.revealed[i]=roll;g.correct[i]=true;outcome(g,"success",`A ${roll} — exactly right!`);g.digitIndex+=1;}else{g.stage="direction";g.prompt=`The die shows ${roll}. Is the hidden digit higher or lower?`;g.options=roll===1?["Higher"]:roll===6?["Lower"]:["Higher","Lower"];return g;} }
+    else if(g.stage==="direction"){g.choices[g.digitIndex]=choice;g.digitIndex+=1;g.stage="roll";outcome(g,"neutral","Choice locked in. No result yet.");}
+    else { const i=g.revealIndex, target=g._digits[i], roll=g.rolls[i], exact=g.choices[i]==="Exact", correct=exact||g.choices[i].toLowerCase()===(target>roll?"higher":"lower");g.revealed[i]=target;g.correct[i]=correct;g.revealIndex+=1;outcome(g,correct?"success":"failure",`Digit ${i+2} is ${target}: ${correct?"correct":"incorrect"}.`);if(g.revealIndex===4){const won=g.correct.every(Boolean);finish(g,won,won?`You won the ${g.car.name}!`:"The car price was not completed.");}else g.prompt="Reveal the next digit.";return g; }
+    if(g.digitIndex===4){g.stage="reveal";g.revealIndex=0;g.prompt="All choices are locked. Reveal the first digit.";g.options=["Reveal next digit"];}
+    else if(g.stage==="roll"){g.prompt=`Roll die ${g.digitIndex+1}.`;g.options=["Roll"];}
+  } else if(g.type==="groceryGame") {
+    if(g.stage==="item"){const i=Number(choice.split(".")[0])-1;if(g.items[i]?.used)throw new Error("That item was already used");g.selected=i;g.stage="quantity";g.mode="number";g.prompt=`How many ${g.items[i].brand} ${g.items[i].name} would you like?`;}
+    else{const qty=Math.max(1,Math.min(20,value)),i=g.selected,add=Number((g._prices[i]*qty).toFixed(2));g.total=Number((g.total+add).toFixed(2));g.items[i].used=true;g.history.push(`${qty} × ${g.items[i].name} = ${money(add)}; total ${money(g.total)}.`);outcome(g,g.total<=22?"success":"failure",`Your total is now ${money(g.total)}.`);if(g.total>=20&&g.total<=22)finish(g,true,`Perfect shopping! Your total is ${money(g.total)}.`);else if(g.total>22||g.items.every(x=>x.used))finish(g,false,`Your final total is ${money(g.total)}.`);else{g.stage="item";g.mode="choice";g.options=g.items.map((x,n)=>x.used?null:`${n+1}. ${x.brand} ${x.name}`).filter(Boolean);g.prompt="Choose another item.";}}
+  } else if(g.type==="oneAway") {
+    if(g.stage==="choose"){g.answers[g.digitIndex]=choice;g.digitIndex+=1;if(g.digitIndex===5){const proposed=g.shownDigits.map((d,i)=>d+(g.answers[i].toLowerCase()==="higher"?1:-1));g.rightCount=proposed.filter((d,i)=>d===g._digits[i]).length;outcome(g,g.rightCount?"success":"failure",`${g.rightCount} digit${g.rightCount===1?" is":"s are"} right.`);if(!g.rightCount)return finish(g,false,"Not one digit was right.");g.stage="revise";g.mode="multi";g.options=[];g.prompt=`You have ${g.rightCount} right. Submit your final higher/lower choices.`;}else g.prompt=`Should digit ${g.digitIndex+1} be one higher or lower than ${g.shownDigits[g.digitIndex]}?`;}
+    else{const answers=Array.isArray(action.answers)?action.answers:g.answers;const final=g.shownDigits.map((d,i)=>d+(String(answers[i]).toLowerCase()==="higher"?1:-1));const won=final.every((d,i)=>d===g._digits[i]);finish(g,won,won?`You won the ${g.car.name}!`:`The actual price was ${money(Number(g._digits.join("")))}.`);}
+  } else if(g.type==="cliffHangers") { if(!Number.isFinite(value))throw new Error("Enter a price");const actual=g._prices[g.itemIndex],error=Math.abs(value-actual);g.climber+=error;g.history.push(`${g.items[g.itemIndex].name}: ${money(value)}, actual ${money(actual)} — ${error} steps.`);outcome(g,error===0?"success":"failure",error===0?"Exactly right!":`${error} climber steps.`);g.itemIndex+=1;if(g.climber>25)finish(g,false,"The climber went over the cliff!");else if(g.itemIndex===3)finish(g,true,`You kept the climber safe at step ${g.climber}!`);else g.prompt=`What is the price of the ${g.items[g.itemIndex].name}?`;
+  } else if(g.type==="clockGame") {g.secondsLeft=Math.max(0,30-Math.floor((Date.now()-g._startedAt)/1000));if(!g.secondsLeft)return finish(g,false,"Time is up!");const actual=g._prices[g.itemIndex];if(value===actual){outcome(g,"success","Correct!");g.itemIndex+=1;if(g.itemIndex===2)return finish(g,true,`Both prizes won with ${g.secondsLeft} seconds left!`);g.prompt=`Now price the ${g.items[1].name}.`;}else{g.clue=actual>value?"Higher!":"Lower!";g.prompt=`${g.clue} ${g.secondsLeft} seconds left.`;}
+  } else if(g.type==="anyNumber") {const d=Number(choice);if(g.usedDigits.includes(d))throw new Error("Digit already chosen");g.usedDigits.push(d);g.options=g.options.filter(x=>Number(x)!==d);for(let b=0;b<g._answers.length;b++)for(let c=0;c<g._answers[b].length;c++)if(g._answers[b][c]===d)g.boards[b].cells[c]=d;const done=g.boards.findIndex(b=>b.cells.every(x=>x!==null));if(done>=0)finish(g,done===0,`You completed the ${g.boards[done].label} price!`);
+  } else if(g.type==="grandGame") {const i=Number(choice.split(".")[0])-1;if(g.items[i]?.selected)throw new Error("Already selected");g.items[i].selected=true;const actual=g._prices[i];g.history.push(`${g.items[i].name}: ${money(actual)}.`);if(actual>=g.target)finish(g,false,`That item was not below ${money(g.target)}.`);else{g.correct+=1;g.winnings*=10;outcome(g,"success","Correct!");if(g.correct===4)finish(g,true,"Four correct products — you won $10,000!",10000);else{g.options=g.items.map((x,n)=>x.selected?null:`${n+1}. ${x.name}`).filter(Boolean);g.prompt="Pick another product.";}}
+  } else if(g.type==="shellGame") {if(g.stage==="prices"){const i=g.itemIndex,correct=choice.toLowerCase()===(g._prices[i]>g.items[i].shownPrice?"higher":"lower");if(correct)g.shells+=1;outcome(g,correct?"success":"failure",correct?"Correct — you earned a shell!":"Incorrect.");g.itemIndex+=1;if(g.itemIndex===3){if(!g.shells)return finish(g,false,"No shells were earned.");g.stage="shell";g.options=["1","2","3","4"];g.prompt="Pick a shell.";}else g.prompt=`${g.items[g.itemIndex].name}: higher or lower than ${money(g.items[g.itemIndex].shownPrice)}?`;}else{const hit=Number(choice)-1===g._ball;g.shells-=1;if(hit)finish(g,true,`The ball was under shell ${choice}!`);else if(!g.shells)finish(g,false,`The ball was under shell ${g._ball+1}.`);}}
   return g;
 }
 
-export function publicPricingGame(game) {
-  if (!game) return null;
-  return Object.fromEntries(Object.entries(game).filter(([key]) => !key.startsWith("_")));
-}
+export function publicPricingGame(game){if(!game)return null;return Object.fromEntries(Object.entries(game).filter(([k])=>!k.startsWith("_")));}

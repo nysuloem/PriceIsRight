@@ -57,15 +57,11 @@ export function getRoom(code) {
 
 export function createPricingGameDemo(type) {
   const room = createRoom();
-  const player = { id: randomUUID(), name: "Game Tester", photo: null, hasPhoto: false };
-  room.players = [player];
-  room.contestants = [{ ...player, isAI: false, strategy: null, bid: null }];
-  room.pricingGame = createPricingGameForType(type, player);
-  room.playedPricingGames = [type];
-  room.phase = "pricingGame";
   room.isDemo = true;
-  setHostLine(room, `Let's test ${room.pricingGame.title}!`, "pricingGame");
-  return { room, player };
+  room.demoGameType = type;
+  room.phase = "demoLobby";
+  setHostLine(room, "Scan the QR code on your phone to test this pricing game.", "demoLobby");
+  return { room, player: null };
 }
 
 // Strip base64 photo from public state to keep polling payloads small;
@@ -92,6 +88,7 @@ export function publicState(room) {
     replacementContestantId: room.replacementContestantId,
     replacementVisible: room.replacementVisible,
     isDemo: room.isDemo,
+    demoGameType: room.demoGameType || null,
   };
 }
 
@@ -124,7 +121,7 @@ function setHostLine(room, text, type) {
 }
 
 export function joinRoom(room, name, photoDataUrl) {
-  if (room.phase !== "lobby") throw new Error("Game already started");
+  if (room.phase !== "lobby" && room.phase !== "demoLobby") throw new Error("Game already started");
   if (room.players.length >= MAX_PLAYERS) throw new Error("Room is full");
   const cleanName = (name || "").trim().slice(0, 24) || "Player";
   // Validate photo is a data URL if provided; silently drop if malformed.
@@ -135,6 +132,13 @@ export function joinRoom(room, name, photoDataUrl) {
   }
   const player = { id: randomUUID(), name: cleanName, photo, hasPhoto: !!photo };
   room.players.push(player);
+  if (room.phase === "demoLobby") {
+    room.contestants = [{ ...player, isAI: false, strategy: null, bid: null }];
+    room.pricingGame = createPricingGameForType(room.demoGameType, player);
+    room.playedPricingGames = [room.demoGameType];
+    room.phase = "pricingIntro";
+    setHostLine(room, `${player.name}, you are going to play ${room.pricingGame.title}!`, "pricingGameIntro");
+  }
   return player;
 }
 
@@ -226,8 +230,14 @@ export function startPricingGame(room) {
   if (!winner) throw new Error("No human winner is available for a pricing game");
   room.pricingGame = createPricingGame(winner, room.playedPricingGames);
   room.playedPricingGames.push(room.pricingGame.type);
+  room.phase = "pricingIntro";
+  setHostLine(room, `${winner.name}, you are going to play ${room.pricingGame.title}!`, "pricingGameIntro");
+}
+
+export function beginPricingGame(room) {
+  if (room.phase !== "pricingIntro" || !room.pricingGame) throw new Error("No pricing game introduction is active");
   room.phase = "pricingGame";
-  setHostLine(room, `${winner.name}, come on up! You're playing ${room.pricingGame.title}!`, "pricingGame");
+  setHostLine(room, room.pricingGame.prompt, "pricingPrompt");
 }
 
 export function pricingGameAction(room, playerId, action) {

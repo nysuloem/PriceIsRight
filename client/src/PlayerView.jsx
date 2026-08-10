@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Bot, Trophy, Camera, Upload, X, Check } from "lucide-react";
 import { getState, joinRoom, submitBid, pricingGameAction } from "./api.js";
-import { PricingGameView } from "./HostView.jsx";
 
 const POLL_MS = 1200;
 
@@ -145,7 +144,7 @@ export default function PlayerView({ code, navigate }) {
 
   // ── Join screen ────────────────────────────────────────────────────
   if (!playerId) {
-    if (state.phase !== "lobby") {
+    if (state.phase !== "lobby" && state.phase !== "demoLobby") {
       return (
         <div className="pir-root pir-player pir-center">
           <h1 className="pir-title">Come On Down!</h1>
@@ -281,9 +280,12 @@ export default function PlayerView({ code, navigate }) {
         <RevealPhase state={state} myIndex={myIndex} />
       )}
 
+      {state.phase === "pricingIntro" && (
+        <div className="pir-panel pir-center"><h2>Get ready!</h2><p>The host and announcer are introducing your game on the main screen.</p></div>
+      )}
+
       {state.phase === "pricingGame" && (
         <>
-          {state.isDemo && <PricingGameView game={state.pricingGame} />}
           <PricingGamePhone game={state.pricingGame} playerId={playerId} code={code}
             isDemo={state.isDemo} onBackToGames={() => navigate?.("/games")}
             onError={(message) => setError(message)} />
@@ -299,6 +301,7 @@ function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError
   const [number, setNumber] = useState("");
   const [order, setOrder] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [answers, setAnswers] = useState([]);
   if (!game) return <div className="pir-panel">Loading pricing game…</div>;
   const isPlayer = game.playerId === playerId;
   const send = async (action) => {
@@ -321,6 +324,8 @@ function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError
         <button className="pir-btn" disabled={busy || number === ""} onClick={()=>send({ value: number })}>Submit</button>
       </>}
       {game.mode === "choice" && <div className="pir-choice-grid">{game.options.map(option=><button key={option} className="pir-btn secondary" disabled={busy} onClick={()=>send({ choice: option })}>{option}</button>)}</div>}
+      {game.mode === "drop" && <><p className="pir-helptext">Tap where you want the chip released.</p><div className="pir-drop-picker">{Array.from({length:9},(_,i)=><button key={i} disabled={busy} onClick={()=>send({position:i+1})}>{i+1}</button>)}</div></>}
+      {game.mode === "multi" && <><div className="pir-one-away-phone">{game.shownDigits.map((digit,i)=><div key={i}><b>{digit}</b><button className={answers[i]==="Higher"?"selected":""} onClick={()=>setAnswers(a=>{const n=[...a];n[i]="Higher";return n;})}>+1</button><button className={answers[i]==="Lower"?"selected":""} onClick={()=>setAnswers(a=>{const n=[...a];n[i]="Lower";return n;})}>−1</button></div>)}</div><button className="pir-btn" disabled={busy||answers.filter(Boolean).length!==5} onClick={()=>send({answers})}>Lock In Final Price</button></>}
       {game.mode === "order" && <>
         <div className="pir-order-list">{orderedNames.map((name,i)=><span key={i}>{i+1}. {name}</span>)}</div>
         <div className="pir-choice-grid">{game.items.filter(x=>!order.includes(x.id)).map(item=><button key={item.id} className="pir-btn secondary" onClick={()=>addOrder(item.id)}>{item.name}</button>)}</div>
