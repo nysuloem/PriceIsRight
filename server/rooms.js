@@ -3,6 +3,7 @@ import {
   buildLineup, computeAIBid, computeWinners, STRATEGIES, shuffle,
 } from "./gameLogic.js";
 import { getPrizePool, pickRandomItem } from "./prizeSource.js";
+import { createPricingGame, playPricingGame, publicPricingGame } from "./pricingGames.js";
 
 const rooms = new Map();
 const ROOM_TTL_MS = 4 * 60 * 60 * 1000;
@@ -33,6 +34,9 @@ export function createRoom() {
     callIndex: -1,
     turn: 0,
     winnerIndices: [],
+    usedPrizeIds: [],
+    playedPricingGames: [],
+    pricingGame: null,
     hostLine: { seq: 0, text: "", type: "welcome" },
   };
   rooms.set(code, room);
@@ -62,7 +66,24 @@ export function publicState(room) {
     hostLine: room.hostLine,
     winnerIndices: room.winnerIndices,
     revealType: room.revealType || null,
+    pricingGame: publicPricingGame(room.pricingGame),
   };
+}
+
+async function selectFreshPrize(room) {
+  let pool = await getPrizePool();
+  let unused = pool.filter(item => !room.usedPrizeIds.includes(item.id));
+  if (!unused.length) {
+    pool = await getPrizePool(true);
+    unused = pool.filter(item => !room.usedPrizeIds.includes(item.id));
+    // A retailer refresh may return the same catalogue. Only recycle after
+    // every available prize has genuinely been used in this room.
+    if (!unused.length) { room.usedPrizeIds = []; unused = pool; }
+  }
+  const item = pickRandomItem(unused);
+  if (!item) throw new Error("No prizes are currently available");
+  room.usedPrizeIds.push(item.id);
+  return item;
 }
 
 function setHostLine(room, text, type) {
@@ -92,9 +113,8 @@ export function getPlayerPhoto(room, playerId) {
 
 export async function startGame(room) {
   if (room.phase !== "lobby") throw new Error("Already started");
-  const pool = await getPrizePool();
   room.contestants = buildLineup(room.players);
-  room.item = pickRandomItem(pool);
+  room.item = await selectFreshPrize(room);
   room.callIndex = -1;
   room.turn = 0;
   room.winnerIndices = [];
@@ -165,6 +185,24 @@ export function advance(room, to) {
   }
 }
 
+export function startPricingGame(room) {
+  if (room.phase !== "reveal") throw new Error("Finish Contestants' Row first");
+  const winner = room.winnerIndices.map(i => room.contestants[i]).find(c => c && !c.isAI);
+  if (!winner) throw new Error("No human winner is available for a pricing game");
+  room.pricingGame = createPricingGame(winner, room.playedPricingGames);
+  room.playedPricingGames.push(room.pricingGame.type);
+  room.phase = "pricingGame";
+  setHostLine(room, `${winner.name}, come on up! You're playing ${room.pricingGame.title}!`, "pricingGame");
+}
+
+export function pricingGameAction(room, playerId, action) {
+  if (room.phase !== "pricingGame" || !room.pricingGame) throw new Error("No pricing game is active");
+  if (room.pricingGame.playerId !== playerId) throw new Error("This is not your pricing game");
+  playPricingGame(room.pricingGame, action || {});
+  const g = room.pricingGame;
+  setHostLine(room, g.status === "playing" ? g.prompt : g.result, g.status === "playing" ? "pricingPrompt" : "pricingResult");
+}
+
 export function submitBid(room, playerId, amount) {
   if (room.phase !== "bidding") throw new Error("Bidding isn't open");
   const c = room.contestants[room.turn];
@@ -213,19 +251,22 @@ export async function restart(room, mode) {
     room.callIndex = -1;
     room.turn = 0;
     room.winnerIndices = [];
+    room.usedPrizeIds = [];
+    room.playedPricingGames = [];
+    room.pricingGame = null;
     setHostLine(room, "", "welcome");
   } else {
-    const pool = await getPrizePool();
     room.contestants = room.contestants.map((c) => ({
       ...c,
       bid: null,
       strategy: c.isAI ? shuffle(STRATEGIES)[0] : c.strategy,
     }));
-    room.item = pickRandomItem(pool, room.item?.id);
+    room.item = await selectFreshPrize(room);
     room.turn = 0;
     room.winnerIndices = [];
+    room.pricingGame = null;
     room.phase = "item";
-    setHostLine(room, room.item.hostDescription, "itemIntro");
+    setHostLine(room, `Here's the next prize up for bids!||${room.item.hostDescription}`, "itemIntro");
   }
 }
 

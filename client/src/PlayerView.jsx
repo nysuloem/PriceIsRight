@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Bot, Trophy, Camera, Upload, X, Check } from "lucide-react";
-import { getState, joinRoom, submitBid } from "./api.js";
+import { getState, joinRoom, submitBid, pricingGameAction } from "./api.js";
 
 const POLL_MS = 1200;
 
@@ -272,7 +272,48 @@ export default function PlayerView({ code }) {
         <RevealPhase state={state} myIndex={myIndex} />
       )}
 
+      {state.phase === "pricingGame" && (
+        <PricingGamePhone game={state.pricingGame} playerId={playerId} code={code}
+          onError={(message) => setError(message)} />
+      )}
+
       {error && <div className="pir-error">{error}</div>}
+    </div>
+  );
+}
+
+function PricingGamePhone({ game, playerId, code, onError }) {
+  const [number, setNumber] = useState("");
+  const [order, setOrder] = useState([]);
+  const [busy, setBusy] = useState(false);
+  if (!game) return <div className="pir-panel">Loading pricing game…</div>;
+  const isPlayer = game.playerId === playerId;
+  const send = async (action) => {
+    setBusy(true); onError("");
+    try { await pricingGameAction(code, playerId, action); setNumber(""); }
+    catch (e) { onError(e.message); }
+    finally { setBusy(false); }
+  };
+  if (!isPlayer) return <div className="pir-panel pir-center"><h2>{game.title}</h2><p>{game.playerName} is playing—watch the big screen!</p></div>;
+  if (game.status !== "playing") return <div className="pir-panel pir-center"><h2>{game.title}</h2><p className="pir-pricing-result">{game.result}</p></div>;
+  const addOrder = (id) => { if (!order.includes(id)) setOrder([...order, id]); };
+  const orderedNames = order.map(id => game.items?.find(x => x.id === id)?.name).filter(Boolean);
+  return (
+    <div className="pir-panel pir-pricing-phone">
+      <h2 className="pir-pricing-title">{game.title}</h2>
+      <p className="pir-helptext">{game.instructions}</p>
+      <div className="pir-pricing-prompt">{game.prompt}</div>
+      {game.mode === "number" && <>
+        <div className="pir-led pir-bid-input"><span>$</span><input type="number" value={number} autoFocus min="0" onChange={e=>setNumber(e.target.value)} /></div>
+        <button className="pir-btn" disabled={busy || number === ""} onClick={()=>send({ value: number })}>Submit</button>
+      </>}
+      {game.mode === "choice" && <div className="pir-choice-grid">{game.options.map(option=><button key={option} className="pir-btn secondary" disabled={busy} onClick={()=>send({ choice: option })}>{option}</button>)}</div>}
+      {game.mode === "order" && <>
+        <div className="pir-order-list">{orderedNames.map((name,i)=><span key={i}>{i+1}. {name}</span>)}</div>
+        <div className="pir-choice-grid">{game.items.filter(x=>!order.includes(x.id)).map(item=><button key={item.id} className="pir-btn secondary" onClick={()=>addOrder(item.id)}>{item.name}</button>)}</div>
+        <div className="pir-actions"><button className="pir-btn secondary" disabled={!order.length} onClick={()=>setOrder([])}>Reset</button><button className="pir-btn" disabled={busy || order.length !== game.items.length} onClick={()=>send({ order })}>Lock In Order</button></div>
+      </>}
+      {!!game.history?.length && <div className="pir-game-history">{game.history.slice(-4).map((line,i)=><div key={i}>{line}</div>)}</div>}
     </div>
   );
 }

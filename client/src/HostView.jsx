@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, useCallback, Component } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Mic2, Bot, Trophy, Sparkles, ArrowRight, ChefHat, ExternalLink } from "lucide-react";
+import { Mic2, Bot, Trophy, ArrowRight, ChefHat } from "lucide-react";
 import {
   getState, startGame, callNext, advance,
   resolveAITurn, nextTurn, restartGame, resetBids, ttsUrl, playerPhotoUrl, getConfig,
+  startPricingGame,
 } from "./api.js";
 import OpeningSequence from "./OpeningSequence.jsx";
 
@@ -16,11 +17,24 @@ const POLL_MS = 1200;
 function playTTS(audioEl, text, onDone, voice, style = "host") {
   if (!text) { onDone(); return; }
   let fired = false;
-  const fire = () => { if (fired) return; fired = true; onDone(); };
+  let hardStop;
+  const fire = () => { if (fired) return; fired = true; clearTimeout(hardStop); onDone(); };
+  audioEl.pause();
+  audioEl.currentTime = 0;
   audioEl.src = ttsUrl(text, voice, style);
   audioEl.onended = fire;
   audioEl.onerror = () => setTimeout(fire, 1500);
   audioEl.play().catch(() => setTimeout(fire, 1500));
+  // If the TTS request hangs, cancel the audio resource before advancing.
+  // Clearing src is important: a late response can no longer begin speaking
+  // over the next phase.
+  hardStop = setTimeout(() => {
+    if (fired) return;
+    audioEl.pause();
+    audioEl.removeAttribute("src");
+    audioEl.load();
+    fire();
+  }, 25000);
 }
 
 // ---------------------------------------------------------------------------
@@ -93,6 +107,7 @@ function HostViewInner({ code }) {
   const lastSeqRef = useRef(-1);
   const audioRef = useRef(null);       // host voice
   const announcerRef = useRef(null);   // announcer voice (for prize descriptions)
+  const speechRunRef = useRef(0);
 
   // Poll server state
   useEffect(() => {
@@ -116,8 +131,14 @@ function HostViewInner({ code }) {
     const { seq, text, type } = state.hostLine;
     if (seq === lastSeqRef.current) return;
     lastSeqRef.current = seq;
+    const speechRun = ++speechRunRef.current;
     const el = audioRef.current;
-    const safely = (fn) => fn().catch((e) => setError(e.message));
+    const ann = announcerRef.current;
+    // A new server line owns the sound stage. Stop both channels before it
+    // begins so delayed network audio can never talk over a later line.
+    [el, ann].forEach(audio => { if (audio) { audio.pause(); audio.currentTime = 0; } });
+    const current = (fn) => { if (speechRun === speechRunRef.current) fn(); };
+    const safely = (fn) => current(() => fn().catch((e) => setError(e.message)));
 
     const voice = config.hostVoice || "echo";
     // "welcome" and "call" types are handled by the opening sequence.
@@ -128,25 +149,19 @@ function HostViewInner({ code }) {
       const parts = text.split("||");
       const hostPart = parts[0] || "";
       const announcerPart = parts[1] || "";
-      const ann = announcerRef.current;
       const annVoice = config.announcerVoice || "echo";
-      let advancedToBidding = false;
       const afterAnnounce = () => {
-        if (advancedToBidding) return;
-        advancedToBidding = true;
         safely(() => advance(code, "bidding"));
       };
-      // Safety net: if TTS takes too long or fails, advance anyway after 15s
-      const safetyTimer = setTimeout(afterAnnounce, 15000);
-      // Host introduces, announcer describes, then auto-advance to bidding
-      playTTS(el, hostPart, () => {
+      // There is deliberately no timeout here: the announcer must finish (or
+      // definitively fail) before the bidding screen and host prompt begin.
+      playTTS(el, hostPart, () => current(() => {
         if (announcerPart && ann) {
-          playTTS(ann, announcerPart, () => { clearTimeout(safetyTimer); afterAnnounce(); }, annVoice, "announcer");
+          playTTS(ann, announcerPart, afterAnnounce, annVoice, "announcer");
         } else {
-          clearTimeout(safetyTimer);
           afterAnnounce();
         }
-      }, voice);
+      }), voice);
     } else if (type === "prompt") {
       const c = state.contestants[state.turn];
       if (c?.isAI) playTTS(el, text, () => safely(() => resolveAITurn(code)), voice);
@@ -155,7 +170,11 @@ function HostViewInner({ code }) {
       const last = state.turn >= state.contestants.length - 1;
       playTTS(el, text, () => safely(() => last ? advance(code, "reveal") : nextTurn(code)), voice);
     } else if (type === "reveal") {
-      playTTS(el, text, () => {}, voice);
+      const humanWinner = state.winnerIndices
+        .map(i => state.contestants[i]).find(c => c && !c.isAI);
+      playTTS(el, text, () => safely(() => humanWinner
+        ? startPricingGame(code)
+        : restartGame(code, "sameLineup")), voice);
     } else if (type === "overbid") {
       playBuzzer();
       setTimeout(() => {
@@ -167,8 +186,18 @@ function HostViewInner({ code }) {
     } else if (type === "exactBid") {
       playAlarm();
       setTimeout(() => {
-        playTTS(el, text, () => {}, voice);
+        current(() => {
+          const humanWinner = state.winnerIndices
+            .map(i => state.contestants[i]).find(c => c && !c.isAI);
+          playTTS(el, text, () => safely(() => humanWinner
+            ? startPricingGame(code)
+            : restartGame(code, "sameLineup")), voice);
+        });
       }, 800);
+    } else if (type === "pricingGame" || type === "pricingPrompt") {
+      playTTS(el, text, () => {}, voice);
+    } else if (type === "pricingResult") {
+      playTTS(el, text, () => safely(() => restartGame(code, "sameLineup")), voice);
     }
   }, [state, code, phase]);
 
@@ -278,8 +307,10 @@ function HostViewInner({ code }) {
               {state.phase === "bidding" && <BiddingView state={state} code={code} />}
               {state.phase === "reveal" && (
                 <RevealView state={state} code={code}
-                  onBidAgain={action(() => restartGame(code, "sameLineup"))}
                   onNewPlayers={action(() => restartGame(code, "newPlayers"))} />
+              )}
+              {state.phase === "pricingGame" && (
+                <PricingGameView game={state.pricingGame} />
               )}
             </>
           )}
@@ -302,13 +333,7 @@ function Lobby({ state, code, joinUrl, onStart }) {
           <div className="pir-qr-box">
             <QRCodeSVG value={joinUrl} size={160} fgColor="#fff8e7" bgColor="transparent" level="M" />
           </div>
-          <div className="pir-room-code">Room: <span>{code}</span></div>
-          <p className="pir-helptext" style={{ fontSize: 11 }}>Scan to join · or visit the URL</p>
-          <a href={joinUrl} target="_blank" rel="noopener noreferrer"
-            className="pir-btn secondary small"
-            style={{ display: "inline-flex", textDecoration: "none", marginTop: 6 }}>
-            <ExternalLink size={14} /> Test as Player
-          </a>
+          <p className="pir-helptext" style={{ fontSize: 13 }}>Scan to join on your phone</p>
         </div>
         <div className="pir-lobby-players">
           <div style={{ fontWeight: 700, marginBottom: 8, color: "var(--gold)" }}>
@@ -388,7 +413,7 @@ function BiddingView({ state, code }) {
 // ---------------------------------------------------------------------------
 // Reveal
 // ---------------------------------------------------------------------------
-function RevealView({ state, code, onBidAgain, onNewPlayers }) {
+function RevealView({ state, code, onNewPlayers }) {
   const { item, contestants, winnerIndices, revealType } = state;
   const isExact = revealType === "exactBid";
   const isOverbid = revealType === "overbid";
@@ -446,13 +471,58 @@ function RevealView({ state, code, onBidAgain, onNewPlayers }) {
         {item.name} · {item.retailer} · ${item.price}
       </div>
       <div className="pir-actions">
-        <button className="pir-btn" onClick={onBidAgain}>
-          <Sparkles size={18} /> New Prize, Same Lineup
-        </button>
+        <div className="pir-helptext">
+          {winnerIndices.some(i => !contestants[i]?.isAI)
+            ? "The pricing game begins after the host finishes speaking…"
+            : "AI winner — loading the next prize…"}
+        </div>
         <button className="pir-btn secondary" onClick={onNewPlayers}>New Players</button>
       </div>
     </>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Pricing games — the contestant controls these from their phone. The host
+// screen is a read-only game board that mirrors every choice.
+// ---------------------------------------------------------------------------
+function PricingGameView({ game }) {
+  if (!game) return <div className="pir-loading">Loading pricing game…</div>;
+  return (
+    <div className={`pir-pricing-board pir-game-${game.type}`}>
+      <div className="pir-pricing-kicker">{game.playerName}, COME ON UP!</div>
+      <h2 className="pir-pricing-title">{game.title}</h2>
+      <p className="pir-pricing-rules">{game.instructions}</p>
+
+      {game.type === "plinko" && (
+        <div className="pir-plinko-board">
+          <div className="pir-plinko-pegs">{Array.from({ length: 35 }, (_, i) => <i key={i} />)}</div>
+          <div className="pir-plinko-slots">{game.slots.map((v,i) => <span key={i}>${v}</span>)}</div>
+          <b>{game.chipsLeft} chip{game.chipsLeft === 1 ? "" : "s"} left</b>
+        </div>
+      )}
+      {game.type === "cliffHangers" && (
+        <div className="pir-cliff"><div className="pir-climber" style={{ left: `${Math.min(100, game.climber * 4)}%` }}>🧗</div><div className="pir-cliff-track" /><b>Step {game.climber} / 25</b></div>
+      )}
+      {game.type === "punchABunch" && <div className="pir-punch-grid">{game.options.map(n => <span key={n}>{n}</span>)}</div>}
+      {game.type === "diceGame" && <div className="pir-price-digits"><span>{game.firstDigit}</span>{game.revealed.map((n,i)=><span key={i}>{n ?? "?"}</span>)}</div>}
+      {game.type === "groceryGame" && <><div className="pir-register">TOTAL ${game.total.toFixed(2)}</div><GameCards items={game.items} /></>}
+      {game.type === "holeInOne" && <><div className="pir-golf-green">⛳<span>{game.distance ? `${game.distance} lines away` : "Order the products"}</span></div><GameCards items={game.items} /></>}
+      {game.type === "clockGame" && <><div className="pir-clock">{game.secondsLeft}</div><GameCards items={game.items} /></>}
+      {game.type === "anyNumber" && <div className="pir-any-number">{game.boards.map(b => <div key={b.label}><b>{b.label}</b><div className="pir-price-digits">{b.cells.map((n,i)=><span key={i}>{n ?? "_"}</span>)}</div></div>)}</div>}
+      {game.type === "grandGame" && <><div className="pir-grand-money">${game.winnings}</div><div>Target: under ${game.target}</div><GameCards items={game.items} /></>}
+      {game.type === "shellGame" && <><div className="pir-shells">🐚 🐚 🐚 🐚</div><GameCards items={game.items} /></>}
+
+      <div className={`pir-pricing-prompt ${game.status}`}>{game.status === "playing" ? game.prompt : game.result}</div>
+      {!!game.clue && <div className="pir-pricing-clue">{game.clue}</div>}
+      {!!game.history?.length && <div className="pir-game-history">{game.history.slice(-4).map((line,i)=><div key={i}>{line}</div>)}</div>}
+      {game.status !== "playing" && <div className="pir-helptext">The next item up for bids is loading…</div>}
+    </div>
+  );
+}
+
+function GameCards({ items = [] }) {
+  return <div className="pir-game-cards">{items.map((item,i)=><div key={item.id ?? i} className={item.used || item.selected ? "used" : ""}><b>{item.name}</b>{item.shownPrice != null && <span>${item.shownPrice}</span>}</div>)}</div>;
 }
 
 // Canadian $100 bill — SVG illustration

@@ -16,6 +16,8 @@ import {
   nextTurn,
   restart,
   resetBids,
+  startPricingGame,
+  pricingGameAction,
 } from "./rooms.js";
 import { getTTS } from "./tts.js";
 import { getPrizePool } from "./prizeSource.js";
@@ -150,6 +152,24 @@ app.post(
   wrap(async (req, res) => {
     const room = requireRoom(req);
     resetBids(room);
+    res.json(publicState(room));
+  })
+);
+
+app.post(
+  "/api/rooms/:code/pricing-game/start",
+  wrap(async (req, res) => {
+    const room = requireRoom(req);
+    startPricingGame(room);
+    res.json(publicState(room));
+  })
+);
+
+app.post(
+  "/api/rooms/:code/pricing-game/action",
+  wrap(async (req, res) => {
+    const room = requireRoom(req);
+    pricingGameAction(room, req.body?.playerId, req.body?.action);
     res.json(publicState(room));
   })
 );

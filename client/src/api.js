@@ -50,8 +50,8 @@ export const restartGame = (code, mode) =>
     body: JSON.stringify({ mode }),
   });
 
-export const ttsUrl = (text, voice) =>
-  `${BASE}/tts?text=${encodeURIComponent(text)}${voice ? `&voice=${voice}` : ""}`;
+export const ttsUrl = (text, voice, style) =>
+  `${BASE}/tts?text=${encodeURIComponent(text)}${voice ? `&voice=${voice}` : ""}${style ? `&style=${style}` : ""}`;
 
 // Returns the URL to fetch a human player's photo (served by the server).
 export const playerPhotoUrl = (code, playerId) =>
@@ -61,3 +61,12 @@ export const getConfig = () => request("/config");
 
 export const resetBids = (code) =>
   request(`/rooms/${code}/reset-bids`, { method: 'POST' });
+
+export const startPricingGame = (code) =>
+  request(`/rooms/${code}/pricing-game/start`, { method: "POST" });
+
+export const pricingGameAction = (code, playerId, action) =>
+  request(`/rooms/${code}/pricing-game/action`, {
+    method: "POST",
+    body: JSON.stringify({ playerId, action }),
+  });
