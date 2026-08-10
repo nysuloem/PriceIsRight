@@ -122,18 +122,15 @@ function stripMarkup(value) {
     .trim();
 }
 
-function trimForSpeech(value, maxLength = 210) {
+function clipSpeechLine(value, maxLength = 110) {
   const clean = stripMarkup(value);
   if (clean.length <= maxLength) return clean;
-  const shortened = clean.slice(0, maxLength - 1).replace(/\s+\S*$/, "");
-  return `${shortened}.`;
+  return clean.slice(0, maxLength - 1).replace(/\s+\S*$/, "") + "!";
 }
 
-function makeHostDescription(retailer, name, description) {
-  const detail = trimForSpeech(description);
+function makeHostDescription(retailer, name) {
   const intro = `From ${retailer} — ${name}!`;
-  if (!detail || detail.toLowerCase() === name.toLowerCase()) return intro;
-  return `${intro} ${detail}`;
+  return clipSpeechLine(intro);
 }
 
 async function fetchData(url) {
@@ -321,7 +318,7 @@ async function fetchCuratedFallback(candidate) {
     image,
     imageAlt: candidate.imageAlt,
     category: candidate.category || "General merchandise",
-    hostDescription: candidate.hostDescription,
+    hostDescription: clipSpeechLine(`From ${candidate.retailer} — ${candidate.name}!`),
   };
 }
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Tv } from "lucide-react";
+import { Gamepad2, Tv } from "lucide-react";
 import { createRoom } from "./api.js";
 
 export default function Landing({ navigate }) {
@@ -31,6 +31,11 @@ export default function Landing({ navigate }) {
         <p className="pir-helptext">
           Put this on a laptop or TV. Players join by scanning the QR code shown next.
         </p>
+
+        <button className="pir-btn secondary" disabled={busy} onClick={() => navigate("/games")}>
+          <Gamepad2 size={18} /> Test Pricing Games
+        </button>
+        <p className="pir-helptext">Try any pricing game instantly without starting a full show.</p>
 
         {error && <div className="pir-error">{error}</div>}
       </div>

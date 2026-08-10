@@ -17,17 +17,18 @@ const cache = new Map();
 
 // Two delivery styles — announcer is big and hype, host is warm but still excited
 const STYLES = {
-  announcer: `You are a classic TV game show announcer — think The Price is Right. 
-Speak with enormous enthusiasm, energy, and excitement. Big voice, punchy delivery. 
-Really lean into names — make each contestant feel like a star. 
-Speed up slightly on the fun parts, pause dramatically before reveals.`,
+  announcer: `Perform like an exuberant 1980s television game-show announcer at the climax of the broadcast.
+Use HUGE, joyful energy from the first word. Project to a packed studio audience. Smile audibly.
+Punch important words, rise dramatically into contestant names, and make every "COME ON DOWN!" explosive and celebratory.
+Use brisk broadcast pacing, theatrical pauses, and emphatic exclamations. Never sound conversational, restrained, calm, or like a narrator.`,
 
-  host: `You are a charismatic, warm, enthusiastic TV game show host.
-Friendly and exciting — like you genuinely can't wait to give away prizes.
-Upbeat, clear, and energetic. Never flat or monotone.`,
+  host: `Perform as an exceptionally enthusiastic classic television game-show host speaking to a roaring studio audience.
+Sound delighted, spontaneous, warm, and genuinely thrilled to give away every prize.
+Use strong vocal variety, punchy emphasis, audible smiles, excited upward inflections, and celebratory exclamations.
+Keep the pace lively and confident. Never sound calm, flat, formal, restrained, or like you are reading copy.`,
 };
 
-export async function getTTS(text, voice = "echo", style = "host") {
+export async function getTTS(text, voice = "coral", style = "host") {
   const key = `${voice}::${style}::${text}`;
   if (cache.has(key)) return cache.get(key);
 
@@ -40,7 +41,7 @@ export async function getTTS(text, voice = "echo", style = "host") {
       voice,
       input: text.slice(0, 4096),
       instructions: STYLES[style] || STYLES.host,
-      speed: 1.05,
+      speed: style === "announcer" ? 1.12 : 1.08,
     });
     const buf = Buffer.from(await response.arrayBuffer());
     cache.set(key, buf);

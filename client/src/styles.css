@@ -1008,3 +1008,10 @@ body {
 .pir-order-list { display:flex;flex-direction:column;gap:5px;text-align:left;background:rgba(255,255,255,.06);padding:12px;border-radius:10px; }
 .pir-pricing-phone { text-align:center; }.pir-pricing-phone .pir-pricing-title { font-size:36px; }.pir-pricing-result { color:var(--led-green);font-size:22px;font-weight:800; }
 @media(max-width:600px){.pir-any-number{grid-template-columns:1fr}.pir-pricing-board{border-width:4px}.pir-plinko-board{padding:8px}.pir-plinko-pegs{gap:8px}.pir-shells{letter-spacing:1px}}
+
+/* ---- Pricing game test lab ---- */
+.pir-games-lab > .pir-title { margin: 22px 0 8px; }
+.pir-game-picker { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; margin-top:20px; }
+.pir-game-picker > button { border:3px solid #e4ca4f; border-radius:14px; background:linear-gradient(135deg,#23569b,#172c69); color:#fff; padding:16px; display:flex; align-items:center; gap:13px; text-align:left; cursor:pointer; box-shadow:0 5px 0 rgba(0,0,0,.3); }
+.pir-game-picker > button:hover { transform:translateY(-2px); }.pir-game-picker > button:disabled { opacity:.6;cursor:wait; }
+.pir-game-picker svg { color:#ffe66d; flex:none; }.pir-game-picker span { display:flex;flex-direction:column;gap:4px;flex:1; }.pir-game-picker b { font-family:"Anton",sans-serif;font-size:20px;letter-spacing:1px;color:#ffe66d; }.pir-game-picker small { font-size:12px;line-height:1.35;color:#e6edff; }.pir-game-picker em { font-size:11px; }

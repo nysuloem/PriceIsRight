@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Bot, Trophy, Camera, Upload, X, Check } from "lucide-react";
 import { getState, joinRoom, submitBid, pricingGameAction } from "./api.js";
+import { PricingGameView } from "./HostView.jsx";
 
 const POLL_MS = 1200;
 
-export default function PlayerView({ code }) {
+export default function PlayerView({ code, navigate }) {
   const [state, setState] = useState(null);
   const [error, setError] = useState("");
   const [playerId, setPlayerId] = useState(
@@ -245,7 +246,7 @@ export default function PlayerView({ code }) {
 
       {state.phase === "replacement" && (
         <div className="pir-panel pir-center">
-          {state.replacementContestantId === playerId
+          {state.replacementVisible && state.replacementContestantId === playerId
             ? <p><b>Come on down!</b> You are the next contestant on The Price Is Right!</p>
             : <p>A new contestant is being called—watch the big screen!</p>}
         </div>
@@ -281,8 +282,12 @@ export default function PlayerView({ code }) {
       )}
 
       {state.phase === "pricingGame" && (
-        <PricingGamePhone game={state.pricingGame} playerId={playerId} code={code}
-          onError={(message) => setError(message)} />
+        <>
+          {state.isDemo && <PricingGameView game={state.pricingGame} />}
+          <PricingGamePhone game={state.pricingGame} playerId={playerId} code={code}
+            isDemo={state.isDemo} onBackToGames={() => navigate?.("/games")}
+            onError={(message) => setError(message)} />
+        </>
       )}
 
       {error && <div className="pir-error">{error}</div>}
@@ -290,7 +295,7 @@ export default function PlayerView({ code }) {
   );
 }
 
-function PricingGamePhone({ game, playerId, code, onError }) {
+function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError }) {
   const [number, setNumber] = useState("");
   const [order, setOrder] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -303,7 +308,7 @@ function PricingGamePhone({ game, playerId, code, onError }) {
     finally { setBusy(false); }
   };
   if (!isPlayer) return <div className="pir-panel pir-center"><h2>{game.title}</h2><p>{game.playerName} is playing—watch the big screen!</p></div>;
-  if (game.status !== "playing") return <div className="pir-panel pir-center"><h2>{game.title}</h2><p className="pir-pricing-result">{game.result}</p></div>;
+  if (game.status !== "playing") return <div className="pir-panel pir-center"><h2>{game.title}</h2><p className="pir-pricing-result">{game.result}</p>{isDemo && <button className="pir-btn" onClick={onBackToGames}>Try Another Game</button>}</div>;
   const addOrder = (id) => { if (!order.includes(id)) setOrder([...order, id]); };
   const orderedNames = order.map(id => game.items?.find(x => x.id === id)?.name).filter(Boolean);
   return (

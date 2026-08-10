@@ -5,6 +5,7 @@ import {
   getState, startGame, callNext, advance,
   resolveAITurn, nextTurn, restartGame, resetBids, ttsUrl, playerPhotoUrl, getConfig,
   startPricingGame,
+  revealReplacement,
 } from "./api.js";
 import OpeningSequence from "./OpeningSequence.jsx";
 
@@ -103,7 +104,7 @@ function HostViewInner({ code }) {
   const [state, setState] = useState(null);
   const [phase, setPhase] = useState("lobby"); // "lobby" | "opening" | "game"
   const [error, setError] = useState("");
-  const [config, setConfig] = useState({ hostName: "Robbie Archer", announcerVoice: "echo", hostVoice: "onyx" });
+  const [config, setConfig] = useState({ hostName: "Robbie Archer", announcerVoice: "onyx", hostVoice: "coral" });
   const lastSeqRef = useRef(-1);
   const audioRef = useRef(null);       // host voice
   const announcerRef = useRef(null);   // announcer voice (for prize descriptions)
@@ -140,23 +141,26 @@ function HostViewInner({ code }) {
     const current = (fn) => { if (speechRun === speechRunRef.current) fn(); };
     const safely = (fn) => current(() => fn().catch((e) => setError(e.message)));
 
-    const voice = config.hostVoice || "echo";
+    const voice = config.hostVoice || "coral";
     // "welcome" and "call" types are handled by the opening sequence.
     // The game loop only handles item onwards.
     if (type === "welcome" || type === "call") {
       return; // opening already did this — ignore
     } else if (type === "replacementIntro") {
       const [hostPart = "", announcerPart = ""] = text.split("||");
-      const annVoice = config.announcerVoice || "echo";
+      const annVoice = config.announcerVoice || "onyx";
       playTTS(el, hostPart, () => current(() => {
-        if (announcerPart && ann) playTTS(ann, announcerPart, () => safely(() => advance(code, "item")), annVoice, "announcer");
-        else safely(() => advance(code, "item"));
+        revealReplacement(code).then(fresh => current(() => {
+          setState(fresh);
+          if (announcerPart && ann) playTTS(ann, announcerPart, () => safely(() => advance(code, "item")), annVoice, "announcer");
+          else safely(() => advance(code, "item"));
+        })).catch(e => setError(e.message));
       }), voice);
     } else if (type === "itemIntro") {
       const parts = text.split("||");
       const hostPart = parts[0] || "";
       const announcerPart = parts[1] || "";
-      const annVoice = config.announcerVoice || "echo";
+      const annVoice = config.announcerVoice || "onyx";
       const afterAnnounce = () => {
         safely(() => advance(code, "bidding"));
       };
@@ -209,6 +213,13 @@ function HostViewInner({ code }) {
   }, [state, code, phase]);
 
   const action = (fn) => () => fn().catch((e) => setError(e.message));
+  const forceAction = (fn) => () => {
+    speechRunRef.current += 1;
+    [audioRef.current, announcerRef.current].forEach(audio => {
+      if (audio) { audio.pause(); audio.currentTime = 0; }
+    });
+    fn().catch((e) => setError(e.message));
+  };
 
   // "Start Game" — unlock audio, start game (builds lineup), wait for
   // contestants to appear in state, THEN show opening.
@@ -315,6 +326,8 @@ function HostViewInner({ code }) {
               {state.phase === "bidding" && <BiddingView state={state} code={code} />}
               {state.phase === "reveal" && (
                 <RevealView state={state} code={code}
+                  onStartPricing={forceAction(() => startPricingGame(code))}
+                  onNextRound={forceAction(() => restartGame(code, "sameLineup"))}
                   onNewPlayers={action(() => restartGame(code, "newPlayers"))} />
               )}
               {state.phase === "pricingGame" && (
@@ -431,7 +444,7 @@ function BiddingView({ state, code }) {
 // ---------------------------------------------------------------------------
 // Reveal
 // ---------------------------------------------------------------------------
-function RevealView({ state, code, onNewPlayers }) {
+function RevealView({ state, code, onStartPricing, onNextRound, onNewPlayers }) {
   const { item, contestants, winnerIndices, revealType } = state;
   const isExact = revealType === "exactBid";
   const isOverbid = revealType === "overbid";
@@ -489,11 +502,9 @@ function RevealView({ state, code, onNewPlayers }) {
         {item.name} · {item.retailer} · ${item.price}
       </div>
       <div className="pir-actions">
-        <div className="pir-helptext">
-          {winnerIndices.some(i => !contestants[i]?.isAI)
-            ? "The pricing game begins after the host finishes speaking…"
-            : "AI winner — loading the next prize…"}
-        </div>
+        {winnerIndices.some(i => !contestants[i]?.isAI)
+          ? <button className="pir-btn" onClick={onStartPricing}>Start Pricing Game Now</button>
+          : <button className="pir-btn" onClick={onNextRound}>Call Next Contestant Now</button>}
         <button className="pir-btn secondary" onClick={onNewPlayers}>New Players</button>
       </div>
     </>
@@ -504,7 +515,7 @@ function RevealView({ state, code, onNewPlayers }) {
 // Pricing games — the contestant controls these from their phone. The host
 // screen is a read-only game board that mirrors every choice.
 // ---------------------------------------------------------------------------
-function PricingGameView({ game }) {
+export function PricingGameView({ game }) {
   if (!game) return <div className="pir-loading">Loading pricing game…</div>;
   return (
     <div className={`pir-pricing-board pir-game-${game.type}`}>

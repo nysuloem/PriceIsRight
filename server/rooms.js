@@ -3,7 +3,7 @@ import {
   buildLineup, computeAIBid, computeWinners, makeAIContestant, STRATEGIES, shuffle,
 } from "./gameLogic.js";
 import { getPrizePool, pickRandomItem } from "./prizeSource.js";
-import { createPricingGame, playPricingGame, publicPricingGame } from "./pricingGames.js";
+import { createPricingGame, createPricingGameForType, playPricingGame, publicPricingGame } from "./pricingGames.js";
 
 const rooms = new Map();
 const ROOM_TTL_MS = 4 * 60 * 60 * 1000;
@@ -41,6 +41,8 @@ export function createRoom() {
     pricingGame: null,
     showcaseContestants: [],
     replacementContestantId: null,
+    replacementVisible: false,
+    isDemo: false,
     hostLine: { seq: 0, text: "", type: "welcome" },
   };
   rooms.set(code, room);
@@ -53,6 +55,19 @@ export function getRoom(code) {
   return room || null;
 }
 
+export function createPricingGameDemo(type) {
+  const room = createRoom();
+  const player = { id: randomUUID(), name: "Game Tester", photo: null, hasPhoto: false };
+  room.players = [player];
+  room.contestants = [{ ...player, isAI: false, strategy: null, bid: null }];
+  room.pricingGame = createPricingGameForType(type, player);
+  room.playedPricingGames = [type];
+  room.phase = "pricingGame";
+  room.isDemo = true;
+  setHostLine(room, `Let's test ${room.pricingGame.title}!`, "pricingGame");
+  return { room, player };
+}
+
 // Strip base64 photo from public state to keep polling payloads small;
 // the photo is sent once at join time and the client caches it locally.
 export function publicState(room) {
@@ -60,10 +75,12 @@ export function publicState(room) {
     code: room.code,
     phase: room.phase,
     players: room.players.map(({ id, name, hasPhoto }) => ({ id, name, hasPhoto: !!hasPhoto })),
-    contestants: room.contestants.map((c) => ({
-      ...c,
-      photo: c.isAI ? c.photo : undefined, // AI avatars are a URL (small), human photos excluded
-    })),
+    contestants: room.contestants
+      .filter(c => room.phase !== "replacement" || room.replacementVisible || c.id !== room.replacementContestantId)
+      .map((c) => ({
+        ...c,
+        photo: c.isAI ? c.photo : undefined, // AI avatars are a URL (small), human photos excluded
+      })),
     item: room.item,
     callIndex: room.callIndex,
     turn: room.turn,
@@ -73,6 +90,8 @@ export function publicState(room) {
     pricingGame: publicPricingGame(room.pricingGame),
     showcaseContestants: room.showcaseContestants.map(({ id, name, isAI }) => ({ id, name, isAI })),
     replacementContestantId: room.replacementContestantId,
+    replacementVisible: room.replacementVisible,
+    isDemo: room.isDemo,
   };
 }
 
@@ -180,6 +199,7 @@ export function advance(room, to) {
     if (room.phase !== "calling" && room.phase !== "item" && room.phase !== "replacement") throw new Error("Bad phase for 'item'");
     const firstItem = room.phase === "calling";
     room.phase = "item";
+    room.replacementVisible = true;
     // "||" separates host line from announcer description — client splits on it
     const hostLine = firstItem ? "Here's the first prize up for bids!" : "Here's the next prize up for bids!";
     setHostLine(room, `${hostLine}||${room.item.hostDescription}`, "itemIntro");
@@ -216,6 +236,11 @@ export function pricingGameAction(room, playerId, action) {
   playPricingGame(room.pricingGame, action || {});
   const g = room.pricingGame;
   setHostLine(room, g.status === "playing" ? g.prompt : g.result, g.status === "playing" ? "pricingPrompt" : "pricingResult");
+}
+
+export function revealReplacement(room) {
+  if (room.phase !== "replacement") throw new Error("No replacement contestant is being called");
+  room.replacementVisible = true;
 }
 
 export function submitBid(room, playerId, amount) {
@@ -275,6 +300,7 @@ export async function restart(room, mode) {
     room.pricingGame = null;
     room.showcaseContestants = [];
     room.replacementContestantId = null;
+    room.replacementVisible = false;
     setHostLine(room, "", "welcome");
   } else {
     const winnerIndex = room.winnerIndices[0];
@@ -296,6 +322,7 @@ export async function restart(room, mode) {
       : makeAIContestant([...room.contestants, ...room.showcaseContestants], room.showcaseContestants.length);
     room.contestants.push(replacement);
     room.replacementContestantId = replacement.id;
+    room.replacementVisible = false;
     room.item = await selectFreshPrize(room);
     room.turn = 0;
     room.winnerIndices = [];
@@ -307,9 +334,10 @@ export async function restart(room, mode) {
   }
 }
 
-setInterval(() => {
+const cleanupTimer = setInterval(() => {
   const now = Date.now();
   for (const [code, room] of rooms) {
     if (now - room.updatedAt > ROOM_TTL_MS) rooms.delete(code);
   }
 }, 30 * 60 * 1000);
+cleanupTimer.unref?.();

@@ -18,6 +18,8 @@ import {
   resetBids,
   startPricingGame,
   pricingGameAction,
+  createPricingGameDemo,
+  revealReplacement,
 } from "./rooms.js";
 import { getTTS } from "./tts.js";
 import { getPrizePool } from "./prizeSource.js";
@@ -157,6 +159,23 @@ app.post(
 );
 
 app.post(
+  "/api/pricing-games/demo",
+  wrap(async (req, res) => {
+    const { room, player } = createPricingGameDemo(req.body?.type);
+    res.json({ code: room.code, playerId: player.id, ...publicState(room) });
+  })
+);
+
+app.post(
+  "/api/rooms/:code/replacement/reveal",
+  wrap(async (req, res) => {
+    const room = requireRoom(req);
+    revealReplacement(room);
+    res.json(publicState(room));
+  })
+);
+
+app.post(
   "/api/rooms/:code/pricing-game/start",
   wrap(async (req, res) => {
     const room = requireRoom(req);
@@ -190,8 +209,9 @@ app.get(
   wrap(async (req, res) => {
     const text = (req.query.text || "").toString().trim().slice(0, 600);
     if (!text) return res.status(400).json({ error: "Missing text" });
-    const voice = (req.query.voice || process.env.HOST_VOICE || "echo").toString();
     const style = (req.query.style || "host").toString();
+    const defaultVoice = style === "announcer" ? "onyx" : "coral";
+    const voice = (req.query.voice || (style === "announcer" ? process.env.ANNOUNCER_VOICE : process.env.HOST_VOICE) || defaultVoice).toString();
     const audio = await getTTS(text, voice, style);
     if (!audio) return res.status(503).json({ error: "TTS unavailable" });
     res.set("Content-Type", "audio/mpeg");
@@ -204,8 +224,8 @@ app.get(
 app.get("/api/config", (req, res) => {
   res.json({
     hostName: process.env.HOST_NAME || "Robbie Archer",
-    announcerVoice: process.env.ANNOUNCER_VOICE || "echo",
-    hostVoice: process.env.HOST_VOICE || "echo",
+    announcerVoice: process.env.ANNOUNCER_VOICE || "onyx",
+    hostVoice: process.env.HOST_VOICE || "coral",
   });
 });
 

@@ -70,3 +70,12 @@ export const pricingGameAction = (code, playerId, action) =>
     method: "POST",
     body: JSON.stringify({ playerId, action }),
   });
+
+export const revealReplacement = (code) =>
+  request(`/rooms/${code}/replacement/reveal`, { method: "POST" });
+
+export const createPricingGameDemo = (type) =>
+  request("/pricing-games/demo", {
+    method: "POST",
+    body: JSON.stringify({ type }),
+  });

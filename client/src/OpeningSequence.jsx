@@ -18,8 +18,8 @@ import { ttsUrl, playerPhotoUrl } from "./api.js";
 export default function OpeningSequence({
   contestants,
   roomCode,
-  announcerVoice = "echo",
-  hostVoice = "echo",
+  announcerVoice = "onyx",
+  hostVoice = "coral",
   onDone,
 }) {
   const [revealed, setRevealed] = useState([]);
