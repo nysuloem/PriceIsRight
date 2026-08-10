@@ -8,6 +8,7 @@ import {
   beginPricingGame,
   settlePricingGame,
   revealReplacement,
+  settleWheel, resolveWheelAI, finishShowdown, advanceShowcase, resolveShowcaseAI,
 } from "./api.js";
 import OpeningSequence from "./OpeningSequence.jsx";
 
@@ -121,6 +122,7 @@ function HostViewInner({ code }) {
   const speechRunRef = useRef(0);
   const lastOutcomeRef = useRef(0);
   const lastSettledDropRef = useRef(0);
+  const lastSettledWheelRef = useRef(0);
 
   useEffect(() => { if (state?.isDemo && phase !== "game") setPhase("game"); }, [state?.isDemo]);
 
@@ -140,6 +142,8 @@ function HostViewInner({ code }) {
     const timer=setTimeout(()=>settlePricingGame(code).catch(e=>setError(e.message)),2300);
     return()=>clearTimeout(timer);
   },[state?.pricingGame?.lastDrop?.id,state?.pricingGame?.stage,code]);
+
+  useEffect(()=>{const s=state?.showdown;if(!s||!["spinning","bonusSpinning"].includes(s.stage)||s.spinSeq===lastSettledWheelRef.current)return;lastSettledWheelRef.current=s.spinSeq;const timer=setTimeout(()=>settleWheel(code).catch(e=>setError(e.message)),3200);return()=>clearTimeout(timer);},[state?.showdown?.spinSeq,state?.showdown?.stage,code]);
 
   // Poll server state
   useEffect(() => {
@@ -246,6 +250,20 @@ function HostViewInner({ code }) {
       playTTS(el, text, () => {}, voice);
     } else if (type === "pricingResult") {
       playTTS(el, text, () => { if (!state.isDemo) safely(() => restartGame(code, "sameLineup")); }, voice);
+    } else if (type === "wheelIntro" || type === "wheelPrompt" || type === "wheelAdvance") {
+      playTTS(el,text,()=>current(()=>{const s=state.showdown,p=s?.participants?.[s.currentIndex];if(p?.isAI&&["turn","decision","bonusTurn"].includes(s.stage))safely(()=>resolveWheelAI(code));}),voice);
+    } else if (type === "wheelSpin") {
+      playTTS(el,text,()=>{},voice);
+    } else if (type === "wheelResult") {
+      playTTS(el,text,()=>safely(()=>finishShowdown(code)),voice);
+    } else if (type === "showcaseTheme") {
+      playTTS(el,text,()=>safely(()=>advanceShowcase(code)),voice);
+    } else if (type === "showcasePrize") {
+      playTTS(ann,text,()=>safely(()=>advanceShowcase(code)),config.announcerVoice||"onyx","announcer");
+    } else if (type === "showcaseChoice" || type === "showcaseBid") {
+      playTTS(el,text,()=>current(()=>{const f=state.finalShowcase;const id=f?.stage==="choice"?f.contestants[0].id:f?.assignments?.[f.stage==="firstBid"?0:1];if(f?.contestants?.find(c=>c.id===id)?.isAI)safely(()=>resolveShowcaseAI(code));}),voice);
+    } else if (type === "showcaseResult") {
+      playTTS(el,text,()=>{},voice);
     }
   }, [state, code, phase]);
 
@@ -371,6 +389,8 @@ function HostViewInner({ code }) {
               {(state.phase === "pricingIntro" || state.phase === "pricingPrizeIntro" || state.phase === "pricingGame") && (
                 <PricingGameView game={state.pricingGame} spotlight={state.phase === "pricingPrizeIntro" ? state.pricingAnnouncement : null} />
               )}
+              {state.phase === "showcaseShowdown" && <WheelView showdown={state.showdown} />}
+              {state.phase.startsWith("showcase") && state.finalShowcase && <FinalShowcaseView state={state} />}
             </>
           )}
 
@@ -380,6 +400,11 @@ function HostViewInner({ code }) {
     </>
   );
 }
+
+const WHEEL_VALUES=[100,5,90,25,70,45,10,65,30,85,50,95,55,75,40,20,60,35,80,15];
+function WheelView({showdown}){if(!showdown)return null;const p=showdown.participants[showdown.currentIndex]||showdown.participants.find(x=>x.id===showdown.winnerId);const spinning=["spinning","bonusSpinning"].includes(showdown.stage);return <div className="pir-wheel-stage"><div className="pir-pricing-kicker">SHOWCASE SHOWDOWN {showdown.half}</div><h2 className="pir-pricing-title">THE BIG WHEEL</h2><div className="pir-wheel-pointer">▼</div><div key={showdown.spinSeq} className={`pir-big-wheel ${spinning?"spinning":""}`} style={{"--landing":showdown.pendingIndex??0}}>{WHEEL_VALUES.map((v,i)=><span key={i} style={{transform:`rotate(${i*18}deg) translateY(-142px) rotate(${-i*18}deg)`}}>{v===100?"$1.00":`.${String(v).padStart(2,"0")}`}</span>)}</div><h3>{p?.name}{showdown.isSpinoff?" — SPIN-OFF":""}</h3><div className="pir-wheel-scoreboard">{showdown.participants.map(x=><div key={x.id} className={x.id===p?.id?"active":""}><b>{x.name}</b><span>{x.spins?.map(v=>`.${String(v).padStart(2,"0")}`).join(" + ")||"—"}</span><strong>{x.score>100?"BUST":`${x.score}¢`}</strong><small>Winnings: ${x.totalWinnings?.toLocaleString("en-CA")}</small></div>)}</div><div className="pir-pricing-prompt">{spinning?"The wheel is spinning…":showdown.result||`${p?.name}, spin the wheel!`}</div></div>}
+
+function FinalShowcaseView({state}){const f=state.finalShowcase,s=f.showcases[f.showcaseIndex]||f.showcases[0];return <div className="pir-showcase-stage"><div className="pir-pricing-kicker">THE FINAL SHOWCASE</div><h2 className="pir-pricing-title">{s.title}</h2>{state.showcaseAnnouncement?<GameCards items={[state.showcaseAnnouncement]}/>:<div className="pir-showcase-prizes">{s.prizes.map((p,i)=><div key={i}><img src={p.image} alt=""/><b>{p.name}</b></div>)}</div>}<div className="pir-showcase-contestants">{f.contestants.map(c=><div key={c.id} className={c.id===f.winnerId?"winner":""}><b>{c.name}</b><span>Show winnings ${c.totalWinnings?.toLocaleString("en-CA")}</span><strong>{f.bids[c.id]?`BID $${f.bids[c.id].toLocaleString("en-CA")}`:"WAITING"}</strong></div>)}</div>{f.stage==="complete"&&<div className="pir-showcase-results">{f.results.map((r,i)=><div key={i}>Showcase {i+1}: ${r.actual.toLocaleString("en-CA")} · {r.over?"OVER":`Difference $${r.difference.toLocaleString("en-CA")}`}</div>)}</div>}<div className="pir-pricing-prompt">{f.result||state.hostLine.text}</div></div>}
 
 function DemoLobby({ state, joinUrl }) {
   return <div className="pir-panel pir-center"><h2 className="pir-pricing-title">PRICING GAME TEST</h2><div className="pir-qr-box" style={{margin:"20px auto",width:"fit-content"}}><QRCodeSVG value={joinUrl} size={220} fgColor="#fff8e7" bgColor="transparent" /></div><p className="pir-helptext">Scan with a phone, enter the contestant's name, and the game will begin on this screen.</p><b>{state.players.length ? "Contestant connected — get ready!" : "Waiting for contestant…"}</b></div>;
