@@ -77,6 +77,12 @@ export const beginPricingGame = (code) =>
 export const settlePricingGame = (code) =>
   request(`/rooms/${code}/pricing-game/settle`, { method: "POST" });
 
+export const revealPricingPrice = (code) =>
+  request(`/rooms/${code}/pricing-game/reveal-price`, { method: "POST" });
+
+export const continuePricingPrice = (code) =>
+  request(`/rooms/${code}/pricing-game/continue-price`, { method: "POST" });
+
 export const revealReplacement = (code) =>
   request(`/rooms/${code}/replacement/reveal`, { method: "POST" });
 

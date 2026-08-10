@@ -7,6 +7,7 @@ import {
   startPricingGame,
   beginPricingGame,
   settlePricingGame,
+  revealPricingPrice, continuePricingPrice,
   revealReplacement,
   settleWheel, resolveWheelAI, finishShowdown, advanceShowcase, resolveShowcaseAI,
 } from "./api.js";
@@ -122,7 +123,8 @@ function HostViewInner({ code }) {
   const speechRunRef = useRef(0);
   const lastOutcomeRef = useRef(0);
   const lastSettledDropRef = useRef(0);
-  const lastSettledWheelRef = useRef(0);
+  const lastSettledWheelRef = useRef("");
+  const lastAIWheelActionRef = useRef("");
 
   useEffect(() => { if (state?.isDemo && phase !== "game") setPhase("game"); }, [state?.isDemo]);
 
@@ -143,7 +145,10 @@ function HostViewInner({ code }) {
     return()=>clearTimeout(timer);
   },[state?.pricingGame?.lastDrop?.id,state?.pricingGame?.stage,code]);
 
-  useEffect(()=>{const s=state?.showdown;if(!s||!["spinning","bonusSpinning"].includes(s.stage)||s.spinSeq===lastSettledWheelRef.current)return;lastSettledWheelRef.current=s.spinSeq;const timer=setTimeout(()=>settleWheel(code).catch(e=>setError(e.message)),3200);return()=>clearTimeout(timer);},[state?.showdown?.spinSeq,state?.showdown?.stage,code]);
+  useEffect(()=>{const s=state?.showdown;if(!s||!["spinning","bonusSpinning"].includes(s.stage))return;const key=`${s.half}-${s.spinSeq}`;if(key===lastSettledWheelRef.current)return;lastSettledWheelRef.current=key;let stopped=false;const attempt=async(retries=0)=>{try{await settleWheel(code);}catch(e){if(!stopped&&retries<2)setTimeout(()=>attempt(retries+1),1200);else if(!stopped){lastSettledWheelRef.current="";setError(e.message);}}};const timer=setTimeout(()=>attempt(),3200);return()=>{stopped=true;clearTimeout(timer);};},[state?.showdown?.half,state?.showdown?.spinSeq,state?.showdown?.stage,code]);
+
+  // AI turns must not depend on speech audio reaching its `ended` event.
+  useEffect(()=>{const s=state?.showdown,p=s?.participants?.[s.currentIndex];if(!s||!p?.isAI||!["turn","decision","bonusTurn"].includes(s.stage))return;const key=`${s.half}-${s.currentIndex}-${s.stage}-${p.spins?.length||0}-${s.spinSeq}`;if(key===lastAIWheelActionRef.current)return;lastAIWheelActionRef.current=key;let stopped=false;const timer=setTimeout(async()=>{try{await resolveWheelAI(code);}catch(e){if(!stopped){lastAIWheelActionRef.current="";setError(e.message);}}},1800);return()=>{stopped=true;clearTimeout(timer);};},[state?.showdown?.half,state?.showdown?.currentIndex,state?.showdown?.stage,state?.showdown?.spinSeq,code]);
 
   // Poll server state
   useEffect(() => {
@@ -246,12 +251,16 @@ function HostViewInner({ code }) {
       playTTS(el, hostIntro, () => safely(() => beginPricingGame(code)), voice, "host");
     } else if (type === "pricingPrizeIntro") {
       setTimeout(() => current(() => playTTS(ann, text, () => safely(() => beginPricingGame(code)), config.announcerVoice || "onyx", "announcer")), 650);
+    } else if (type === "pricingRevealCue") {
+      playTTS(el, text, () => safely(() => revealPricingPrice(code)), voice, "host");
+    } else if (type === "pricingPriceShown") {
+      setTimeout(() => current(() => playTTS(el, text, () => safely(() => continuePricingPrice(code)), voice, "host")), 650);
     } else if (type === "pricingGame" || type === "pricingPrompt") {
       playTTS(el, text, () => {}, voice);
     } else if (type === "pricingResult") {
       playTTS(el, text, () => { if (!state.isDemo) safely(() => restartGame(code, "sameLineup")); }, voice);
     } else if (type === "wheelIntro" || type === "wheelPrompt" || type === "wheelAdvance") {
-      playTTS(el,text,()=>current(()=>{const s=state.showdown,p=s?.participants?.[s.currentIndex];if(p?.isAI&&["turn","decision","bonusTurn"].includes(s.stage))safely(()=>resolveWheelAI(code));}),voice);
+      playTTS(el,text,()=>{},voice);
     } else if (type === "wheelSpin") {
       playTTS(el,text,()=>{},voice);
     } else if (type === "wheelResult") {
@@ -386,7 +395,7 @@ function HostViewInner({ code }) {
                   onNextRound={forceAction(() => restartGame(code, "sameLineup"))}
                   onNewPlayers={action(() => restartGame(code, "newPlayers"))} />
               )}
-              {(state.phase === "pricingIntro" || state.phase === "pricingPrizeIntro" || state.phase === "pricingGame") && (
+              {(state.phase === "pricingIntro" || state.phase === "pricingPrizeIntro" || state.phase === "pricingGame" || state.phase === "pricingRevealCue" || state.phase === "pricingPriceShown") && (
                 <PricingGameView game={state.pricingGame} spotlight={state.phase === "pricingPrizeIntro" ? state.pricingAnnouncement : null} />
               )}
               {state.phase === "showcaseShowdown" && <WheelView showdown={state.showdown} />}
@@ -589,6 +598,7 @@ function RevealView({ state, code, onStartPricing, onNextRound, onNewPlayers }) 
 export function PricingGameView({ game, spotlight = null }) {
   if (!game) return <div className="pir-loading">Loading pricing game…</div>;
   if (spotlight) return <div className={`pir-pricing-board pir-game-${game.type}`}><div className="pir-pricing-kicker">PRIZE INTRODUCTION</div><h2 className="pir-pricing-title">{game.title}</h2><GameCards items={[spotlight]} /><div className="pir-pricing-prompt">Listen to the announcer…</div></div>;
+  if (game.priceReveal) return <div className={`pir-pricing-board pir-game-${game.type}`}><div className="pir-pricing-kicker">PRICE REVEAL</div><h2 className="pir-pricing-title">{game.title}</h2><GameCards items={[{...game.priceReveal,revealedPrice:game.priceReveal.actual}]} /><div className={`pir-pricing-prompt ${game.priceReveal.actual==null?"":"revealed"}`}>{game.priceReveal.actual==null?"SHOW ME THE PRICE!":game.priceReveal.correct?"THAT'S RIGHT!":"OH, SO CLOSE!"}</div></div>;
   return (
     <div className={`pir-pricing-board pir-game-${game.type}`}>
       <div className="pir-pricing-kicker">{game.playerName}, COME ON UP!</div>
@@ -624,7 +634,7 @@ export function PricingGameView({ game, spotlight = null }) {
 }
 
 function GameCards({ items = [] }) {
-  return <div className="pir-game-cards">{items.map((item,i)=><div key={item.id ?? i} className={item.used || item.selected ? "used" : ""}>{item.image && <img src={item.image} alt="" onError={e=>{e.currentTarget.style.display="none"}} />}<b>{item.brand && <small>{item.brand}</small>}{item.name}</b>{item.description && <p>{item.description}</p>}{item.shownPrice != null && <span>${item.shownPrice}</span>}</div>)}</div>;
+  return <div className="pir-game-cards">{items.map((item,i)=><div key={item.id ?? i} className={item.used || item.selected ? "used" : ""}>{item.image && <img src={item.image} alt="" onError={e=>{e.currentTarget.style.display="none"}} />}<b>{item.brand && <small>{item.brand}</small>}{item.name}</b>{item.description && <p>{item.description}</p>}{item.revealedPrice != null ? <span className="pir-revealed-price">${Number(item.revealedPrice).toLocaleString("en-CA")}</span> : item.shownPrice != null && <span>${item.shownPrice}</span>}</div>)}</div>;
 }
 
 // Canadian $100 bill — SVG illustration

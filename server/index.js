@@ -20,6 +20,8 @@ import {
   pricingGameAction,
   beginPricingGame,
   settlePricingGame,
+  revealPricingPrice,
+  continuePricingPrice,
   createPricingGameDemo,
   revealReplacement,
   wheelGameAction,
@@ -219,6 +221,9 @@ app.post(
     res.json(publicState(room));
   })
 );
+
+app.post("/api/rooms/:code/pricing-game/reveal-price",wrap(async(req,res)=>{const room=requireRoom(req);revealPricingPrice(room);res.json(publicState(room));}));
+app.post("/api/rooms/:code/pricing-game/continue-price",wrap(async(req,res)=>{const room=requireRoom(req);continuePricingPrice(room);res.json(publicState(room));}));
 
 app.post(
   "/api/rooms/:code/restart",

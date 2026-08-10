@@ -286,6 +286,9 @@ export default function PlayerView({ code, navigate }) {
       {state.phase === "pricingPrizeIntro" && (
         <div className="pir-panel pir-center"><h2>Here comes the next prize!</h2><p>Watch the main screen while the announcer introduces it.</p></div>
       )}
+      {(state.phase === "pricingRevealCue" || state.phase === "pricingPriceShown") && (
+        <div className="pir-panel pir-center"><h2>Show us the price!</h2><p>Your choice is locked in. Watch the reveal on the main screen.</p></div>
+      )}
 
       {state.phase === "pricingGame" && (
         <>

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createPricingGameForType, playPricingGame, publicPricingGame, settlePricingAnimation } from "./pricingGames.js";
+import { clearDeferredPrice, createPricingGameForType, playPricingGame, publicPricingGame, revealDeferredPrice, settlePricingAnimation } from "./pricingGames.js";
 
 const player = { id: "human-1", name: "Test Player" };
 const types = ["plinko","cliffHangers","punchABunch","diceGame","groceryGame","oneAway","clockGame","anyNumber","grandGame","shellGame"];
@@ -25,4 +25,18 @@ test("all ten pricing game engines can reach a result", () => {
   g = createPricingGameForType("anyNumber", player); for (const digit of g._answers[0].slice(1)) { if(g.status === "playing") playPricingGame(g,{choice:String(digit)}); } assert.equal(g.status,"won");
   g = createPricingGameForType("grandGame", player); for (const i of g._prices.map((p,i)=>p<g.target?i:-1).filter(i=>i>=0)) { if(g.status === "playing") playPricingGame(g,{choice:`${i+1}. item`}); } assert.equal(g.status,"won");
   g = createPricingGameForType("shellGame", player); while(g.stage === "prices") { const i=g.itemIndex; playPricingGame(g,{choice:g._prices[i]>g.items[i].shownPrice?"Higher":"Lower"}); } playPricingGame(g,{choice:String(g._ball+1)}); assert.equal(g.status,"won");
+});
+
+test("higher/lower prizes wait for an on-screen price reveal before the result", () => {
+  const g=createPricingGameForType("punchABunch",player);
+  const i=g.qualifierIndex, actual=g._qualifierPrices[i];
+  playPricingGame(g,{choice:actual>g.qualifiers[i].shownPrice?"Higher":"Lower"});
+  assert.equal(g.priceReveal.actual,null);
+  assert.equal(g.lastOutcome,null);
+  revealDeferredPrice(g);
+  assert.equal(g.priceReveal.actual,actual);
+  assert.equal(g.priceReveal.correct,true);
+  assert.equal(g.lastOutcome.kind,"success");
+  clearDeferredPrice(g);
+  assert.equal(g.priceReveal,null);
 });
