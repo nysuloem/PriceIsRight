@@ -516,22 +516,33 @@ function ContestantRow({
             active ? "active" : "",
             winner ? "winner" : "",
           ].filter(Boolean).join(" ")}>
-            <ContestantAvatar contestant={c} code={code} winner={winner} />
-            <div className="pir-podium-name">
-              {c.name}
-              {c.isAI && <span className="pir-ai-badge"><Bot size={10} /> AI</span>}
-            </div>
-            {showBids && (
-              <div className={`pir-led ${c.bid == null ? "dim" : ""}`}>
-                {c.bid != null ? `$${c.bid}` : active ? "· · ·" : "$ — —"}
+            <div className="pir-contestant-upper">
+              <div className="pir-podium-mic" aria-hidden="true">
+                <span className="pir-mic-head" />
+                <span className="pir-mic-stem" />
               </div>
-            )}
+              <ContestantAvatar contestant={c} code={code} winner={winner} />
+              <div className="pir-podium-nameplate">
+                <div className="pir-podium-name">
+                  {c.name}
+                  {c.isAI && <span className="pir-ai-badge"><Bot size={10} /> AI</span>}
+                </div>
+              </div>
+            </div>
+            <div className="pir-podium-console">
+              {showBids ? (
+                <div className={`pir-led ${c.bid == null ? "dim" : ""}`}>
+                  {c.bid != null ? `$${c.bid}` : active ? "· · ·" : "$ — —"}
+                </div>
+              ) : (
+                <div className="pir-led dim">$ — — —</div>
+              )}
+            </div>
             {showDiff && diff !== null && (
               <div className={`pir-result-line ${winner ? "win" : over ? "over" : ""}`}>
                 {winner ? `✓ Under by $${diff}` : over ? `Over by $${diff}` : `Under by $${diff}`}
               </div>
             )}
-            {!showBids && !showDiff && <div className="pir-led dim">$ — — —</div>}
           </div>
         );
       })}
