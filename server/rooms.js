@@ -458,8 +458,25 @@ async function prepareReplacement(room){
       "replacementIntro");
 }
 
-export function wheelGameAction(room,playerId,action){if(room.phase!=="showcaseShowdown")throw new Error("The wheel is not active");const name=room.showdown.participants[room.showdown.currentIndex]?.name;wheelAction(room.showdown,playerId,action);if(room.showdown.stage==="complete")setHostLine(room,room.showdown.result,"wheelResult");else if(action==="spin")setHostLine(room,`${name} spins the Big Wheel!`,"wheelSpin");else{const p=room.showdown.participants[room.showdown.currentIndex];setHostLine(room,`${p.name}, you're next at the wheel!`,"wheelAdvance");}}
-export function settleWheelGame(room){settleWheel(room.showdown);const s=room.showdown;if(s.stage==="complete")setHostLine(room,s.result,"wheelResult");else if(s.stage==="bonusTurn")setHostLine(room,`${s.participants[s.currentIndex].name}, spin for your bonus!`,"wheelPrompt");else{const p=s.participants[s.currentIndex];setHostLine(room,s.stage==="decision"?`${p.name}, you have ${p.score} cents. Spin again or stay?`:`${p.name}, step up and spin the wheel!`,"wheelPrompt");}}
+export function wheelGameAction(room,playerId,action){if(room.phase!=="showcaseShowdown")throw new Error("The wheel is not active");const name=room.showdown.participants[room.showdown.currentIndex]?.name,type=typeof action==="string"?action:action?.type;wheelAction(room.showdown,playerId,action);if(room.showdown.stage==="complete")setHostLine(room,room.showdown.result,"wheelResult");else if(type==="spin")setHostLine(room,`${name} gives the Big Wheel a ${room.showdown.spinStrength} spin!`,"wheelSpin");else{const p=room.showdown.participants[room.showdown.currentIndex];setHostLine(room,`${p.name}, you're next at the wheel!`,"wheelAdvance");}}
+export function settleWheelGame(room){
+  const s=room.showdown,spinner=s?.participants?.[s.currentIndex];
+  settleWheel(s);
+  s.announcingPlayerId=spinner?.id;
+  const value=spinner?.bonusSpin ?? spinner?.spins?.at(-1);
+  if(s.stage==="complete"){setHostLine(room,`${spinner?.name} spun ${value===100?"one dollar":`${value} cents`}. ${s.result}`,"wheelResult");return;}
+  s.pendingStage=s.stage;s.stage="announcing";
+  const total=spinner.score>100?"That puts you over one dollar.":`Your total is now ${spinner.score} cents.`;
+  const bonus=spinner.hitDollar&&spinner.score===100?"That's exactly one dollar — you win $1,000 and a bonus spin!":"";
+  setHostLine(room,`${spinner.name}, you spun ${value===100?"one dollar":`${value} cents`}. ${total} ${bonus}`.trim(),"wheelAnnouncement");
+}
+
+export function acknowledgeWheelResult(room){
+  const s=room.showdown;if(room.phase!=="showcaseShowdown"||s?.stage!=="announcing"||!s.pendingStage)throw new Error("No wheel result is waiting");
+  s.stage=s.pendingStage;s.pendingStage=null;s.announcingPlayerId=null;
+  if(s.stage==="bonusTurn")setHostLine(room,`${s.participants[s.currentIndex].name}, take your bonus spin!`,"wheelPrompt");
+  else{const p=s.participants[s.currentIndex];setHostLine(room,s.stage==="decision"?`${p.name}, spin again or stay on ${p.score} cents?`:`${p.name}, step up and spin the wheel!`,"wheelPrompt");}
+}
 export function resolveWheelGameAI(room){const name=room.showdown.participants[room.showdown.currentIndex]?.name;resolveWheelAI(room.showdown);if(room.showdown.stage==="complete")setHostLine(room,room.showdown.result,"wheelResult");else if(["spinning","bonusSpinning"].includes(room.showdown.stage))setHostLine(room,`${name} spins the Big Wheel!`,"wheelSpin");else{const p=room.showdown.participants[room.showdown.currentIndex];setHostLine(room,`${p.name}, you're next!`,"wheelAdvance");}}
 export async function finishShowdown(room){if(room.showdown?.stage!=="complete")throw new Error("The Showcase Showdown is not complete");const winner=room.showdown.participants.find(p=>p.id===room.showdown.winnerId);room.halfWinners.push({...winner,totalWinnings:winner.totalWinnings+winner.bonusCash});if(room.showdown.half===1){room.showdown=null;await prepareReplacement(room);}else{room.finalShowcase=createFinalShowcase(room.halfWinners);room.showdown=null;room.phase="showcaseIntro";const cue=advanceShowcase(room.finalShowcase);room.showcaseAnnouncement=null;setHostLine(room,cue.text,"showcaseTheme");}}
 
