@@ -62,6 +62,8 @@ test("a winner leaves once, replacement restores exactly four, and the newcomer 
   assert.equal(room.contestants.some(c=>c.id==="winner"),false);
   assert.equal(room.contestants[0].id,room.replacementContestantId);
   assert.equal(room.turn,0);
-  await assert.rejects(()=>restart(room,"sameLineup"),/already advanced/);
+  const phaseAfterAdvance=room.phase;
+  await restart(room,"sameLineup");
+  assert.equal(room.phase,phaseAfterAdvance,"a duplicate restart is a harmless no-op");
   assert.equal(room.contestants.length,4);
 });
