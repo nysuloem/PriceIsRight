@@ -71,6 +71,9 @@ export const pricingGameAction = (code, playerId, action) =>
     body: JSON.stringify({ playerId, action }),
   });
 
+export const beginPricingGame = (code) =>
+  request(`/rooms/${code}/pricing-game/begin`, { method: "POST" });
+
 export const revealReplacement = (code) =>
   request(`/rooms/${code}/replacement/reveal`, { method: "POST" });
 
