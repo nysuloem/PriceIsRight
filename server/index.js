@@ -26,6 +26,7 @@ import {
   revealReplacement,
   wheelGameAction,
   settleWheelGame,
+  acknowledgeWheelResult,
   resolveWheelGameAI,
   finishShowdown,
   advanceShowcasePresentation,
@@ -236,6 +237,7 @@ app.post(
 
 app.post("/api/rooms/:code/wheel/action",wrap(async(req,res)=>{const room=requireRoom(req);wheelGameAction(room,req.body?.playerId,req.body?.action);res.json(publicState(room));}));
 app.post("/api/rooms/:code/wheel/settle",wrap(async(req,res)=>{const room=requireRoom(req);settleWheelGame(room);res.json(publicState(room));}));
+app.post("/api/rooms/:code/wheel/acknowledge",wrap(async(req,res)=>{const room=requireRoom(req);acknowledgeWheelResult(room);res.json(publicState(room));}));
 app.post("/api/rooms/:code/wheel/ai",wrap(async(req,res)=>{const room=requireRoom(req);resolveWheelGameAI(room);res.json(publicState(room));}));
 app.post("/api/rooms/:code/wheel/finish",wrap(async(req,res)=>{const room=requireRoom(req);await finishShowdown(room);res.json(publicState(room));}));
 app.post("/api/rooms/:code/showcase/advance",wrap(async(req,res)=>{const room=requireRoom(req);advanceShowcasePresentation(room);res.json(publicState(room));}));

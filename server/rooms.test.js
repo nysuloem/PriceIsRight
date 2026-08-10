@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { beginPricingGame, createPricingGameDemo, createRoom, joinRoom, publicState, restart, revealReplacement } from "./rooms.js";
+import { acknowledgeWheelResult, beginPricingGame, createPricingGameDemo, createRoom, joinRoom, publicState, restart, revealReplacement, settleWheelGame, wheelGameAction } from "./rooms.js";
+import { createShowdown } from "./showFlow.js";
 
 test("pricing game demos wait for a phone, introduce the game, then unlock controls", () => {
   const { room } = createPricingGameDemo("plinko");
@@ -46,6 +47,19 @@ test("the third on-stage winner starts the first Showcase Showdown", async()=>{
   assert.equal(room.phase,"showcaseShowdown");
   assert.equal(room.completedRounds,3);
   assert.deepEqual(room.showdown.participants.map(p=>p.id),["third","second","first"]);
+});
+
+test("wheel controls remain locked until the spoken result is acknowledged",()=>{
+  const room=createRoom();
+  room.phase="showcaseShowdown";
+  room.showdown=createShowdown(1,[{id:"spinner",name:"Spinner",isAI:false,totalWinnings:1000}]);
+  wheelGameAction(room,"spinner",{type:"spin",strength:"gentle"});
+  room.showdown.pendingIndex=10;
+  settleWheelGame(room);
+  assert.equal(room.showdown.stage,"announcing");
+  assert.throws(()=>wheelGameAction(room,"spinner",{type:"spin",strength:"mighty"}),/not ready/);
+  acknowledgeWheelResult(room);
+  assert.equal(room.showdown.stage,"decision");
 });
 
 test("a winner leaves once, replacement restores exactly four, and the newcomer bids first",async()=>{
