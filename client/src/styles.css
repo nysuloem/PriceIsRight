@@ -154,32 +154,63 @@ body {
 .pir-podium-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  margin: 18px 0;
+  gap: 0;
+  margin: 34px 0 22px;
+  padding: 0 8px 8px;
+  align-items: end;
+  background: linear-gradient(180deg, transparent 0 78%, #efe9c8 78% 100%);
+  border-bottom: 5px solid #aaa47f;
 }
 @media (max-width: 600px) {
   .pir-podium-row {
     grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    background: none;
+    border-bottom: 0;
+    padding: 0;
   }
 }
 .pir-podium {
-  background: var(--panel-2);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 12px 10px;
+  --podium-face: #d44b42;
+  --podium-dark: #9e2927;
+  --podium-light: #ef7166;
+  background: linear-gradient(90deg, #087f35, #23a548 48%, #087b31);
+  border: 3px solid #e8d978;
+  border-radius: 3px 3px 0 0;
+  padding: 0 7px 8px;
   text-align: center;
   position: relative;
   opacity: 0.35;
   transform: scale(0.96);
   transition: all 0.4s ease;
+  box-shadow: inset 0 0 0 3px rgba(0, 70, 25, 0.35), 0 5px 0 #0b5d29;
+  min-width: 0;
+}
+.pir-podium:nth-child(2) {
+  --podium-face: #4399a5;
+  --podium-dark: #26707a;
+  --podium-light: #71bec5;
+}
+.pir-podium:nth-child(3) {
+  --podium-face: #e06f3d;
+  --podium-dark: #a84427;
+  --podium-light: #f39b69;
+}
+.pir-podium:nth-child(4) {
+  --podium-face: #3b9855;
+  --podium-dark: #216c38;
+  --podium-light: #6abb7c;
+}
+.pir-podium + .pir-podium {
+  border-left-width: 1px;
 }
 .pir-podium.called {
   opacity: 1;
   transform: scale(1);
 }
 .pir-podium.active {
-  border-color: var(--gold);
-  box-shadow: 0 0 0 2px rgba(255, 200, 87, 0.5), 0 0 22px rgba(255, 200, 87, 0.25);
+  border-color: #fff4a8;
+  box-shadow: inset 0 0 0 3px rgba(0, 70, 25, 0.35), 0 0 0 3px #f8e66f, 0 0 28px rgba(255, 230, 80, 0.75);
 }
 .pir-podium.winner {
   border-color: var(--led-green);
@@ -196,15 +227,68 @@ body {
   }
 }
 .pir-podium-name {
-  font-size: 12.5px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 900;
+  color: #1d5425;
   line-height: 1.25;
-  min-height: 32px;
+  min-height: 25px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
   flex-wrap: wrap;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.pir-contestant-upper {
+  position: relative;
+  min-height: 91px;
+  padding-top: 5px;
+}
+.pir-podium-nameplate {
+  position: relative;
+  z-index: 2;
+  margin: -5px auto -1px;
+  width: 78%;
+  min-height: 29px;
+  padding: 2px 5px;
+  background: #f0df85;
+  border: 3px solid #f9efad;
+  box-shadow: inset 0 0 0 2px #bb9e38, 0 2px 2px rgba(0,0,0,.35);
+}
+.pir-podium-mic {
+  position: absolute;
+  z-index: 3;
+  left: 16%;
+  top: -29px;
+  width: 12px;
+  height: 74px;
+  pointer-events: none;
+}
+.pir-mic-head {
+  display: block;
+  width: 11px;
+  height: 16px;
+  border-radius: 55% 55% 45% 45%;
+  background: repeating-linear-gradient(0deg, #202020 0 2px, #777 2px 3px);
+  border: 1px solid #111;
+}
+.pir-mic-stem {
+  display: block;
+  width: 3px;
+  height: 61px;
+  margin: -1px auto 0;
+  background: linear-gradient(90deg, #333, #eee 45%, #555);
+  transform: rotate(2deg);
+  transform-origin: top;
+}
+.pir-podium-console {
+  position: relative;
+  margin: 0 -1px;
+  padding: 8px 8px 9px;
+  background: linear-gradient(180deg, var(--podium-light), var(--podium-face) 38%, var(--podium-dark));
+  border: 3px solid #f1dd83;
+  box-shadow: inset 0 0 0 2px rgba(90,40,10,.28), 0 2px 2px rgba(0,0,0,.3);
 }
 .pir-ai-badge {
   display: inline-flex;
@@ -220,21 +304,24 @@ body {
 }
 .pir-led {
   font-family: "Share Tech Mono", monospace;
-  background: var(--led-bg);
-  border: 1px solid rgba(255, 176, 0, 0.25);
-  border-radius: 6px;
-  color: var(--led-amber);
-  font-size: 20px;
+  background: #3c2116;
+  border: 3px inset rgba(255, 241, 187, 0.55);
+  border-radius: 1px;
+  color: #fff3c7;
+  font-size: clamp(18px, 3.3vw, 28px);
+  font-weight: 700;
   padding: 6px 4px;
-  margin-top: 8px;
-  letter-spacing: 2px;
-  min-height: 32px;
+  margin-top: 0;
+  letter-spacing: 3px;
+  min-height: 42px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
+  padding-right: 10px;
+  text-shadow: 0 0 5px currentColor;
 }
 .pir-led.dim {
-  color: #5b4318;
+  color: #72513e;
 }
 .pir-led input {
   background: transparent;
