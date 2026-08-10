@@ -3,7 +3,7 @@ import {
   buildLineup, computeAIBid, computeWinners, makeAIContestant, STRATEGIES, shuffle,
 } from "./gameLogic.js";
 import { getPrizePool, pickRandomItem } from "./prizeSource.js";
-import { createPricingGame, createPricingGameForType, playPricingGame, publicPricingGame } from "./pricingGames.js";
+import { createPricingGame, createPricingGameForType, initialPrizeAnnouncements, playPricingGame, publicPricingGame, settlePricingAnimation } from "./pricingGames.js";
 
 const rooms = new Map();
 const ROOM_TTL_MS = 4 * 60 * 60 * 1000;
@@ -39,6 +39,8 @@ export function createRoom() {
     prizeCategoryCounts: {},
     playedPricingGames: [],
     pricingGame: null,
+    pricingAnnouncement: null,
+    pricingAnnouncementQueue: [],
     showcaseContestants: [],
     replacementContestantId: null,
     replacementVisible: false,
@@ -84,6 +86,7 @@ export function publicState(room) {
     winnerIndices: room.winnerIndices,
     revealType: room.revealType || null,
     pricingGame: publicPricingGame(room.pricingGame),
+    pricingAnnouncement: room.pricingAnnouncement,
     showcaseContestants: room.showcaseContestants.map(({ id, name, isAI }) => ({ id, name, isAI })),
     replacementContestantId: room.replacementContestantId,
     replacementVisible: room.replacementVisible,
@@ -235,9 +238,23 @@ export function startPricingGame(room) {
 }
 
 export function beginPricingGame(room) {
-  if (room.phase !== "pricingIntro" || !room.pricingGame) throw new Error("No pricing game introduction is active");
-  room.phase = "pricingGame";
-  setHostLine(room, room.pricingGame.prompt, "pricingPrompt");
+  if (!room.pricingGame) throw new Error("No pricing game introduction is active");
+  if (room.phase === "pricingIntro") room.pricingAnnouncementQueue = initialPrizeAnnouncements(room.pricingGame);
+  else if (room.phase !== "pricingPrizeIntro") throw new Error("No pricing game introduction is active");
+  const next = room.pricingAnnouncementQueue.shift();
+  if (next) {
+    room.pricingAnnouncement = next;
+    room.phase = "pricingPrizeIntro";
+    setHostLine(room, next.announcerText || `It's ${next.name}!`, "pricingPrizeIntro");
+  } else {
+    room.pricingAnnouncement = null;
+    room.phase = "pricingGame";
+    if (room.pricingGame.type === "clockGame" && !room.pricingGame._clockStarted) {
+      room.pricingGame._startedAt = Date.now();
+      room.pricingGame._clockStarted = true;
+    }
+    setHostLine(room, room.pricingGame.prompt, "pricingPrompt");
+  }
 }
 
 export function pricingGameAction(room, playerId, action) {
@@ -245,7 +262,20 @@ export function pricingGameAction(room, playerId, action) {
   if (room.pricingGame.playerId !== playerId) throw new Error("This is not your pricing game");
   playPricingGame(room.pricingGame, action || {});
   const g = room.pricingGame;
-  setHostLine(room, g.status === "playing" ? g.prompt : g.result, g.status === "playing" ? "pricingPrompt" : "pricingResult");
+  if (g.pendingPrizeAnnouncement) {
+    room.pricingAnnouncementQueue = [g.pendingPrizeAnnouncement];
+    g.pendingPrizeAnnouncement = null;
+    room.pricingAnnouncement = room.pricingAnnouncementQueue.shift();
+    room.phase = "pricingPrizeIntro";
+    setHostLine(room, room.pricingAnnouncement.announcerText || `It's ${room.pricingAnnouncement.name}!`, "pricingPrizeIntro");
+  } else setHostLine(room, g.status === "playing" ? g.prompt : g.result, g.status === "playing" ? "pricingPrompt" : "pricingResult");
+}
+
+export function settlePricingGame(room) {
+  if (!room.pricingGame) throw new Error("No pricing game is active");
+  settlePricingAnimation(room.pricingGame);
+  const g=room.pricingGame;
+  setHostLine(room,g.status==="playing"?g.prompt:g.result,g.status==="playing"?"pricingPrompt":"pricingResult");
 }
 
 export function revealReplacement(room) {

@@ -19,6 +19,7 @@ import {
   startPricingGame,
   pricingGameAction,
   beginPricingGame,
+  settlePricingGame,
   createPricingGameDemo,
   revealReplacement,
 } from "./rooms.js";
@@ -199,6 +200,15 @@ app.post(
   wrap(async (req, res) => {
     const room = requireRoom(req);
     beginPricingGame(room);
+    res.json(publicState(room));
+  })
+);
+
+app.post(
+  "/api/rooms/:code/pricing-game/settle",
+  wrap(async (req, res) => {
+    const room = requireRoom(req);
+    settlePricingGame(room);
     res.json(publicState(room));
   })
 );
