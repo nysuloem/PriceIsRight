@@ -283,6 +283,9 @@ export default function PlayerView({ code, navigate }) {
       {state.phase === "pricingIntro" && (
         <div className="pir-panel pir-center"><h2>Get ready!</h2><p>The host and announcer are introducing your game on the main screen.</p></div>
       )}
+      {state.phase === "pricingPrizeIntro" && (
+        <div className="pir-panel pir-center"><h2>Here comes the next prize!</h2><p>Watch the main screen while the announcer introduces it.</p></div>
+      )}
 
       {state.phase === "pricingGame" && (
         <>
