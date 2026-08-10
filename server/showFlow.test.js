@@ -1,0 +1,54 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { advanceShowcase, createFinalShowcase, createShowdown, publicFinalShowcase, settleWheel, showcaseAction, wheelAction } from "./showFlow.js";
+
+const players=[
+  {id:"a",name:"Alice",totalWinnings:1200,isAI:false},
+  {id:"b",name:"Bob",totalWinnings:4500,isAI:false},
+  {id:"c",name:"Carla",totalWinnings:9000,isAI:false},
+];
+
+function spinTo(showdown,index){wheelAction(showdown,showdown.participants[showdown.currentIndex].id,"spin");showdown.pendingIndex=index;settleWheel(showdown);}
+
+test("Showcase Showdown runs in winnings order with stay, second spin and dollar bonus",()=>{
+  const s=createShowdown(1,players);
+  assert.deepEqual(s.participants.map(p=>p.id),["a","b","c"]);
+  spinTo(s,10); // 50
+  wheelAction(s,"a","stay");
+  spinTo(s,15); // 20, must spin again
+  assert.throws(()=>wheelAction(s,"b","stay"),/must spin again/);
+  spinTo(s,11); // +95 = bust
+  spinTo(s,0); // Carla hits $1
+  assert.equal(s.stage,"bonusTurn");
+  spinTo(s,1); // bonus 5 cents
+  assert.equal(s.stage,"complete");
+  assert.equal(s.winnerId,"c");
+  assert.equal(s.participants.find(p=>p.id==="c").bonusCash,11000);
+});
+
+test("tied dollar bonus spins also serve as the spin-off",()=>{
+  const s=createShowdown(1,players);
+  spinTo(s,0); // Alice 100
+  spinTo(s,0); // Bob 100
+  spinTo(s,10); spinTo(s,4); // Carla 50 + 70, bust
+  assert.equal(s.isSpinoff,true);
+  spinTo(s,1); // Alice bonus/spin-off: 5
+  spinTo(s,19); // Bob bonus/spin-off: 15
+  assert.equal(s.stage,"complete");
+  assert.equal(s.winnerId,"b");
+  assert.equal(s.participants.find(p=>p.id==="b").bonusCash,11000);
+});
+
+test("Final Showcase supports bid or pass, two bids, reveal and double-showcase rule",()=>{
+  const f=createFinalShowcase([players[0],players[2]]);
+  assert.equal(publicFinalShowcase(f).showcases[0].actualPrice,undefined);
+  advanceShowcase(f); while(f.stage==="firstPrizes") advanceShowcase(f);
+  showcaseAction(f,"c",{choice:"pass"});
+  showcaseAction(f,"a",{bid:f.showcases[0].actualPrice-200});
+  advanceShowcase(f); while(f.stage==="secondPrizes") advanceShowcase(f);
+  showcaseAction(f,"c",{bid:f.showcases[1].actualPrice-1000});
+  assert.equal(f.stage,"complete");
+  assert.equal(f.winnerId,"a");
+  assert.equal(f.doubleShowcase,true);
+  assert.ok(publicFinalShowcase(f).showcases[0].actualPrice>0);
+});

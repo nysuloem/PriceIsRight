@@ -85,3 +85,11 @@ export const createPricingGameDemo = (type) =>
     method: "POST",
     body: JSON.stringify({ type }),
   });
+
+export const wheelAction = (code,playerId,action) => request(`/rooms/${code}/wheel/action`,{method:"POST",body:JSON.stringify({playerId,action})});
+export const settleWheel = (code) => request(`/rooms/${code}/wheel/settle`,{method:"POST"});
+export const resolveWheelAI = (code) => request(`/rooms/${code}/wheel/ai`,{method:"POST"});
+export const finishShowdown = (code) => request(`/rooms/${code}/wheel/finish`,{method:"POST"});
+export const advanceShowcase = (code) => request(`/rooms/${code}/showcase/advance`,{method:"POST"});
+export const showcaseAction = (code,playerId,action) => request(`/rooms/${code}/showcase/action`,{method:"POST",body:JSON.stringify({playerId,action})});
+export const resolveShowcaseAI = (code) => request(`/rooms/${code}/showcase/ai`,{method:"POST"});

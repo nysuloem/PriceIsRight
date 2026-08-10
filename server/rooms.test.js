@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { beginPricingGame, createPricingGameDemo, createRoom, joinRoom, publicState, revealReplacement } from "./rooms.js";
+import { beginPricingGame, createPricingGameDemo, createRoom, joinRoom, publicState, restart, revealReplacement } from "./rooms.js";
 
 test("pricing game demos wait for a phone, introduce the game, then unlock controls", () => {
   const { room } = createPricingGameDemo("plinko");
@@ -32,4 +32,18 @@ test("replacement contestant stays off the row until the name call begins", () =
   assert.deepEqual(publicState(room).contestants.map(c => c.name), ["Alice"]);
   revealReplacement(room);
   assert.deepEqual(publicState(room).contestants.map(c => c.name), ["Alice", "Nathan"]);
+});
+
+test("the third on-stage winner starts the first Showcase Showdown", async()=>{
+  const room=createRoom();
+  room.phase="reveal";room.completedRounds=2;room.item={price:1200};room.winnerIndices=[0];
+  room.contestants=[{id:"third",name:"Third Winner",isAI:false,bid:1000}];
+  room.showcaseContestants=[
+    {id:"first",name:"First Winner",isAI:false,totalWinnings:8000,round:1},
+    {id:"second",name:"Second Winner",isAI:false,totalWinnings:3000,round:2},
+  ];
+  await restart(room,"sameLineup");
+  assert.equal(room.phase,"showcaseShowdown");
+  assert.equal(room.completedRounds,3);
+  assert.deepEqual(room.showdown.participants.map(p=>p.id),["third","second","first"]);
 });

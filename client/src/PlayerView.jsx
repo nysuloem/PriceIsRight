@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Bot, Trophy, Camera, Upload, X, Check } from "lucide-react";
-import { getState, joinRoom, submitBid, pricingGameAction } from "./api.js";
+import { getState, joinRoom, submitBid, pricingGameAction, showcaseAction, wheelAction } from "./api.js";
 
 const POLL_MS = 1200;
 
@@ -294,11 +294,17 @@ export default function PlayerView({ code, navigate }) {
             onError={(message) => setError(message)} />
         </>
       )}
+      {state.phase === "showcaseShowdown" && <WheelPhone showdown={state.showdown} playerId={playerId} code={code} onError={setError} />}
+      {state.phase.startsWith("showcase") && state.finalShowcase && <ShowcasePhone finalShowcase={state.finalShowcase} playerId={playerId} code={code} onError={setError} />}
 
       {error && <div className="pir-error">{error}</div>}
     </div>
   );
 }
+
+function WheelPhone({showdown,playerId,code,onError}){const[busy,setBusy]=useState(false);const p=showdown?.participants?.[showdown.currentIndex];const mine=p?.id===playerId;const send=async action=>{setBusy(true);try{await wheelAction(code,playerId,action);}catch(e){onError(e.message);}finally{setBusy(false);}};if(!showdown)return null;if(showdown.stage==="complete")return <div className="pir-panel pir-center"><h2>Showcase Showdown</h2><p>{showdown.result}</p></div>;if(!mine)return <div className="pir-panel pir-center"><h2>The Big Wheel</h2><p>{p?.name} is spinning. Watch the main screen!</p></div>;const spinning=["spinning","bonusSpinning"].includes(showdown.stage);return <div className="pir-panel pir-center"><h2 className="pir-pricing-title">THE BIG WHEEL</h2><p>{spinning?"Watch your spin on the main screen!":showdown.stage==="decision"?`Your total is ${p.score}¢.`:showdown.stage==="bonusTurn"?"Spin for your cash bonus!":"Give the wheel a mighty spin!"}</p>{["turn","bonusTurn"].includes(showdown.stage)&&<button className="pir-btn" disabled={busy} onClick={()=>send("spin")}>SPIN THE WHEEL</button>}{showdown.stage==="decision"&&<div className="pir-actions"><button className="pir-btn" disabled={busy} onClick={()=>send("spin")}>SPIN AGAIN</button><button className="pir-btn secondary" disabled={busy||p.score<showdown.leaderScore} onClick={()=>send("stay")}>STAY ON {p.score}¢</button></div>}</div>}
+
+function ShowcasePhone({finalShowcase,playerId,code,onError}){const[bid,setBid]=useState("");const[busy,setBusy]=useState(false);const send=async action=>{setBusy(true);try{await showcaseAction(code,playerId,action);setBid("");}catch(e){onError(e.message);}finally{setBusy(false);}};const f=finalShowcase;if(f.stage==="complete")return <div className="pir-panel pir-center"><h2>Final Showcase</h2><p className="pir-pricing-result">{f.result}</p></div>;if(f.stage==="choice"&&f.contestants[0].id===playerId)return <div className="pir-panel pir-center"><h2>Bid or Pass?</h2><p>As the top winner, the first Showcase is yours to bid on—or pass to your opponent.</p><div className="pir-actions"><button className="pir-btn" disabled={busy} onClick={()=>send({choice:"bid"})}>BID ON IT</button><button className="pir-btn secondary" disabled={busy} onClick={()=>send({choice:"pass"})}>PASS</button></div></div>;const i=f.stage==="firstBid"?0:f.stage==="secondBid"?1:-1;if(i>=0&&f.assignments[i]===playerId)return <div className="pir-panel pir-center"><h2>Your Showcase Bid</h2><div className="pir-led pir-bid-input"><span>$</span><input type="number" min="1" value={bid} onChange={e=>setBid(e.target.value)}/></div><button className="pir-btn" disabled={busy||!bid} onClick={()=>send({bid})}>LOCK IN BID</button></div>;return <div className="pir-panel pir-center"><h2>The Final Showcase</h2><p>Watch the prizes and bidding on the main screen!</p></div>}
 
 function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError }) {
   const [number, setNumber] = useState("");
