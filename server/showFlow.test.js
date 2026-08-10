@@ -23,7 +23,7 @@ test("Showcase Showdown runs in winnings order with stay, second spin and dollar
   spinTo(s,1); // bonus 5 cents
   assert.equal(s.stage,"complete");
   assert.equal(s.winnerId,"c");
-  assert.equal(s.participants.find(p=>p.id==="c").bonusCash,11000);
+  assert.equal(s.participants.find(p=>p.id==="c").bonusCash,1100);
 });
 
 test("tied dollar bonus spins also serve as the spin-off",()=>{
@@ -36,7 +36,16 @@ test("tied dollar bonus spins also serve as the spin-off",()=>{
   spinTo(s,19); // Bob bonus/spin-off: 15
   assert.equal(s.stage,"complete");
   assert.equal(s.winnerId,"b");
-  assert.equal(s.participants.find(p=>p.id==="b").bonusCash,11000);
+  assert.equal(s.participants.find(p=>p.id==="b").bonusCash,1100);
+});
+
+test("a second dollar on the bonus spin adds another $1,000",()=>{
+  const s=createShowdown(1,[players[0]]);
+  spinTo(s,0);
+  assert.equal(s.stage,"bonusTurn");
+  spinTo(s,0);
+  assert.equal(s.participants[0].bonusCash,2000);
+  assert.match(s.result,/another \$1,000/);
 });
 
 test("Final Showcase supports bid or pass, two bids, reveal and double-showcase rule",()=>{
