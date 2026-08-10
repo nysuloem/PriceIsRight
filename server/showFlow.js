@@ -1,0 +1,34 @@
+import { createShowcases } from "./showcasePrizes.js";
+
+export const WHEEL_VALUES=[100,5,90,25,70,45,10,65,30,85,50,95,55,75,40,20,60,35,80,15];
+const pickIndex=()=>Math.floor(Math.random()*WHEEL_VALUES.length);
+
+export function createShowdown(half,contestants){
+  const participants=[...contestants].sort((a,b)=>(a.totalWinnings-b.totalWinnings)||(Math.random()-.5)).map(c=>({...c,spins:[],score:0,status:"waiting",bonusCash:0,hitDollar:false,bonusSpinTaken:false}));
+  participants[0].status="active";
+  return {half,participants,currentIndex:0,stage:"turn",spinSeq:0,pendingIndex:null,leaderScore:0,isSpinoff:false,winnerId:null,result:""};
+}
+const current=(s)=>s.participants[s.currentIndex];
+function finishTurn(s){const p=current(s);p.status=p.score>100?"bust":"done";s.leaderScore=Math.max(s.leaderScore,p.score<=100?p.score:0);s.currentIndex+=1;if(s.currentIndex<s.participants.length){s.participants[s.currentIndex].status="active";s.stage="turn";return;}
+  const valid=s.participants.filter(p=>p.score<=100);const best=Math.max(...valid.map(p=>p.score));const tied=valid.filter(p=>p.score===best);
+  if(tied.length>1){s.participants=tied.map(p=>({...p,spins:[],score:0,status:"waiting"}));s.participants[0].status="active";s.currentIndex=0;s.leaderScore=0;s.isSpinoff=true;s.stage="turn";s.result="It's a tie — one spin each!";return;}
+  const winner=tied[0];s.winnerId=winner.id;s.result=`${winner.name} wins the Showcase Showdown with ${winner.score} cents!`;if(winner.hitDollar&&!winner.bonusSpinTaken){s.currentIndex=s.participants.findIndex(p=>p.id===winner.id);s.stage="bonusTurn";}else s.stage="complete";
+}
+export function wheelAction(s,playerId,action){const p=current(s);if(!p||p.id!==playerId)throw new Error("It is not your turn at the wheel");if(action==="spin"){if(!["turn","decision","bonusTurn"].includes(s.stage))throw new Error("The wheel is not ready");s.pendingIndex=pickIndex();s.spinSeq+=1;s.stage=s.stage==="bonusTurn"?"bonusSpinning":"spinning";return;}
+  if(action==="stay"){if(s.stage!=="decision")throw new Error("You cannot stay now");if(p.score<s.leaderScore)throw new Error("You must spin again to catch the leader");finishTurn(s);return;}throw new Error("Unknown wheel action");}
+export function settleWheel(s){if(!["spinning","bonusSpinning"].includes(s.stage)||s.pendingIndex==null)throw new Error("The wheel is not spinning");const value=WHEEL_VALUES[s.pendingIndex],p=current(s),bonus=s.stage==="bonusSpinning";s.pendingIndex=null;
+  if(bonus){p.bonusSpin=value;p.bonusCash+=value===100?25000:(value===5||value===15?10000:0);s.result=p.bonusCash>1000?`${p.name} wins $${p.bonusCash.toLocaleString("en-CA")} in wheel bonuses!`:`${p.name}'s bonus spin is ${value} cents.`;s.stage="complete";return;}
+  const enteredWithDollar=p.hitDollar;p.spins.push(value);p.score=p.spins.reduce((a,b)=>a+b,0);if(p.score===100&&!p.hitDollar){p.hitDollar=true;p.bonusCash+=1000;}if(s.isSpinoff&&enteredWithDollar&&!p.bonusSpinTaken){p.bonusSpinTaken=true;p.bonusCash+=value===100?25000:(value===5||value===15?10000:0);}
+  if(s.isSpinoff||p.spins.length===2||p.score>=100){finishTurn(s);}else{s.stage="decision";}
+}
+export function resolveWheelAI(s){const p=current(s);if(!p?.isAI)throw new Error("Current spinner is not AI");if(s.stage==="decision"&&p.score>=Math.max(65,s.leaderScore))return wheelAction(s,p.id,"stay");return wheelAction(s,p.id,"spin");}
+export function publicShowdown(s){if(!s)return null;return{...s,participants:s.participants.map(({photo,...p})=>p)};}
+
+export function createFinalShowcase(finalists){const contestants=[...finalists].sort((a,b)=>b.totalWinnings-a.totalWinnings);return {contestants,showcases:createShowcases(),stage:"firstTheme",showcaseIndex:0,announcementIndex:0,assignments:[null,null],bids:{},result:null,winnerId:null,doubleShowcase:false};}
+export function publicFinalShowcase(f){if(!f)return null;return {...f,contestants:f.contestants.map(({photo,...c})=>c),showcases:f.showcases.map((s,i)=>({...s,actualPrice:f.stage==="complete"?s.actualPrice:undefined,prizes:s.prizes.map(({price,...p})=>f.stage==="complete"?{...p,price}:p)}))};}
+export function advanceShowcase(f){const s=f.showcases[f.showcaseIndex];if(f.stage.endsWith("Theme")){f.stage=f.showcaseIndex===0?"firstPrizes":"secondPrizes";f.announcementIndex=0;return {type:"theme",text:s.intro};}
+  if(f.stage.endsWith("Prizes")){if(f.announcementIndex<s.prizes.length){const prize=s.prizes[f.announcementIndex++];return {type:"prize",text:prize.announcerText,prize};}f.stage=f.showcaseIndex===0?"choice":"secondBid";return {type:"ready"};}throw new Error("Showcase presentation is not active");}
+export function showcaseAction(f,playerId,action){const high=f.contestants[0],low=f.contestants[1];if(f.stage==="choice"){if(playerId!==high.id)throw new Error("Only the top winner may bid or pass");if(action.choice==="pass"){f.assignments[0]=low.id;f.assignments[1]=high.id;}else{f.assignments[0]=high.id;f.assignments[1]=low.id;}f.stage="firstBid";return;}
+  if(f.stage==="firstBid"||f.stage==="secondBid"){const index=f.stage==="firstBid"?0:1;if(f.assignments[index]!==playerId)throw new Error("This is not your showcase");const bid=Math.max(1,Math.round(Number(action.bid)||0));f.bids[playerId]=bid;if(index===0){f.showcaseIndex=1;f.stage="secondTheme";}else revealShowcases(f);return;}throw new Error("Showcase is not accepting that action");}
+function revealShowcases(f){const results=f.showcases.map((s,i)=>{const playerId=f.assignments[i],bid=f.bids[playerId],difference=s.actualPrice-bid;return{playerId,bid,actual:s.actualPrice,difference,over:difference<0};});const valid=results.filter(r=>!r.over);let winner=null;if(valid.length)winner=valid.sort((a,b)=>a.difference-b.difference)[0];f.winnerId=winner?.playerId||null;f.doubleShowcase=!!winner&&winner.difference<=250;f.results=results;f.stage="complete";f.result=!winner?"Both contestants overbid. Neither showcase is won.":`${f.contestants.find(c=>c.id===winner.playerId).name} wins ${f.doubleShowcase?"BOTH SHOWCASES":"the Showcase"}!`;}
+export function resolveShowcaseAI(f){if(f.stage==="choice"&&f.contestants[0].isAI)return showcaseAction(f,f.contestants[0].id,{choice:Math.random()<.5?"bid":"pass"});if(f.stage==="firstBid"||f.stage==="secondBid"){const i=f.stage==="firstBid"?0:1,id=f.assignments[i],p=f.contestants.find(c=>c.id===id);if(p?.isAI){const actual=f.showcases[i].actualPrice;return showcaseAction(f,id,{bid:Math.round(actual*(.78+Math.random()*.18))});}}throw new Error("No AI Showcase action is ready");}
