@@ -18,6 +18,7 @@ import {
   resetBids,
   startPricingGame,
   pricingGameAction,
+  beginPricingGame,
   createPricingGameDemo,
   revealReplacement,
 } from "./rooms.js";
@@ -162,7 +163,7 @@ app.post(
   "/api/pricing-games/demo",
   wrap(async (req, res) => {
     const { room, player } = createPricingGameDemo(req.body?.type);
-    res.json({ code: room.code, playerId: player.id, ...publicState(room) });
+    res.json({ code: room.code, playerId: player?.id || null, ...publicState(room) });
   })
 );
 
@@ -189,6 +190,15 @@ app.post(
   wrap(async (req, res) => {
     const room = requireRoom(req);
     pricingGameAction(room, req.body?.playerId, req.body?.action);
+    res.json(publicState(room));
+  })
+);
+
+app.post(
+  "/api/rooms/:code/pricing-game/begin",
+  wrap(async (req, res) => {
+    const room = requireRoom(req);
+    beginPricingGame(room);
     res.json(publicState(room));
   })
 );
