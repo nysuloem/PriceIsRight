@@ -392,7 +392,10 @@ export async function restart(room, mode) {
   } else {
     const mayAdvance = room.phase === "reveal"
       || (room.phase === "pricingGame" && room.pricingGame?.status && room.pricingGame.status !== "playing");
-    if (!mayAdvance) throw new Error("This round has already advanced");
+    // Host speech callbacks and manual controls can race to advance the same
+    // completed round. Treat the second request as a harmless no-op instead
+    // of showing a false error after the next round is already on screen.
+    if (!mayAdvance) return room;
     const winnerIndex = room.winnerIndices[0];
     const winner = room.contestants[winnerIndex];
     if (!winner) throw new Error("No Contestants' Row winner is available");
