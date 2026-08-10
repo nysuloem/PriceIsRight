@@ -10,6 +10,23 @@ const rooms = new Map();
 const ROOM_TTL_MS = 4 * 60 * 60 * 1000;
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const MAX_PLAYERS = 8;   // how many humans can join
+const CAR_FIRST_GAMES = new Set(["diceGame", "oneAway", "anyNumber"]);
+
+function preparePricingIntroduction(room, player) {
+  const game=room.pricingGame;
+  if (CAR_FIRST_GAMES.has(game.type)) {
+    const car=initialPrizeAnnouncements(game)[0];
+    game._carIntroducedFirst=true;
+    game._rulesIntroduced=false;
+    room.pricingAnnouncementQueue=[];
+    room.pricingAnnouncement=car;
+    room.phase="pricingPrizeIntro";
+    setHostLine(room,car?.announcerText||"IT'S A NEW CAR!","pricingPrizeIntro");
+  } else {
+    room.phase="pricingIntro";
+    setHostLine(room,`${player.name}, you are going to play ${game.title}!`,"pricingGameIntro");
+  }
+}
 
 function genCode() {
   let code;
@@ -150,8 +167,7 @@ export function joinRoom(room, name, photoDataUrl) {
     room.contestants = [{ ...player, isAI: false, strategy: null, bid: null }];
     room.pricingGame = createPricingGameForType(room.demoGameType, player);
     room.playedPricingGames = [room.demoGameType];
-    room.phase = "pricingIntro";
-    setHostLine(room, `${player.name}, you are going to play ${room.pricingGame.title}!`, "pricingGameIntro");
+    preparePricingIntroduction(room,player);
   }
   return player;
 }
@@ -249,13 +265,20 @@ export function startPricingGame(room) {
   if (!winner) throw new Error("No human winner is available for a pricing game");
   room.pricingGame = createPricingGame(winner, room.playedPricingGames);
   room.playedPricingGames.push(room.pricingGame.type);
-  room.phase = "pricingIntro";
-  setHostLine(room, `${winner.name}, you are going to play ${room.pricingGame.title}!`, "pricingGameIntro");
+  preparePricingIntroduction(room,winner);
 }
 
 export function beginPricingGame(room) {
   if (!room.pricingGame) throw new Error("No pricing game introduction is active");
-  if (room.phase === "pricingIntro") room.pricingAnnouncementQueue = initialPrizeAnnouncements(room.pricingGame);
+  const game=room.pricingGame;
+  if (room.phase === "pricingPrizeIntro" && game._carIntroducedFirst && !game._rulesIntroduced) {
+    game._rulesIntroduced=true;
+    room.pricingAnnouncement=null;
+    room.phase="pricingIntro";
+    setHostLine(room,`${game.playerName}, you are going to play ${game.title}!`,"pricingGameIntro");
+    return;
+  }
+  if (room.phase === "pricingIntro") room.pricingAnnouncementQueue = game._carIntroducedFirst ? [] : initialPrizeAnnouncements(game);
   else if (room.phase !== "pricingPrizeIntro") throw new Error("No pricing game introduction is active");
   const next = room.pricingAnnouncementQueue.shift();
   if (next) {
