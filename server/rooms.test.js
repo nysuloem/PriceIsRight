@@ -1,14 +1,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createPricingGameDemo, createRoom, publicState, revealReplacement } from "./rooms.js";
+import { beginPricingGame, createPricingGameDemo, createRoom, joinRoom, publicState, revealReplacement } from "./rooms.js";
 
-test("pricing game demos launch the requested game with a connected tester", () => {
-  const { room, player } = createPricingGameDemo("plinko");
-  const state = publicState(room);
-  assert.equal(state.phase, "pricingGame");
+test("pricing game demos wait for a phone, introduce the game, then unlock controls", () => {
+  const { room } = createPricingGameDemo("plinko");
+  assert.equal(publicState(room).phase, "demoLobby");
+  const player = joinRoom(room, "Game Tester");
+  let state = publicState(room);
+  assert.equal(state.phase, "pricingIntro");
   assert.equal(state.pricingGame.type, "plinko");
   assert.equal(state.pricingGame.playerId, player.id);
   assert.equal(state.isDemo, true);
+  beginPricingGame(room);
+  state = publicState(room);
+  assert.equal(state.phase, "pricingGame");
 });
 
 test("replacement contestant stays off the row until the name call begins", () => {
