@@ -13,6 +13,10 @@ test("pricing game demos wait for a phone, introduce the game, then unlock contr
   assert.equal(state.isDemo, true);
   beginPricingGame(room);
   state = publicState(room);
+  assert.equal(state.phase, "pricingPrizeIntro");
+  assert.equal(state.pricingAnnouncement.name, state.pricingGame.qualifiers[0].name);
+  beginPricingGame(room);
+  state = publicState(room);
   assert.equal(state.phase, "pricingGame");
 });
 
