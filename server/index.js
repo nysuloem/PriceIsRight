@@ -22,6 +22,13 @@ import {
   settlePricingGame,
   createPricingGameDemo,
   revealReplacement,
+  wheelGameAction,
+  settleWheelGame,
+  resolveWheelGameAI,
+  finishShowdown,
+  advanceShowcasePresentation,
+  finalShowcaseAction,
+  resolveFinalShowcaseAI,
 } from "./rooms.js";
 import { getTTS } from "./tts.js";
 import { getPrizePool } from "./prizeSource.js";
@@ -221,6 +228,14 @@ app.post(
     res.json(publicState(room));
   })
 );
+
+app.post("/api/rooms/:code/wheel/action",wrap(async(req,res)=>{const room=requireRoom(req);wheelGameAction(room,req.body?.playerId,req.body?.action);res.json(publicState(room));}));
+app.post("/api/rooms/:code/wheel/settle",wrap(async(req,res)=>{const room=requireRoom(req);settleWheelGame(room);res.json(publicState(room));}));
+app.post("/api/rooms/:code/wheel/ai",wrap(async(req,res)=>{const room=requireRoom(req);resolveWheelGameAI(room);res.json(publicState(room));}));
+app.post("/api/rooms/:code/wheel/finish",wrap(async(req,res)=>{const room=requireRoom(req);await finishShowdown(room);res.json(publicState(room));}));
+app.post("/api/rooms/:code/showcase/advance",wrap(async(req,res)=>{const room=requireRoom(req);advanceShowcasePresentation(room);res.json(publicState(room));}));
+app.post("/api/rooms/:code/showcase/action",wrap(async(req,res)=>{const room=requireRoom(req);finalShowcaseAction(room,req.body?.playerId,req.body?.action||{});res.json(publicState(room));}));
+app.post("/api/rooms/:code/showcase/ai",wrap(async(req,res)=>{const room=requireRoom(req);resolveFinalShowcaseAI(room);res.json(publicState(room));}));
 
 // Host-line text-to-speech. Returns 503 if OPENAI_API_KEY isn't set or the
 // TTS request fails — the client falls back to timed pacing without audio.
