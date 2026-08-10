@@ -21,6 +21,18 @@ test("pricing game demos wait for a phone, introduce the game, then unlock contr
   assert.equal(state.phase, "pricingGame");
 });
 
+test("car games introduce the car before the host explains the rules",()=>{
+  const {room}=createPricingGameDemo("diceGame");
+  joinRoom(room,"Car Player");
+  assert.equal(room.phase,"pricingPrizeIntro");
+  assert.match(room.hostLine.text,/NEW CAR/i);
+  beginPricingGame(room);
+  assert.equal(room.phase,"pricingIntro");
+  assert.equal(room.hostLine.type,"pricingGameIntro");
+  beginPricingGame(room);
+  assert.equal(room.phase,"pricingGame");
+});
+
 test("replacement contestant stays off the row until the name call begins", () => {
   const room = createRoom();
   room.phase = "replacement";
