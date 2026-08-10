@@ -4,6 +4,7 @@ import {
 } from "./gameLogic.js";
 import { getPrizePool, pickRandomItem } from "./prizeSource.js";
 import { createPricingGame, createPricingGameForType, initialPrizeAnnouncements, playPricingGame, publicPricingGame, settlePricingAnimation } from "./pricingGames.js";
+import { advanceShowcase, createFinalShowcase, createShowdown, publicFinalShowcase, publicShowdown, resolveShowcaseAI, resolveWheelAI, settleWheel, showcaseAction, wheelAction } from "./showFlow.js";
 
 const rooms = new Map();
 const ROOM_TTL_MS = 4 * 60 * 60 * 1000;
@@ -42,6 +43,11 @@ export function createRoom() {
     pricingAnnouncement: null,
     pricingAnnouncementQueue: [],
     showcaseContestants: [],
+    completedRounds: 0,
+    halfWinners: [],
+    showdown: null,
+    finalShowcase: null,
+    showcaseAnnouncement: null,
     replacementContestantId: null,
     replacementVisible: false,
     isDemo: false,
@@ -88,6 +94,11 @@ export function publicState(room) {
     pricingGame: publicPricingGame(room.pricingGame),
     pricingAnnouncement: room.pricingAnnouncement,
     showcaseContestants: room.showcaseContestants.map(({ id, name, isAI }) => ({ id, name, isAI })),
+    completedRounds: room.completedRounds,
+    showHalf: room.completedRounds < 3 ? 1 : 2,
+    showdown: publicShowdown(room.showdown),
+    finalShowcase: publicFinalShowcase(room.finalShowcase),
+    showcaseAnnouncement: room.showcaseAnnouncement,
     replacementContestantId: room.replacementContestantId,
     replacementVisible: room.replacementVisible,
     isDemo: room.isDemo,
@@ -158,6 +169,11 @@ export async function startGame(room) {
   room.callIndex = -1;
   room.turn = 0;
   room.winnerIndices = [];
+  room.completedRounds = 0;
+  room.showcaseContestants = [];
+  room.halfWinners = [];
+  room.showdown = null;
+  room.finalShowcase = null;
   room.phase = "calling";
   setHostLine(room, "Let's meet today's contestants!", "welcome");
 }
@@ -184,7 +200,7 @@ function revealLine(room) {
   // Check for exact bid
   const exactBidder = contestants.find(c => c.bid === price);
   if (exactBidder) {
-    return { text: `The actual retail price is $${price}! And ${exactBidder.name} bid EXACTLY that! That is an exact bid — ${exactBidder.name} wins an extra one hundred dollars!`, type: "exactBid" };
+    return { text: `The actual retail price is $${price}! And ${exactBidder.name} bid EXACTLY that! That is an exact bid — ${exactBidder.name} wins an extra five hundred dollars!`, type: "exactBid" };
   }
 
   // All overbid
@@ -339,19 +355,50 @@ export async function restart(room, mode) {
     room.playedPricingGames = [];
     room.pricingGame = null;
     room.showcaseContestants = [];
+    room.completedRounds = 0;
+    room.halfWinners = [];
+    room.showdown = null;
+    room.finalShowcase = null;
     room.replacementContestantId = null;
     room.replacementVisible = false;
     setHostLine(room, "", "welcome");
   } else {
     const winnerIndex = room.winnerIndices[0];
     const winner = room.contestants[winnerIndex];
-    if (winner) room.showcaseContestants.push({ ...winner, bid: null });
+    if (winner) {
+      const gameValue=pricingGameValue(room.pricingGame);
+      const oneBidValue=Number(room.item?.price||0)+(room.revealType==="exactBid"?500:0);
+      room.showcaseContestants.push({ ...winner, bid:null, oneBidValue, pricingWinnings:gameValue, totalWinnings:oneBidValue+gameValue, round:room.completedRounds+1 });
+      room.completedRounds+=1;
+    }
     room.contestants = room.contestants.filter((_, index) => index !== winnerIndex).map((c) => ({
       ...c,
       bid: null,
       strategy: c.isAI ? shuffle(STRATEGIES)[0] : c.strategy,
     }));
 
+    if(room.completedRounds===3||room.completedRounds===6){
+      const group=room.showcaseContestants.filter(c=>c.round>(room.completedRounds-3));
+      room.showdown=createShowdown(room.completedRounds===3?1:2,group);
+      room.pricingGame=null;room.phase="showcaseShowdown";
+      setHostLine(room,`It's time for the ${room.completedRounds===3?"first":"second"} Showcase Showdown! ${room.showdown.participants[0].name}, you're first at the Big Wheel!`,"wheelIntro");
+      return;
+    }
+    await prepareReplacement(room);
+  }
+}
+
+function pricingGameValue(game){
+  if(!game||game.status!=="won")return 0;
+  if(game.type==="diceGame")return Number(`${game.firstDigit}${game._digits.join("")}`);
+  if(game.type==="oneAway")return Number(game._digits.join(""));
+  if(game.type==="clockGame")return game._prices.reduce((a,b)=>a+b,0);
+  if(game.type==="cliffHangers"||game.type==="groceryGame"||game.type==="shellGame")return 5000;
+  if(game.type==="anyNumber")return Number(game._answers[0].join(""));
+  return Number(game.winnings||0);
+}
+
+async function prepareReplacement(room){
     const unavailable = new Set([
       ...room.contestants.map(c => c.id),
       ...room.showcaseContestants.map(c => c.id),
@@ -371,8 +418,17 @@ export async function restart(room, mode) {
     setHostLine(room,
       `We need a new contestant!||Here's one for you... ${replacement.name}, come on down! You're the next contestant on The Price Is Right!`,
       "replacementIntro");
-  }
 }
+
+export function wheelGameAction(room,playerId,action){if(room.phase!=="showcaseShowdown")throw new Error("The wheel is not active");const name=room.showdown.participants[room.showdown.currentIndex]?.name;wheelAction(room.showdown,playerId,action);if(room.showdown.stage==="complete")setHostLine(room,room.showdown.result,"wheelResult");else if(action==="spin")setHostLine(room,`${name} spins the Big Wheel!`,"wheelSpin");else{const p=room.showdown.participants[room.showdown.currentIndex];setHostLine(room,`${p.name}, you're next at the wheel!`,"wheelAdvance");}}
+export function settleWheelGame(room){settleWheel(room.showdown);const s=room.showdown;if(s.stage==="complete")setHostLine(room,s.result,"wheelResult");else if(s.stage==="bonusTurn")setHostLine(room,`${s.participants[s.currentIndex].name}, spin for your bonus!`,"wheelPrompt");else{const p=s.participants[s.currentIndex];setHostLine(room,s.stage==="decision"?`${p.name}, you have ${p.score} cents. Spin again or stay?`:`${p.name}, step up and spin the wheel!`,"wheelPrompt");}}
+export function resolveWheelGameAI(room){const name=room.showdown.participants[room.showdown.currentIndex]?.name;resolveWheelAI(room.showdown);if(room.showdown.stage==="complete")setHostLine(room,room.showdown.result,"wheelResult");else if(["spinning","bonusSpinning"].includes(room.showdown.stage))setHostLine(room,`${name} spins the Big Wheel!`,"wheelSpin");else{const p=room.showdown.participants[room.showdown.currentIndex];setHostLine(room,`${p.name}, you're next!`,"wheelAdvance");}}
+export async function finishShowdown(room){if(room.showdown?.stage!=="complete")throw new Error("The Showcase Showdown is not complete");const winner=room.showdown.participants.find(p=>p.id===room.showdown.winnerId);room.halfWinners.push({...winner,totalWinnings:winner.totalWinnings+winner.bonusCash});if(room.showdown.half===1){room.showdown=null;await prepareReplacement(room);}else{room.finalShowcase=createFinalShowcase(room.halfWinners);room.showdown=null;room.phase="showcaseIntro";const cue=advanceShowcase(room.finalShowcase);room.showcaseAnnouncement=null;setHostLine(room,cue.text,"showcaseTheme");}}
+
+export function advanceShowcasePresentation(room){if(!room.finalShowcase)throw new Error("No Showcase is active");const cue=advanceShowcase(room.finalShowcase);if(cue.type==="theme"){room.phase="showcaseIntro";room.showcaseAnnouncement=null;setHostLine(room,cue.text,"showcaseTheme");}else if(cue.type==="prize"){room.phase="showcaseIntro";room.showcaseAnnouncement=cue.prize;setHostLine(room,cue.text,"showcasePrize");}else{room.showcaseAnnouncement=null;room.phase=room.finalShowcase.stage==="choice"?"showcaseChoice":"showcaseBid";const id=room.finalShowcase.stage==="choice"?room.finalShowcase.contestants[0].id:room.finalShowcase.assignments[1];const p=room.finalShowcase.contestants.find(c=>c.id===id);setHostLine(room,room.finalShowcase.stage==="choice"?`${p.name}, would you like to bid on this showcase, or pass it?`:`${p.name}, what is your bid on this showcase?`,room.finalShowcase.stage==="choice"?"showcaseChoice":"showcaseBid");}}
+function showcaseRevealLine(f){return f.results.map((r,i)=>{const p=f.contestants.find(c=>c.id===r.playerId);return `${p.name} bid $${r.bid.toLocaleString("en-CA")}. The actual retail price of Showcase ${i+1} is $${r.actual.toLocaleString("en-CA")}, ${r.over?"an overbid":`a difference of $${r.difference.toLocaleString("en-CA")}`}.`;}).join(" ")+` ${f.result}`;}
+export function finalShowcaseAction(room,playerId,action){showcaseAction(room.finalShowcase,playerId,action);const f=room.finalShowcase;if(f.stage==="firstBid"){room.phase="showcaseBid";const p=f.contestants.find(c=>c.id===f.assignments[0]);setHostLine(room,`${p.name}, what is your bid on the first showcase?`,"showcaseBid");}else if(f.stage==="secondTheme"){room.phase="showcaseIntro";const cue=advanceShowcase(f);setHostLine(room,cue.text,"showcaseTheme");}else if(f.stage==="complete"){room.phase="showcaseReveal";setHostLine(room,showcaseRevealLine(f),"showcaseResult");}}
+export function resolveFinalShowcaseAI(room){resolveShowcaseAI(room.finalShowcase);const f=room.finalShowcase;if(f.stage==="firstBid"){const p=f.contestants.find(c=>c.id===f.assignments[0]);room.phase="showcaseBid";setHostLine(room,`${p.name}, what is your bid?`,"showcaseBid");}else if(f.stage==="secondTheme"){room.phase="showcaseIntro";const cue=advanceShowcase(f);setHostLine(room,cue.text,"showcaseTheme");}else if(f.stage==="complete"){room.phase="showcaseReveal";setHostLine(room,showcaseRevealLine(f),"showcaseResult");}}
 
 const cleanupTimer = setInterval(() => {
   const now = Date.now();
