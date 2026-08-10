@@ -363,8 +363,12 @@ export async function restart(room, mode) {
     room.replacementVisible = false;
     setHostLine(room, "", "welcome");
   } else {
+    const mayAdvance = room.phase === "reveal"
+      || (room.phase === "pricingGame" && room.pricingGame?.status && room.pricingGame.status !== "playing");
+    if (!mayAdvance) throw new Error("This round has already advanced");
     const winnerIndex = room.winnerIndices[0];
     const winner = room.contestants[winnerIndex];
+    if (!winner) throw new Error("No Contestants' Row winner is available");
     if (winner) {
       const gameValue=pricingGameValue(room.pricingGame);
       const oneBidValue=Number(room.item?.price||0)+(room.revealType==="exactBid"?500:0);
@@ -399,6 +403,7 @@ function pricingGameValue(game){
 }
 
 async function prepareReplacement(room){
+    if (room.contestants.length !== 3) throw new Error(`Contestants' Row must have three people before a replacement is called; found ${room.contestants.length}`);
     const unavailable = new Set([
       ...room.contestants.map(c => c.id),
       ...room.showcaseContestants.map(c => c.id),
@@ -407,7 +412,10 @@ async function prepareReplacement(room){
     const replacement = waitingHuman
       ? { id: waitingHuman.id, name: waitingHuman.name, isAI: false, strategy: null, bid: null, photo: waitingHuman.photo || null }
       : makeAIContestant([...room.contestants, ...room.showcaseContestants], room.showcaseContestants.length);
-    room.contestants.push(replacement);
+    // The new contestant is placed first in the bidding order. Keeping them at
+    // index zero lets the existing turn engine naturally proceed through all
+    // four bidders without ever adding a fifth podium.
+    room.contestants.unshift(replacement);
     room.replacementContestantId = replacement.id;
     room.replacementVisible = false;
     room.item = await selectFreshPrize(room);

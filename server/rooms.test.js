@@ -47,3 +47,21 @@ test("the third on-stage winner starts the first Showcase Showdown", async()=>{
   assert.equal(room.completedRounds,3);
   assert.deepEqual(room.showdown.participants.map(p=>p.id),["third","second","first"]);
 });
+
+test("a winner leaves once, replacement restores exactly four, and the newcomer bids first",async()=>{
+  const room=createRoom();
+  room.phase="reveal";room.item={id:"round-prize",price:900};room.winnerIndices=[2];
+  room.contestants=[
+    {id:"a",name:"Alice",isAI:true,bid:700},
+    {id:"b",name:"Bob",isAI:true,bid:800},
+    {id:"winner",name:"Winner",isAI:true,bid:850},
+    {id:"d",name:"Dina",isAI:true,bid:600},
+  ];
+  await restart(room,"sameLineup");
+  assert.equal(room.contestants.length,4);
+  assert.equal(room.contestants.some(c=>c.id==="winner"),false);
+  assert.equal(room.contestants[0].id,room.replacementContestantId);
+  assert.equal(room.turn,0);
+  await assert.rejects(()=>restart(room,"sameLineup"),/already advanced/);
+  assert.equal(room.contestants.length,4);
+});
