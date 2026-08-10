@@ -3,7 +3,7 @@ import {
   buildLineup, computeAIBid, computeWinners, makeAIContestant, STRATEGIES, shuffle,
 } from "./gameLogic.js";
 import { getPrizePool, pickRandomItem } from "./prizeSource.js";
-import { createPricingGame, createPricingGameForType, initialPrizeAnnouncements, playPricingGame, publicPricingGame, settlePricingAnimation } from "./pricingGames.js";
+import { clearDeferredPrice, createPricingGame, createPricingGameForType, initialPrizeAnnouncements, playPricingGame, publicPricingGame, revealDeferredPrice, settlePricingAnimation } from "./pricingGames.js";
 import { advanceShowcase, createFinalShowcase, createShowdown, publicFinalShowcase, publicShowdown, resolveShowcaseAI, resolveWheelAI, settleWheel, showcaseAction, wheelAction } from "./showFlow.js";
 
 const rooms = new Map();
@@ -278,13 +278,40 @@ export function pricingGameAction(room, playerId, action) {
   if (room.pricingGame.playerId !== playerId) throw new Error("This is not your pricing game");
   playPricingGame(room.pricingGame, action || {});
   const g = room.pricingGame;
-  if (g.pendingPrizeAnnouncement) {
+  if (g._pendingPriceReveal) {
+    room.phase = "pricingRevealCue";
+    setHostLine(room, `${g.priceReveal.guess ? `You said ${g.priceReveal.guess}. ` : ""}Show me the price!`, "pricingRevealCue");
+  } else if (g.pendingPrizeAnnouncement) {
     room.pricingAnnouncementQueue = [g.pendingPrizeAnnouncement];
     g.pendingPrizeAnnouncement = null;
     room.pricingAnnouncement = room.pricingAnnouncementQueue.shift();
     room.phase = "pricingPrizeIntro";
     setHostLine(room, room.pricingAnnouncement.announcerText || `It's ${room.pricingAnnouncement.name}!`, "pricingPrizeIntro");
   } else setHostLine(room, g.status === "playing" ? g.prompt : g.result, g.status === "playing" ? "pricingPrompt" : "pricingResult");
+}
+
+export function revealPricingPrice(room) {
+  if (room.phase !== "pricingRevealCue" || !room.pricingGame) throw new Error("No price is waiting to be revealed");
+  revealDeferredPrice(room.pricingGame);
+  room.phase = "pricingPriceShown";
+  const r=room.pricingGame.priceReveal;
+  setHostLine(room, `$${Number(r.actual).toLocaleString("en-CA")}! ${room.pricingGame.lastOutcome?.text || ""}`, "pricingPriceShown");
+}
+
+export function continuePricingPrice(room) {
+  if (room.phase !== "pricingPriceShown" || !room.pricingGame) throw new Error("No revealed price is waiting");
+  const g=room.pricingGame;
+  clearDeferredPrice(g);
+  if (g.pendingPrizeAnnouncement) {
+    room.pricingAnnouncementQueue=[g.pendingPrizeAnnouncement];
+    g.pendingPrizeAnnouncement=null;
+    room.pricingAnnouncement=room.pricingAnnouncementQueue.shift();
+    room.phase="pricingPrizeIntro";
+    setHostLine(room,room.pricingAnnouncement.announcerText||`It's ${room.pricingAnnouncement.name}!`,"pricingPrizeIntro");
+  } else {
+    room.phase="pricingGame";
+    setHostLine(room,g.status==="playing"?g.prompt:g.result,g.status==="playing"?"pricingPrompt":"pricingResult");
+  }
 }
 
 export function settlePricingGame(room) {
