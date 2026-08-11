@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { clearDeferredPrice, createPricingGameForType, playPricingGame, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
 
 const player = { id: "human-1", name: "Test Player" };
-const types = ["plinko","cliffHangers","punchABunch","diceGame","groceryGame","oneAway","clockGame","anyNumber","grandGame","shellGame","moneyGame","luckySeven","doublePrices","threeStrikes","switchGame"];
+const types = ["plinko","cliffHangers","punchABunch","diceGame","groceryGame","oneAway","clockGame","anyNumber","grandGame","shellGame","moneyGame","luckySeven","doublePrices","threeStrikes","switchGame","tenChances"];
 
 test("all twelve pricing games can be created without leaking answers", () => {
   for (const type of types) {
@@ -30,6 +30,7 @@ test("all twelve pricing game engines can reach a result", () => {
   g=createPricingGameForType("doublePrices",player);playPricingGame(g,{choice:`$${g._actual}`});assert.equal(g.status,"won");
   g=createPricingGameForType("threeStrikes",player);g._bag=[...g._digits];while(g.status==="playing"){playPricingGame(g,{choice:"DRAW A BALL"});if(g.stage==="place")playPricingGame(g,{choice:`Position ${g._digits.indexOf(g.currentBall)+1}`});}assert.equal(g.status,"won");
   g=createPricingGameForType("switchGame",player);playPricingGame(g,{choice:g.shownPrices[0]===g._prices[0]?"Leave them":"Switch them"});assert.equal(g.status,"won");
+  g=createPricingGameForType("tenChances",player);for(const price of g._prices)playPricingGame(g,{value:price});assert.equal(g.status,"won");
 });
 
 test("higher/lower prizes wait for an on-screen price reveal before the result", () => {
@@ -53,9 +54,9 @@ test("car games avoid cars already used during the show",()=>{
 });
 
 test("every car game uses the new-car announcement",()=>{
-  for(const type of ["diceGame","oneAway","anyNumber","moneyGame","luckySeven","threeStrikes"]){
+  for(const type of ["diceGame","oneAway","anyNumber","moneyGame","luckySeven","threeStrikes","tenChances"]){
     const game=createPricingGameForType(type,player);
-    assert.match(game.introPrizes[0].announcerText,/IT'S A NEW CAR/i);
+    const car=type==="tenChances"?game.prizes[2]:game.introPrizes[0];assert.match(car.announcerText,/IT'S A NEW CAR/i);assert.match(car.announcerText,new RegExp(car.name.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"i"));
   }
 });
 
