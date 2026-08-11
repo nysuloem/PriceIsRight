@@ -4,7 +4,7 @@ import { Mic2, Bot, Trophy, ArrowRight, ChefHat } from "lucide-react";
 import {
   getState, startGame, callNext, advance,
   nextTurn, restartGame, resetBids, ttsUrl, playerPhotoUrl, getConfig,
-  startPricingGame, pricingGameAction,
+  startPricingGame,
   beginPricingGame,
   settlePricingGame,
   revealPricingPrice, continuePricingPrice,
@@ -305,7 +305,7 @@ function HostViewInner({ code }) {
       setTimeout(() => current(() => playTTS(el, text, () => safely(() => continuePricingPrice(code)), voice, "host")), 650);
     } else if (type === "pricingGame" || type === "pricingPrompt") {
       const diceReveal=state.pricingGame?.type==="diceGame"&&state.pricingGame?.stage==="reveal";
-      if(diceReveal)playTTS(ann,text,()=>setTimeout(()=>safely(()=>pricingGameAction(code,state.pricingGame.playerId,{choice:"Reveal next digit"})),650),config.announcerVoice||"onyx","announcer");
+      if(diceReveal)playTTS(ann,text,()=>{},config.announcerVoice||"onyx","announcer");
       else playTTS(el, text, () => {}, voice);
     } else if (type === "pricingResult") {
       const finish=()=>playTTS(el, text, () => { if (!state.isDemo) safely(() => restartGame(code, "sameLineup")); }, voice);
@@ -418,6 +418,7 @@ function HostViewInner({ code }) {
       {phase === "opening" && state && (
         <OpeningSequence
           contestants={state.contestants}
+          contestantCount={state.players?.length || state.contestants.length}
           roomCode={code}
           announcerVoice={config.announcerVoice}
           hostVoice={config.hostVoice}

@@ -68,6 +68,26 @@ test("car games introduce the car before the host explains the rules",()=>{
   assert.equal(room.phase,"pricingGame");
 });
 
+test("Dice Game automatically reveals all digits after the final choice", async()=>{
+  const {room}=createPricingGameDemo("diceGame");
+  const player=joinRoom(room,"Dice Player");
+  beginPricingGame(room);
+  beginPricingGame(room);
+  while(room.pricingGame.stage!=="reveal"){
+    if(room.pricingGame.stage==="roll")pricingGameAction(room,player.id,{choice:"Roll"});
+    else {
+      const index=room.pricingGame.digitIndex;
+      pricingGameAction(room,player.id,{choice:room.pricingGame._digits[index]>room.pricingGame.rolls[index]?"Higher":"Lower"});
+    }
+  }
+  assert.equal(room.pricingGame.mode,"wait");
+  assert.deepEqual(room.pricingGame.options,[]);
+  await new Promise(resolve=>setTimeout(resolve,7000));
+  assert.equal(room.pricingGame.status,"won");
+  assert.equal(room.phase,"pricingGame");
+  assert.equal(room.hostLine.type,"pricingResult");
+});
+
 test("Ten Chances introduces the car, then rules, then its first small prize",()=>{
   const {room}=createPricingGameDemo("tenChances");
   joinRoom(room,"Ten Chances Player");

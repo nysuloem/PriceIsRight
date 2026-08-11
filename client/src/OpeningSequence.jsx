@@ -15,8 +15,17 @@ import { ttsUrl, playerPhotoUrl } from "./api.js";
 // The host then takes over via the game's TTS loop (itemIntro, prompt, etc.)
 // ---------------------------------------------------------------------------
 
+export function openingContestantLine(count) {
+  if (count === 1) return "You are the only contestant on The Price Is Right!";
+  if (count === 2) return "You are the two contestants on The Price Is Right!";
+  if (count === 3) return "You are the three contestants on The Price Is Right!";
+  if (count === 4) return "You are the four contestants on The Price Is Right!";
+  return "You are the first four contestants on The Price Is Right!";
+}
+
 export default function OpeningSequence({
   contestants,
+  contestantCount = contestants.length,
   roomCode,
   announcerVoice = "onyx",
   hostVoice = "coral",
@@ -105,14 +114,7 @@ export default function OpeningSequence({
 
     await wait(400);
 
-    const countLine = contestants.length === 1
-      ? "You are the only contestant on The Price Is Right!"
-      : contestants.length === 2
-        ? "You are the two contestants on The Price Is Right!"
-        : contestants.length === 3
-          ? "You are the three contestants on The Price Is Right!"
-          : "You are the first four contestants on The Price Is Right!";
-    await announce(countLine);
+    await announce(openingContestantLine(contestantCount));
     await wait(350);
 
     // 4. Hand off to host

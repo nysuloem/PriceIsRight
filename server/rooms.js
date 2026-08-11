@@ -11,6 +11,7 @@ const rooms = new Map();
 const ROOM_TTL_MS = 4 * 60 * 60 * 1000;
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const MAX_PLAYERS = 8;   // how many humans can join
+const DICE_AUTO_REVEAL_DELAY_MS = 1600;
 const CAR_FIRST_GAMES = new Set(["diceGame", "oneAway", "anyNumber", "moneyGame", "luckySeven", "threeStrikes", "tenChances"]);
 const recentPricingPrizeNames=[];
 export function makePricingGameSchedule(random=Math.random){const schedule=Array(6).fill("nonCar");schedule[Math.floor(random()*3)]="car";schedule[3+Math.floor(random()*3)]="car";return schedule;}
@@ -328,6 +329,39 @@ export function beginPricingGame(room) {
   }
 }
 
+function scheduleDiceAutoReveal(room) {
+  const game = room.pricingGame;
+  if (
+    room.phase !== "pricingGame"
+    || game?.type !== "diceGame"
+    || game.stage !== "reveal"
+    || game.status !== "playing"
+    || game._autoRevealScheduled
+  ) return;
+
+  game._autoRevealScheduled = true;
+  const revealNext = () => {
+    if (room.pricingGame !== game || room.phase !== "pricingGame" || game.stage !== "reveal" || game.status !== "playing") {
+      game._autoRevealScheduled = false;
+      return;
+    }
+    playPricingGame(game, { choice: "Reveal next digit" });
+    room.updatedAt = Date.now();
+    if (game.status === "playing") {
+      setHostLine(room, game.lastOutcome?.text || game.prompt, "pricingPrompt");
+      const timer = setTimeout(revealNext, DICE_AUTO_REVEAL_DELAY_MS);
+      timer.unref?.();
+      room.diceRevealTimer = timer;
+    } else {
+      game._autoRevealScheduled = false;
+      setHostLine(room, game.result, "pricingResult");
+    }
+  };
+  const timer = setTimeout(revealNext, DICE_AUTO_REVEAL_DELAY_MS);
+  timer.unref?.();
+  room.diceRevealTimer = timer;
+}
+
 export function pricingGameAction(room, playerId, action) {
   if (room.phase !== "pricingGame" || !room.pricingGame) throw new Error("No pricing game is active");
   if(action?.audienceChoice!=null){
@@ -353,7 +387,10 @@ export function pricingGameAction(room, playerId, action) {
     room.pricingAnnouncement = room.pricingAnnouncementQueue.shift();
     room.phase = "pricingPrizeIntro";
     setHostLine(room, room.pricingAnnouncement.announcerText || `It's ${room.pricingAnnouncement.name}!`, "pricingPrizeIntro");
-  } else setHostLine(room, g.status === "playing" ? g.prompt : g.result, g.status === "playing" ? "pricingPrompt" : "pricingResult");
+  } else {
+    setHostLine(room, g.status === "playing" ? g.prompt : g.result, g.status === "playing" ? "pricingPrompt" : "pricingResult");
+    scheduleDiceAutoReveal(room);
+  }
 }
 
 export function revealPricingPrice(room) {

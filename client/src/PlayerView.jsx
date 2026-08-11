@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Bot, Trophy, Camera, Upload, X, Check, Mic, MicOff } from "lucide-react";
-import { getState, joinRoom, submitBid, kissHost, pricingGameAction, showcaseAction, wheelAction } from "./api.js";
+import { getState, joinRoom, submitBid, kissHost, beginPricingGame, pricingGameAction, showcaseAction, wheelAction } from "./api.js";
 
 const POLL_MS = 500;
 
@@ -281,7 +281,7 @@ export default function PlayerView({ code, navigate }) {
       )}
 
       {state.phase === "pricingIntro" && (
-        <div className="pir-panel pir-center"><h2>Get ready!</h2><p>The host and announcer are introducing your game on the main screen.</p></div>
+        <SkipRulesPhone code={code} game={state.pricingGame} playerId={playerId} onError={setError} />
       )}
       {state.phase === "pricingPrizeIntro" && (
         <div className="pir-panel pir-center"><h2>Here comes the next prize!</h2><p>Watch the main screen while the announcer introduces it.</p></div>
@@ -302,6 +302,31 @@ export default function PlayerView({ code, navigate }) {
       {state.phase.startsWith("credits") && <div className="pir-panel pir-center"><h2>Thanks for playing!</h2><p>Watch the closing credits on the big screen.</p></div>}
 
       {error && <div className="pir-error">{error}</div>}
+    </div>
+  );
+}
+
+function SkipRulesPhone({ code, game, playerId, onError }) {
+  const [busy, setBusy] = useState(false);
+  const canSkip = !game?.playerId || game.playerId === playerId;
+  const skip = async () => {
+    setBusy(true);
+    onError("");
+    try {
+      await beginPricingGame(code);
+    } catch (e) {
+      onError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="pir-panel pir-center">
+      <h2>Get ready!</h2>
+      <p>The host is explaining the rules on the main screen.</p>
+      {canSkip
+        ? <button className="pir-btn" disabled={busy} onClick={skip}>SKIP RULES — LET'S PLAY!</button>
+        : <p className="pir-helptext">{game?.playerName || "The contestant"} can skip the rules from their phone.</p>}
     </div>
   );
 }
