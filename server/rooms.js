@@ -17,12 +17,13 @@ function rememberPricingPrizes(names){for(const name of names){const old=recentP
 
 function preparePricingIntroduction(room, player) {
   const game=room.pricingGame;
-  if (CAR_FIRST_GAMES.has(game.type) || game.type==="shellGame") {
-    const featuredPrize=initialPrizeAnnouncements(game)[0];
+  if (CAR_FIRST_GAMES.has(game.type) || game.type==="shellGame" || game.featuredIntroCount) {
+    const announcements=initialPrizeAnnouncements(game),featuredPrize=announcements[0];
     game._featuredPrizeIntroducedFirst=true;
+    game._featuredIntroCount=game.featuredIntroCount||1;
     game._carIntroducedFirst=CAR_FIRST_GAMES.has(game.type);
     game._rulesIntroduced=false;
-    room.pricingAnnouncementQueue=[];
+    room.pricingAnnouncementQueue=announcements.slice(1,game._featuredIntroCount);
     room.pricingAnnouncement=featuredPrize;
     room.phase="pricingPrizeIntro";
     setHostLine(room,featuredPrize?.announcerText||(game._carIntroducedFirst?"IT'S A NEW CAR!":"Take a look at the grand prize!"),"pricingPrizeIntro");
@@ -76,6 +77,7 @@ export function createRoom() {
     replacementContestantId: null,
     replacementVisible: false,
     isDemo: false,
+    kissEvent: null,
     hostLine: { seq: 0, text: "", type: "welcome" },
   };
   rooms.set(code, room);
@@ -129,6 +131,7 @@ export function publicState(room) {
     replacementVisible: room.replacementVisible,
     isDemo: room.isDemo,
     demoGameType: room.demoGameType || null,
+    kissEvent: room.kissEvent,
   };
 }
 
@@ -290,13 +293,14 @@ export function beginPricingGame(room) {
   if (!room.pricingGame) throw new Error("No pricing game introduction is active");
   const game=room.pricingGame;
   if (room.phase === "pricingPrizeIntro" && game._featuredPrizeIntroducedFirst && !game._rulesIntroduced) {
+    if(room.pricingAnnouncementQueue.length){const next=room.pricingAnnouncementQueue.shift();room.pricingAnnouncement=next;setHostLine(room,next.announcerText,"pricingPrizeIntro");return;}
     game._rulesIntroduced=true;
     room.pricingAnnouncement=null;
     room.phase="pricingIntro";
     setHostLine(room,`${game.playerName}, you are going to play ${game.title}!`,"pricingGameIntro");
     return;
   }
-  if (room.phase === "pricingIntro") room.pricingAnnouncementQueue = game._featuredPrizeIntroducedFirst ? initialPrizeAnnouncements(game).slice(1) : initialPrizeAnnouncements(game);
+  if (room.phase === "pricingIntro") room.pricingAnnouncementQueue = game._featuredPrizeIntroducedFirst ? initialPrizeAnnouncements(game).slice(game._featuredIntroCount||1) : initialPrizeAnnouncements(game);
   else if (room.phase !== "pricingPrizeIntro") throw new Error("No pricing game introduction is active");
   const next = room.pricingAnnouncementQueue.shift();
   if (next) {
@@ -380,6 +384,7 @@ export function revealReplacement(room) {
 }
 
 export function submitBid(room, playerId, amount) {
+  if(amount==="__kiss_host__"){kissHost(room,playerId);return;}
   if (room.phase !== "bidding") throw new Error("Bidding isn't open");
   const c = room.contestants[room.turn];
   if (!c || c.id !== playerId) throw new Error("Not your turn");
@@ -390,12 +395,20 @@ export function submitBid(room, playerId, amount) {
   setHostLine(room, `${c.name} bids $${c.bid}!`, "bidResult");
 }
 
+export function kissHost(room,playerId){
+  if(room.phase!=="reveal")throw new Error("The host is not ready for that yet");
+  const winner=room.winnerIndices.map(i=>room.contestants[i]).find(c=>c&&!c.isAI&&c.id===playerId);
+  if(!winner)throw new Error("Only the winning contestant can kiss the host");
+  room.kissEvent={seq:(room.kissEvent?.seq||0)+1,playerName:winner.name};
+  return room.kissEvent;
+}
+
 export function resolveAITurn(room) {
   if (room.phase !== "bidding") throw new Error("Bidding isn't open");
   const c = room.contestants[room.turn];
   if (!c || !c.isAI || c.bid != null) throw new Error("Invalid AI turn");
   const prevBids = room.contestants.slice(0, room.turn).map((x) => x.bid);
-  c.bid = computeAIBid(c.strategy, room.item.price, prevBids, room.turn, room.contestants.length);
+  c.bid = computeAIBid(c.strategy, room.item.price, prevBids, room.turn, room.contestants.length,room.item.bidCategory||room.item.category||"variety",c.priceProfile);
   setHostLine(room, `${c.name} bids $${c.bid}!`, "bidResult");
 }
 
@@ -438,6 +451,7 @@ export async function restart(room, mode) {
     room.pricingGameSchedule = makePricingGameSchedule();
     room.usedPricingPrizeNames = [];
     room.pricingGame = null;
+    room.kissEvent = null;
     room.showcaseContestants = [];
     room.completedRounds = 0;
     room.halfWinners = [];
@@ -492,7 +506,7 @@ function pricingGameValue(game){
   if(game.type==="oneAway")return Number(game._digits.join(""));
   if(game.type==="clockGame")return game._prices.reduce((a,b)=>a+b,0);
   if(game.type==="cliffHangers")return Number(game.winnings||0);
-  if(game.type==="groceryGame")return 5000;
+  if(game.type==="groceryGame")return Number(game.winnings||0);
   if(game.type==="anyNumber")return Number(game._answers[0].join(""));
   return Number(game.winnings||0);
 }

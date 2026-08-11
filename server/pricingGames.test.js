@@ -21,6 +21,17 @@ test("pricing-game selection respects a scheduled car or non-car category",()=>{
   assert.ok(NON_CAR_PRICING_GAME_TYPES.includes(nonCar.type));
 });
 
+test("Grocery Game has a grand prize and awards its actual value",()=>{
+  const g=createPricingGameForType("groceryGame",player);
+  assert.ok(g.bonusPrize?.name);
+  assert.ok(g._bonusPrice>0);
+  g._prices[0]=1;
+  playPricingGame(g,{choice:g.options[0]});
+  playPricingGame(g,{value:20});
+  assert.equal(g.status,"won");
+  assert.equal(g.winnings,g._bonusPrice);
+});
+
 test("all twelve pricing game engines can reach a result", () => {
   let g = createPricingGameForType("plinko", player); while(g.stage === "qualify") { playPricingGame(g,{choice:g._qualifierCorrect[g.qualifierIndex]}); g.pendingPrizeAnnouncement=null; } while(g.status === "playing") { playPricingGame(g,{position:5}); settlePricingAnimation(g); } assert.notEqual(g.status,"playing");
   g = createPricingGameForType("cliffHangers", player); for (const price of [...g._prices]) { playPricingGame(g,{value:price}); settlePricingAnimation(g); clearDeferredPrice(g); } assert.equal(g.status,"won");

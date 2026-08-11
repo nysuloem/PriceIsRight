@@ -18,7 +18,7 @@ import clockBellBase64 from "./assets/clock-game-bell.b64?raw";
 const cliffYodelUrl=`data:audio/mpeg;base64,${cliffYodelBase64.trim()}`;
 const clockBellUrl=`data:audio/mpeg;base64,${clockBellBase64.trim()}`;
 
-const POLL_MS = 1200;
+const POLL_MS = 500;
 
 // ---------------------------------------------------------------------------
 // playTTS — fetch audio from the server and play it.
@@ -33,8 +33,8 @@ function playTTS(audioEl, text, onDone, voice, style = "host") {
   audioEl.currentTime = 0;
   audioEl.src = ttsUrl(text, voice, style);
   audioEl.onended = fire;
-  audioEl.onerror = () => setTimeout(fire, 1500);
-  audioEl.play().catch(() => setTimeout(fire, 1500));
+  audioEl.onerror = () => setTimeout(fire, 350);
+  audioEl.play().catch(() => setTimeout(fire, 350));
   // If the TTS request hangs, cancel the audio resource before advancing.
   // Clearing src is important: a late response can no longer begin speaking
   // over the next phase.
@@ -44,7 +44,7 @@ function playTTS(audioEl, text, onDone, voice, style = "host") {
     audioEl.removeAttribute("src");
     audioEl.load();
     fire();
-  }, 25000);
+  }, 12000);
 }
 
 // ---------------------------------------------------------------------------
@@ -142,6 +142,7 @@ function HostViewInner({ code }) {
   const [phase, setPhase] = useState("lobby"); // "lobby" | "opening" | "game"
   const [error, setError] = useState("");
   const [config, setConfig] = useState({ hostName: "Robbie Archer", announcerVoice: "onyx", hostVoice: "coral" });
+  const [kissBurst,setKissBurst]=useState(null);
   const lastSeqRef = useRef(-1);
   const audioRef = useRef(null);       // host voice
   const announcerRef = useRef(null);   // announcer voice (for prize descriptions)
@@ -154,6 +155,7 @@ function HostViewInner({ code }) {
   const cliffYodelRef = useRef(null);
   const lastSettledWheelRef = useRef("");
   const lastAIWheelActionRef = useRef("");
+  const lastKissRef=useRef(0);
   const finishPlinkoDrop=useCallback((dropId)=>{if(!dropId||dropId===lastSettledDropRef.current)return;lastSettledDropRef.current=dropId;settlePricingGame(code).catch(e=>{lastSettledDropRef.current=0;setError(e.message);});},[code]);
   const finishCliffClimb=useCallback((climbId)=>{if(!climbId||climbId===lastSettledClimbRef.current)return;lastSettledClimbRef.current=climbId;settlePricingGame(code).catch(e=>{lastSettledClimbRef.current=0;setError(e.message);});},[code]);
 
@@ -168,6 +170,8 @@ function HostViewInner({ code }) {
     else if (event.kind === "loss") playWomp();
     else if (event.kind === "failure") playBuzzer();
   }, [state?.pricingGame?.lastOutcome]);
+
+  useEffect(()=>{const event=state?.kissEvent;if(!event||event.seq===lastKissRef.current)return;lastKissRef.current=event.seq;setKissBurst(event);const timer=setTimeout(()=>setKissBurst(null),2600);return()=>clearTimeout(timer);},[state?.kissEvent]);
 
   useEffect(()=>{const s=state?.showdown;if(!s||!["spinning","bonusSpinning"].includes(s.stage))return;const key=`${s.half}-${s.spinSeq}`;if(key===lastSettledWheelRef.current)return;lastSettledWheelRef.current=key;let stopped=false;const attempt=async(retries=0)=>{try{await settleWheel(code);}catch(e){if(!stopped&&retries<2)setTimeout(()=>attempt(retries+1),1200);else if(!stopped){lastSettledWheelRef.current="";setError(e.message);}}};const timer=setTimeout(()=>attempt(),(s.spinDuration||3400)+150);return()=>{stopped=true;clearTimeout(timer);};},[state?.showdown?.half,state?.showdown?.spinSeq,state?.showdown?.stage,state?.showdown?.spinDuration,code]);
 
@@ -397,6 +401,7 @@ function HostViewInner({ code }) {
       <audio ref={audioRef} style={{ display: "none" }} />
       <audio ref={announcerRef} style={{ display: "none" }} />
       <audio ref={cliffYodelRef} src={cliffYodelUrl} preload="auto" style={{ display: "none" }} />
+      {kissBurst&&<div className="pir-kiss-burst" aria-live="polite"><span>💋</span><span>😘</span><span>💖</span><b>{kissBurst.playerName} kissed the host!</b><span>💋</span><span>💕</span></div>}
 
       {phase === "opening" && state && (
         <OpeningSequence
@@ -658,7 +663,7 @@ function RevealView({ state, code, onStartPricing, onNextRound, onNewPlayers }) 
 export function PricingGameView({ game, spotlight = null, rulesOnly = false }) {
   if (!game) return <div className="pir-loading">Loading pricing game…</div>;
   if (rulesOnly) return <div className={`pir-pricing-board pir-game-${game.type} pir-rules-only ${game.type==="plinko"?"pir-plinko-intro":""}`}>{game.type==="plinko"&&<><div className="pir-plinko-logo">PLINKO!</div><div className="pir-plinko-jackpot">A CHANCE TO WIN<br/><strong>$50,000!!!</strong></div></>}<div className="pir-pricing-kicker">HOW TO PLAY</div>{game.type!=="plinko"&&<h2 className="pir-pricing-title">{game.title}</h2>}<p className="pir-pricing-rules">{game.instructions}</p>{game.type==="cliffHangers"&&<CliffBoard game={game} /> }<div className="pir-pricing-prompt">Listen to the rules…</div></div>;
-  if (spotlight) { const isCar=/car/i.test(spotlight.name||"")||/new car/i.test(spotlight.announcerText||""),isShellGrand=game.type==="shellGame"&&spotlight.id===game.bonusPrize?.id; return <div className={`pir-pricing-board pir-game-${game.type} ${isCar?"pir-new-car-stage":""} ${isShellGrand?"pir-shell-grand-intro":""}`}><div className="pir-pricing-kicker">PRIZE INTRODUCTION</div>{isCar&&<div className="pir-new-car-flash">IT'S A NEW CAR!!!</div>}{isShellGrand&&<div className="pir-shell-grand-flash">PLAYING FOR THIS GRAND PRIZE!</div>}<h2 className="pir-pricing-title">{game.title}</h2><GameCards items={[spotlight]} /><div className="pir-pricing-prompt">Listen to the announcer…</div></div>; }
+  if (spotlight) { const isCar=/car/i.test(spotlight.name||"")||/new car/i.test(spotlight.announcerText||""),isGrand=!isCar&&(spotlight.id===game.bonusPrize?.id||Boolean(game.featuredIntroCount)); return <div className={`pir-pricing-board pir-game-${game.type} ${isCar?"pir-new-car-stage":""} ${isGrand?"pir-shell-grand-intro":""}`}><div className="pir-pricing-kicker">PRIZE INTRODUCTION</div>{isCar&&<div className="pir-new-car-flash">IT'S A NEW CAR!!!</div>}{isGrand&&<div className="pir-shell-grand-flash">PLAYING FOR THIS GRAND PRIZE!</div>}<h2 className="pir-pricing-title">{game.title}</h2><GameCards items={[spotlight]} /><div className="pir-pricing-prompt">Listen to the announcer…</div></div>; }
   if(game.priceReveal&&game.type==="cliffHangers")return <div className={`pir-pricing-board pir-game-cliffHangers ${game.cliffFinalWin?"pir-cliff-victory":""}`}><div className="pir-pricing-kicker">CLIFF HANGERS</div><h2 className="pir-pricing-title">{game.title}</h2><GameCards items={[game.priceReveal]} /><CliffBoard game={game} reveal={game.priceReveal}/>{game.cliffFinalWin&&game.priceReveal.actual==null&&<div className="pir-cliff-win-flash">HE MADE IT!<small>YOU WON ALL THREE PRIZES!</small></div>}</div>;
   if (game.priceReveal) return <div className={`pir-pricing-board pir-game-${game.type}`}><div className="pir-pricing-kicker">PRICE REVEAL</div><h2 className="pir-pricing-title">{game.title}</h2><GameCards items={[{...game.priceReveal,revealedPrice:game.priceReveal.actual}]} /><div className={`pir-pricing-prompt ${game.priceReveal.actual==null?"":"revealed"}`}>{game.priceReveal.actual==null?"SHOW ME THE PRICE!":game.priceReveal.correct?"THAT'S RIGHT!":"OH, SO CLOSE!"}</div></div>;
   return (
@@ -680,7 +685,7 @@ export function PricingGameView({ game, spotlight = null, rulesOnly = false }) {
       {game.type === "cliffHangers" && <><GameCards items={[game.items[game.itemIndex]].filter(Boolean)} /><CliffBoard game={game} onStopped={()=>finishCliffClimb(game.lastClimb?.id)} /></>}
       {game.type === "punchABunch" && <><div className="pir-punch-status">PUNCHES EARNED: {game.punches}</div>{game.stage === "qualify" ? <GameCards items={[game.qualifiers[game.qualifierIndex]].filter(Boolean)} /> : <div className="pir-punch-grid">{Array.from({length:50},(_,i)=><span key={i} className={game.punched?.includes(i)?"punched":""}>{game.punched?.includes(i)?"💥":i+1}</span>)}</div>}</>}
       {game.type === "diceGame" && <><GameCards items={[game.car]} /><div className="pir-dice-board"><div className="pir-price-digits"><span>{game.firstDigit}</span>{game.revealed.map((n,i)=><span key={i} className={game.correct[i]===false?"wrong":game.correct[i]===true?"right":""}>{n ?? "?"}</span>)}</div><div className="pir-dice-columns">{game.rolls.map((roll,i)=><div key={i}><div className={`pir-die ${i===game.digitIndex&&game.stage==="roll"?"rolling":""}`}>{roll ?? "–"}</div><b>{game.choices[i] || "WAITING"}</b><small>{game.correct[i]===true?"✓ RIGHT":game.correct[i]===false?"✕ WRONG":"LOCKED"}</small></div>)}</div></div></>}
-      {game.type === "groceryGame" && <><div className="pir-register">TOTAL ${game.total.toFixed(2)}</div><GameCards items={game.items} /></>}
+      {game.type === "groceryGame" && <><div className="pir-grocery-grand"><b>PLAYING FOR</b><GameCards items={[game.bonusPrize].filter(Boolean)} /></div><div className="pir-register">TOTAL ${game.total.toFixed(2)}</div><GameCards items={game.items} /></>}
       {game.type === "oneAway" && <><GameCards items={[game.car]} /><div className="pir-price-digits">{game.shownDigits.map((n,i)=><span key={i}>{game.answers[i] ? n+(game.answers[i]==="Higher"?1:-1) : n}</span>)}</div>{game.rightCount != null && <div className="pir-pricing-clue">{game.rightCount} RIGHT</div>}</>}
       {game.type === "clockGame" && <><ClockDisplay endsAt={game.clockEndsAt} fallback={game.secondsLeft} running={game.status==="playing"}/><GameCards items={[game.items[game.itemIndex]?{...game.items[game.itemIndex],revealedPrice:game.timeoutPrice}:null].filter(Boolean)} /></>}
       {game.type === "anyNumber" && <div className="pir-any-number">{game.boards.map(b => <div key={b.label}><b>{b.label}</b><div className="pir-price-digits">{b.cells.map((n,i)=><span key={i}>{n ?? "_"}</span>)}</div></div>)}</div>}

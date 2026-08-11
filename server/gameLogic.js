@@ -9,6 +9,10 @@ export const AI_NAMES = [
 ];
 
 export const STRATEGIES = ["cautious", "confident", "wildcard", "plusOne"];
+const FEMALE_AI_NAMES = new Set(["Priya","Marie","Babs","Noor","Yvonne","Tasha","Colleen","Iris","Wren","Zara","Luz"]);
+const FEMALE_STRENGTHS = ["Home & Kitchen","Beauty & Wellness","Apparel","Baby & Family"];
+const MALE_STRENGTHS = ["Electronics","Sports & Outdoors","Toys & Games"];
+function aiPriceProfile(name){const gender=FEMALE_AI_NAMES.has(name)?"female":"male";return {gender,strengths:gender==="female"?FEMALE_STRENGTHS:MALE_STRENGTHS};}
 
 export function shuffle(arr) {
   const a = [...arr];
@@ -58,6 +62,7 @@ export function buildLineup(players) {
       name,
       isAI: true,
       strategy: stratPool[aiCount % stratPool.length],
+      priceProfile: aiPriceProfile(name),
       bid: null,
       photo: aiAvatarUrl(name),
     });
@@ -74,16 +79,19 @@ export function makeAIContestant(existingContestants = [], sequence = 0) {
     name,
     isAI: true,
     strategy: shuffle(STRATEGIES)[0],
+    priceProfile: aiPriceProfile(name),
     bid: null,
     photo: aiAvatarUrl(name),
   };
 }
 
-export function computeAIBid(strategy, price, previousBids, position = 0, totalBidders = 4) {
+export function computeAIBid(strategy, price, previousBids, position = 0, totalBidders = 4, category = "variety", priceProfile = null) {
   const prev = previousBids.filter((b) => b != null);
   // AI contestants do not know the actual retail price; price is used to
   // create a noisy private estimate, just as a human has an approximate idea.
-  const estimate = Math.max(1, Math.round(price * (0.72 + Math.random() * 0.42)));
+  const strength=priceProfile?.strengths?.includes(category)?"strong":priceProfile?"weak":"neutral";
+  const [low,spread]=strength==="strong"?[.76,.44]:strength==="weak"?[.52,.88]:[.72,.42];
+  const estimate = Math.max(1, Math.round(price * (low + Math.random() * spread)));
   const isLast = position === totalBidders - 1;
 
   // Classic final-bid strategy: if every existing bid appears too high, bid

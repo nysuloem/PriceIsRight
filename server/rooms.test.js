@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { acknowledgeWheelResult, advance, beginPricingGame, continuePricingPrice, createPricingGameDemo, createRoom, joinRoom, makePricingGameSchedule, publicState, restart, revealPricingPrice, revealReplacement, settlePricingGame, settleWheelGame, wheelGameAction } from "./rooms.js";
+import { acknowledgeWheelResult, advance, beginPricingGame, continuePricingPrice, createPricingGameDemo, createRoom, joinRoom, kissHost, makePricingGameSchedule, publicState, restart, revealPricingPrice, revealReplacement, settlePricingGame, settleWheelGame, wheelGameAction } from "./rooms.js";
 import { createShowdown } from "./showFlow.js";
 import { createPricingGameForType, playPricingGame } from "./pricingGames.js";
 
@@ -108,6 +108,36 @@ test("Shell Game introduces the grand prize before the rules and first small pri
   beginPricingGame(room);
   assert.equal(room.phase,"pricingPrizeIntro");
   assert.equal(room.pricingAnnouncement.id,room.pricingGame.items[0].id);
+});
+
+test("Grocery Game introduces its grand prize before explaining the rules",()=>{
+  const {room}=createPricingGameDemo("groceryGame");
+  joinRoom(room,"Grocery Player");
+  assert.equal(room.phase,"pricingPrizeIntro");
+  assert.equal(room.pricingAnnouncement.id,room.pricingGame.bonusPrize.id);
+  beginPricingGame(room);
+  assert.equal(room.phase,"pricingIntro");
+  beginPricingGame(room);
+  assert.equal(room.phase,"pricingGame");
+});
+
+test("Switch introduces both large prizes before explaining the rules",()=>{
+  const {room}=createPricingGameDemo("switchGame");
+  joinRoom(room,"Switch Player");
+  assert.equal(room.pricingAnnouncement.id,room.pricingGame.items[0].id);
+  beginPricingGame(room);
+  assert.equal(room.phase,"pricingPrizeIntro");
+  assert.equal(room.pricingAnnouncement.id,room.pricingGame.items[1].id);
+  beginPricingGame(room);
+  assert.equal(room.phase,"pricingIntro");
+});
+
+test("only a human bidding winner can trigger the host-kiss celebration",()=>{
+  const room=createRoom();room.phase="reveal";room.contestants=[{id:"winner",name:"Jamie",isAI:false},{id:"other",name:"Pat",isAI:false}];room.winnerIndices=[0];
+  const event=kissHost(room,"winner");
+  assert.equal(event.playerName,"Jamie");
+  assert.equal(publicState(room).kissEvent.seq,1);
+  assert.throws(()=>kissHost(room,"other"),/winning contestant/i);
 });
 
 test("replacement contestant stays off the row until the name call begins", () => {

@@ -446,22 +446,24 @@ export async function fetchPrizePool() {
   return items;
 }
 
-let cache = { items: null, fetchedAt: 0 };
+// Always keep a usable local pool ready. Live retailer refreshes happen in the
+// background, so a round transition never waits on several slow shop sites.
+let cache = { items: reduceSimilarPrizes(CURATED_FALLBACKS.map(enrichPrize)), fetchedAt: 0 };
+let refreshPromise = null;
+
+async function refreshPrizePool() {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = fetchPrizePool()
+    .then(items => { cache = { items, fetchedAt: Date.now() }; return items; })
+    .catch(err => { console.error("[prizeSource] fetchPrizePool failed:", err.message); return cache.items; })
+    .finally(() => { refreshPromise = null; });
+  return refreshPromise;
+}
 
 export async function getPrizePool(forceRefresh = false) {
   const stale = Date.now() - cache.fetchedAt > CACHE_TTL_MS;
-  if (!cache.items || stale || forceRefresh) {
-    try {
-      cache.items = await fetchPrizePool();
-      cache.fetchedAt = Date.now();
-    } catch (err) {
-      console.error("[prizeSource] fetchPrizePool failed:", err.message);
-      // Always return at least the curated fallbacks so the game never crashes
-      if (!cache.items) {
-        cache.items = await Promise.all(CURATED_FALLBACKS.map(fetchCuratedFallback));
-      }
-    }
-  }
+  if (forceRefresh) return refreshPrizePool();
+  if (stale) void refreshPrizePool();
   return cache.items;
 }
 

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Bot, Trophy, Camera, Upload, X, Check, Mic, MicOff } from "lucide-react";
-import { getState, joinRoom, submitBid, pricingGameAction, showcaseAction, wheelAction } from "./api.js";
+import { getState, joinRoom, submitBid, kissHost, pricingGameAction, showcaseAction, wheelAction } from "./api.js";
 
-const POLL_MS = 1200;
+const POLL_MS = 500;
 
 export default function PlayerView({ code, navigate }) {
   const [state, setState] = useState(null);
@@ -277,7 +277,7 @@ export default function PlayerView({ code, navigate }) {
       )}
 
       {state.phase === "reveal" && (
-        <RevealPhase state={state} myIndex={myIndex} />
+        <RevealPhase state={state} myIndex={myIndex} onKiss={async()=>{try{await kissHost(code,playerId);}catch(e){setError(e.message);}}} />
       )}
 
       {state.phase === "pricingIntro" && (
@@ -428,7 +428,7 @@ function BiddingPhase({ state, playerId, bidDraft, setBidDraft, onSubmit }) {
   );
 }
 
-function RevealPhase({ state, myIndex }) {
+function RevealPhase({ state, myIndex, onKiss }) {
   const { item, contestants, winnerIndices, revealType } = state;
   const allOverbid=revealType==="overbid";
   const me = contestants[myIndex];
@@ -452,6 +452,7 @@ function RevealPhase({ state, myIndex }) {
             : over ? `over by $${diff}` : `under by $${diff}`}
         </p>
       )}
+      {isWinner&&!me?.isAI&&<button className="pir-btn pir-kiss-btn" onClick={onKiss}>💋 KISS THE HOST</button>}
     </div>
   );
 }
