@@ -48,6 +48,8 @@ export function createRoom() {
     phase: "lobby",
     players: [],
     contestants: [],
+    calledHumanIds: [],
+    returningHumanQueue: [],
     item: null,
     callIndex: -1,
     turn: 0,
@@ -182,6 +184,8 @@ export function getPlayerPhoto(room, playerId) {
 export async function startGame(room) {
   if (room.phase !== "lobby") throw new Error("Already started");
   room.contestants = buildLineup(room.players);
+  room.calledHumanIds = room.contestants.filter(c=>!c.isAI).map(c=>c.id);
+  room.returningHumanQueue = [];
   room.item = await selectFreshPrize(room);
   room.callIndex = -1;
   room.turn = 0;
@@ -280,7 +284,7 @@ export function beginPricingGame(room) {
     setHostLine(room,`${game.playerName}, you are going to play ${game.title}!`,"pricingGameIntro");
     return;
   }
-  if (room.phase === "pricingIntro") room.pricingAnnouncementQueue = game._carIntroducedFirst ? [] : initialPrizeAnnouncements(game);
+  if (room.phase === "pricingIntro") room.pricingAnnouncementQueue = game._carIntroducedFirst ? initialPrizeAnnouncements(game).slice(1) : initialPrizeAnnouncements(game);
   else if (room.phase !== "pricingPrizeIntro") throw new Error("No pricing game introduction is active");
   const next = room.pricingAnnouncementQueue.shift();
   if (next) {
@@ -397,6 +401,8 @@ export async function restart(room, mode) {
     room.phase = "lobby";
     room.players = [];
     room.contestants = [];
+    room.calledHumanIds = [];
+    room.returningHumanQueue = [];
     room.item = null;
     room.callIndex = -1;
     room.turn = 0;
@@ -433,6 +439,7 @@ export async function restart(room, mode) {
       // still points at the same phone, allowing a human to earn multiple
       // independent spots in a Showcase Showdown (and even the Showcase).
       room.showcaseContestants.push({ ...winner, id:`${winner.id}:round:${round}`, controllerPlayerId:winner.id, bid:null, oneBidValue, pricingWinnings:gameValue, totalWinnings:oneBidValue+gameValue, round });
+      if(!winner.isAI) room.returningHumanQueue.push(winner.id);
       room.completedRounds+=1;
     }
     room.contestants = room.contestants.filter((_, index) => index !== winnerIndex).map((c) => ({
@@ -464,10 +471,18 @@ function pricingGameValue(game){
 
 async function prepareReplacement(room){
     if (room.contestants.length !== 3) throw new Error(`Contestants' Row must have three people before a replacement is called; found ${room.contestants.length}`);
-    // A human winner may come right back after leaving the Row. Keep every
-    // human involved before creating an AI replacement.
     const unavailable = new Set(room.contestants.map(c => c.id));
-    const waitingHuman = room.players.find(player => !unavailable.has(player.id));
+    // First call every human who has never appeared. Only then cycle previous
+    // winners in FIFO order, putting each new win at the bottom of that queue.
+    const called = new Set(room.calledHumanIds);
+    let waitingHuman = room.players.find(player => !called.has(player.id) && !unavailable.has(player.id));
+    if(waitingHuman) room.calledHumanIds.push(waitingHuman.id);
+    else {
+      while(room.returningHumanQueue.length && !waitingHuman){
+        const id=room.returningHumanQueue.shift();
+        if(!unavailable.has(id)) waitingHuman=room.players.find(player=>player.id===id);
+      }
+    }
     const replacement = waitingHuman
       ? { id: waitingHuman.id, name: waitingHuman.name, isAI: false, strategy: null, bid: null, photo: waitingHuman.photo || null }
       : makeAIContestant([...room.contestants, ...room.showcaseContestants], room.showcaseContestants.length);
