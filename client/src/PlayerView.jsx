@@ -299,6 +299,7 @@ export default function PlayerView({ code, navigate }) {
       )}
       {state.phase === "showcaseShowdown" && <WheelPhone showdown={state.showdown} playerId={playerId} code={code} onError={setError} />}
       {state.phase.startsWith("showcase") && state.finalShowcase && <ShowcasePhone finalShowcase={state.finalShowcase} playerId={playerId} code={code} onError={setError} />}
+      {state.phase.startsWith("credits") && <div className="pir-panel pir-center"><h2>Thanks for playing!</h2><p>Watch the closing credits on the big screen.</p></div>}
 
       {error && <div className="pir-error">{error}</div>}
     </div>
@@ -321,6 +322,21 @@ function parseSpokenNumber(transcript){
     else if(word==="thousand"){total+=Math.max(1,current)*1000;current=0;recognized=true;}
   }
   return recognized?total+current:null;
+}
+
+function audienceOptions(game){
+  if(game.mode==="choice"&&game.options?.length)return game.options.slice(0,10);
+  if(game.mode==="drop")return ["1","2","3","4","5","6","7","8","9"];
+  if(game.mode==="multi")return ["Higher","Lower"];
+  if(game.mode==="order")return (game.items||[]).slice(0,8).map(item=>item.name);
+  if(game.mode==="number"){
+    if(game.type==="tenChances")return game.digitSets?.[game.prizeIndex]||[];
+    if(game.type==="groceryGame"&&game.stage==="quantity")return ["1","2","3","4","5","6"];
+    if(game.type==="clockGame")return ["25","50","75","100","150","200"];
+    if(game.type==="cliffHangers")return ["20","30","40","50","60","75"];
+    return ["1","2","3","4","5"];
+  }
+  return [];
 }
 
 function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError }) {
@@ -354,8 +370,8 @@ function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError
     recognition.onresult=async e=>{const result=e.results?.[e.resultIndex],transcript=result?.[0]?.transcript||"",value=parseSpokenNumber(transcript);setHeard(transcript);if(value==null){onError(`I heard “${transcript},” but not a number. Please try again.`);return;}if(micSendingRef.current)return;micSendingRef.current=true;setNumber(String(value));await send({value});micSendingRef.current=false;};
     recognition.start();
   };
-  if (!isPlayer) return <div className="pir-panel pir-center"><h2>{game.title}</h2><p>{game.playerName} is playing—watch the big screen!</p></div>;
   if (game.status !== "playing") return <div className="pir-panel pir-center"><h2>{game.title}</h2><p className="pir-pricing-result">{game.result}</p>{isDemo && <button className="pir-btn" onClick={onBackToGames}>Try Another Game</button>}</div>;
+  if (!isPlayer){const suggestions=audienceOptions(game);return <div className="pir-panel pir-center pir-audience-phone"><h2>{game.title}</h2><p><b>{game.playerName}</b> is playing. Help them like the studio audience!</p><div className="pir-audience-buttons">{suggestions.map(option=><button key={option} className="pir-btn secondary" disabled={busy} onClick={()=>send({audienceChoice:option})}>{option}</button>)}</div><small>Your shout will pop up on the big screen.</small></div>;}
   const addOrder = (id) => { if (!order.includes(id)) setOrder([...order, id]); };
   const orderedNames = order.map(id => game.items?.find(x => x.id === id)?.name).filter(Boolean);
   return (

@@ -14,9 +14,11 @@ import {
 import OpeningSequence from "./OpeningSequence.jsx";
 import cliffYodelBase64 from "./assets/cliff-hangers-yodel.b64?raw";
 import clockBellBase64 from "./assets/clock-game-bell.b64?raw";
+import prizeModelsBase64 from "./assets/prize-models.webp.b64?raw";
 
 const cliffYodelUrl=`data:audio/mpeg;base64,${cliffYodelBase64.trim()}`;
 const clockBellUrl=`data:audio/mpeg;base64,${clockBellBase64.trim()}`;
+const prizeModelsUrl=`data:image/webp;base64,${prizeModelsBase64.trim()}`;
 
 const POLL_MS = 500;
 
@@ -33,8 +35,9 @@ function playTTS(audioEl, text, onDone, voice, style = "host") {
   audioEl.currentTime = 0;
   audioEl.src = ttsUrl(text, voice, style);
   audioEl.onended = fire;
+  // Once speech has actually begun, never let the network watchdog cut it off.
+  audioEl.onplaying = () => clearTimeout(hardStop);
   audioEl.onerror = () => setTimeout(fire, 350);
-  audioEl.play().catch(() => setTimeout(fire, 350));
   // If the TTS request hangs, cancel the audio resource before advancing.
   // Clearing src is important: a late response can no longer begin speaking
   // over the next phase.
@@ -45,6 +48,7 @@ function playTTS(audioEl, text, onDone, voice, style = "host") {
     audioEl.load();
     fire();
   }, 12000);
+  audioEl.play().catch(() => setTimeout(fire, 350));
 }
 
 // ---------------------------------------------------------------------------
@@ -78,16 +82,7 @@ class ErrorBoundary extends Component {
 function playBuzzer() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.type = "sawtooth";
-    osc.frequency.setValueAtTime(120, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.8);
-    gain.gain.setValueAtTime(0.6, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.8);
+    [392,294].forEach((frequency,i)=>{const osc=ctx.createOscillator(),gain=ctx.createGain(),t=ctx.currentTime+i*.22;osc.connect(gain);gain.connect(ctx.destination);osc.type="sine";osc.frequency.setValueAtTime(frequency,t);osc.frequency.exponentialRampToValueAtTime(frequency*.82,t+.18);gain.gain.setValueAtTime(.001,t);gain.gain.exponentialRampToValueAtTime(.13,t+.015);gain.gain.exponentialRampToValueAtTime(.001,t+.2);osc.start(t);osc.stop(t+.22);});
   } catch (e) { console.warn("buzzer failed", e); }
 }
 
@@ -134,7 +129,13 @@ function playShowcaseCelebration() {
 }
 
 function playWomp() {
-  try { const ctx=new (window.AudioContext||window.webkitAudioContext)(); [220,174,130].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.34;o.type="triangle";o.connect(g);g.connect(ctx.destination);o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(f*.65,t+.3);g.gain.setValueAtTime(.35,t);g.gain.exponentialRampToValueAtTime(.001,t+.32);o.start(t);o.stop(t+.34);}); } catch {}
+  try { const ctx=new (window.AudioContext||window.webkitAudioContext)(); [330,262,220].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.2;o.type="sine";o.connect(g);g.connect(ctx.destination);o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(f*.88,t+.18);g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.11,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.2);o.start(t);o.stop(t+.22);}); } catch {}
+}
+
+function playWheelClicks(duration=3400){
+  let stopped=false,timer=null,elapsed=0;
+  const click=()=>{if(stopped)return;try{const ctx=new(window.AudioContext||window.webkitAudioContext)(),o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime;o.type="square";o.frequency.setValueAtTime(1450,t);o.frequency.exponentialRampToValueAtTime(620,t+.025);g.gain.setValueAtTime(.09,t);g.gain.exponentialRampToValueAtTime(.001,t+.035);o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+.04);}catch{}const progress=Math.min(1,elapsed/duration),delay=38+Math.pow(progress,2.7)*245;elapsed+=delay;if(elapsed<duration)timer=setTimeout(click,delay);};
+  click();return()=>{stopped=true;clearTimeout(timer);};
 }
 
 function HostViewInner({ code }) {
@@ -143,6 +144,7 @@ function HostViewInner({ code }) {
   const [error, setError] = useState("");
   const [config, setConfig] = useState({ hostName: "Robbie Archer", announcerVoice: "onyx", hostVoice: "coral" });
   const [kissBurst,setKissBurst]=useState(null);
+  const [audienceBurst,setAudienceBurst]=useState(null);
   const lastSeqRef = useRef(-1);
   const audioRef = useRef(null);       // host voice
   const announcerRef = useRef(null);   // announcer voice (for prize descriptions)
@@ -156,6 +158,7 @@ function HostViewInner({ code }) {
   const lastSettledWheelRef = useRef("");
   const lastAIWheelActionRef = useRef("");
   const lastKissRef=useRef(0);
+  const lastAudienceRef=useRef(0);
   const finishPlinkoDrop=useCallback((dropId)=>{if(!dropId||dropId===lastSettledDropRef.current)return;lastSettledDropRef.current=dropId;settlePricingGame(code).catch(e=>{lastSettledDropRef.current=0;setError(e.message);});},[code]);
   const finishCliffClimb=useCallback((climbId)=>{if(!climbId||climbId===lastSettledClimbRef.current)return;lastSettledClimbRef.current=climbId;settlePricingGame(code).catch(e=>{lastSettledClimbRef.current=0;setError(e.message);});},[code]);
 
@@ -172,8 +175,10 @@ function HostViewInner({ code }) {
   }, [state?.pricingGame?.lastOutcome]);
 
   useEffect(()=>{const event=state?.kissEvent;if(!event||event.seq===lastKissRef.current)return;lastKissRef.current=event.seq;setKissBurst(event);const timer=setTimeout(()=>setKissBurst(null),2600);return()=>clearTimeout(timer);},[state?.kissEvent]);
+  useEffect(()=>{const suggestions=state?.pricingGame?.audienceSuggestions;if(!suggestions?.latest||suggestions.seq===lastAudienceRef.current)return;lastAudienceRef.current=suggestions.seq;setAudienceBurst({...suggestions.latest,count:suggestions.counts?.[suggestions.latest.choice]||1});const timer=setTimeout(()=>setAudienceBurst(null),2200);return()=>clearTimeout(timer);},[state?.pricingGame?.audienceSuggestions?.seq]);
 
   useEffect(()=>{const s=state?.showdown;if(!s||!["spinning","bonusSpinning"].includes(s.stage))return;const key=`${s.half}-${s.spinSeq}`;if(key===lastSettledWheelRef.current)return;lastSettledWheelRef.current=key;let stopped=false;const attempt=async(retries=0)=>{try{await settleWheel(code);}catch(e){if(!stopped&&retries<2)setTimeout(()=>attempt(retries+1),1200);else if(!stopped){lastSettledWheelRef.current="";setError(e.message);}}};const timer=setTimeout(()=>attempt(),(s.spinDuration||3400)+150);return()=>{stopped=true;clearTimeout(timer);};},[state?.showdown?.half,state?.showdown?.spinSeq,state?.showdown?.stage,state?.showdown?.spinDuration,code]);
+  useEffect(()=>{const s=state?.showdown;if(!s||!["spinning","bonusSpinning"].includes(s.stage))return;return playWheelClicks(s.spinDuration||3400);},[state?.showdown?.spinSeq,state?.showdown?.stage]);
 
   // TV browsers occasionally omit Web Animations' finished Promise. The
   // animation itself settles first; this watchdog prevents a room from ever
@@ -320,7 +325,11 @@ function HostViewInner({ code }) {
     } else if (type === "showcaseChoice" || type === "showcaseBid") {
       playTTS(el,text,()=>current(()=>{const f=state.finalShowcase;const id=f?.stage==="choice"?f.contestants[0].id:f?.assignments?.[f.stage==="firstBid"?0:1];if(f?.contestants?.find(c=>c.id===id)?.isAI)safely(()=>resolveShowcaseAI(code));}),voice);
     } else if (type === "showcaseResult") {
-      playTTS(el,text,()=>current(playShowcaseCelebration),voice);
+      playTTS(el,text,()=>current(()=>{playShowcaseCelebration();setTimeout(()=>safely(()=>advanceShowcase(code)),2600);}),voice);
+    } else if(type==="endHost"){
+      playTTS(el,text,()=>safely(()=>advanceShowcase(code)),voice,"host");
+    } else if(type==="endAnnouncer"){
+      playTTS(ann,text,()=>{},config.announcerVoice||"onyx","announcer");
     }
   }, [state, code, phase]);
 
@@ -402,6 +411,7 @@ function HostViewInner({ code }) {
       <audio ref={announcerRef} style={{ display: "none" }} />
       <audio ref={cliffYodelRef} src={cliffYodelUrl} preload="auto" style={{ display: "none" }} />
       {kissBurst&&<div className="pir-kiss-burst" aria-live="polite"><span>💋</span><span>😘</span><span>💖</span><b>{kissBurst.playerName} kissed the host!</b><span>💋</span><span>💕</span></div>}
+      {audienceBurst&&<div className="pir-audience-burst" aria-live="polite"><small>{audienceBurst.playerName} shouts</small><strong>{audienceBurst.choice}!</strong>{audienceBurst.count>1&&<b>{audienceBurst.count} audience votes</b>}</div>}
 
       {phase === "opening" && state && (
         <OpeningSequence
@@ -449,7 +459,7 @@ function HostViewInner({ code }) {
                 <PricingGameView game={state.pricingGame} spotlight={state.phase === "pricingPrizeIntro" ? state.pricingAnnouncement : null} rulesOnly={state.phase === "pricingIntro"} />
               )}
               {state.phase === "showcaseShowdown" && <WheelView showdown={state.showdown} />}
-              {state.phase.startsWith("showcase") && state.finalShowcase && <FinalShowcaseView state={state} />}
+              {(state.phase.startsWith("showcase")||state.phase.startsWith("credits")) && state.finalShowcase && (state.phase.startsWith("credits")?<EndCredits state={state} config={config}/>:<FinalShowcaseView state={state} />)}
             </>
           )}
 
@@ -469,7 +479,7 @@ function WheelView({showdown}) {
   const leader=finished.sort((a,b)=>b.score-a.score)[0]||null;
   const startRotation=showdown.spinStartRotation||0;
   const rotation=showdown.wheelRotation||0;
-  return <div className="pir-wheel-stage"><div className="pir-pricing-kicker">SHOWCASE SHOWDOWN {showdown.half}</div><h2 className="pir-pricing-title">THE BIG WHEEL</h2>{leader&&<div className="pir-wheel-leader"><span>CURRENT LEADER</span><b>{leader.name}</b><strong>{leader.score===100?"$1.00":`.${String(leader.score).padStart(2,"0")}`}</strong></div>}<div className="pir-wheel-machine"><div className="pir-wheel-tower"><span>💡</span><b>$</b><span>💡</span></div><div className="pir-wheel-center"><div className="pir-wheel-pointer">▼</div><div key={showdown.spinSeq} className={`pir-big-wheel ${spinning?"spinning":""}`} style={{transform:`rotate(${rotation}deg)`,"--start-rotation":`${startRotation}deg`,"--rotation":`${rotation}deg`,"--spin-duration":`${showdown.spinDuration||3400}ms`}}>{WHEEL_VALUES.map((v,i)=><span key={i} className={v===100?"dollar":""} style={{transform:`rotate(${i*18}deg) translateY(-165px) rotate(${-i*18}deg)`}}>{v===100?"100":String(v).padStart(2,"0")}</span>)}</div></div><div className="pir-wheel-tower"><span>💡</span><b>$</b><span>💡</span></div></div><h3>{p?.name}{showdown.isSpinoff?" — SPIN-OFF":""}</h3><div className="pir-wheel-scoreboard">{showdown.participants.map((x,i)=><div key={`${x.id}-${i}`} className={`${x.id===p?.id?"active":""} ${x.id===leader?.id?"leader":""}`}><b>{x.name}</b><span>{x.spins?.map(v=>v===100?"$1.00":`.${String(v).padStart(2,"0")}`).join(" + ")||"—"}</span><strong>{x.score>100?"BUST":`${x.score}¢`}</strong><small>Wheel bonus: ${x.bonusCash?.toLocaleString("en-CA")||0}</small></div>)}</div><div className="pir-pricing-prompt">{spinning?`${p?.name}'s ${showdown.spinStrength||"medium"} spin is turning…`:showdown.stage==="announcing"?"Listen for the result…":showdown.result||`${p?.name}, spin the wheel!`}</div></div>;
+  return <div className="pir-wheel-stage"><div className="pir-pricing-kicker">SHOWCASE SHOWDOWN {showdown.half}</div><h2 className="pir-pricing-title">THE BIG WHEEL</h2>{leader&&<div className="pir-wheel-leader"><span>CURRENT LEADER</span><b>{leader.name}</b><strong>{leader.score===100?"$1.00":`.${String(leader.score).padStart(2,"0")}`}</strong></div>}<div className="pir-wheel-machine"><div className="pir-wheel-tower"><span>💡</span><b>$</b><span>💡</span></div><div className="pir-wheel-center"><div className="pir-wheel-pointer">▼</div><div key={showdown.spinSeq} className={`pir-big-wheel ${spinning?"spinning":""}`} style={{transform:`rotate(${rotation}deg)`,"--start-rotation":`${startRotation}deg`,"--rotation":`${rotation}deg`,"--spin-duration":`${showdown.spinDuration||3400}ms`}}>{WHEEL_VALUES.map((v,i)=><span key={i} className={v===100?"dollar":""} style={{transform:`rotate(${i*18}deg) translateY(calc(-1 * var(--wheel-radius, 165px))) rotate(${-i*18}deg)`}}>{v===100?"100":String(v).padStart(2,"0")}</span>)}</div></div><div className="pir-wheel-tower"><span>💡</span><b>$</b><span>💡</span></div></div><h3>{p?.name}{showdown.isSpinoff?" — SPIN-OFF":""}</h3><div className="pir-wheel-scoreboard">{showdown.participants.map((x,i)=><div key={`${x.id}-${i}`} className={`${x.id===p?.id?"active":""} ${x.id===leader?.id?"leader":""}`}><b>{x.name}</b><span>{x.spins?.map(v=>v===100?"$1.00":`.${String(v).padStart(2,"0")}`).join(" + ")||"—"}</span><strong>{x.score>100?"BUST":`${x.score}¢`}</strong><small>Wheel bonus: ${x.bonusCash?.toLocaleString("en-CA")||0}</small></div>)}</div><div className="pir-pricing-prompt">{spinning?`${p?.name}'s ${showdown.spinStrength||"medium"} spin is turning…`:showdown.stage==="announcing"?"Listen for the result…":showdown.result||`${p?.name}, spin the wheel!`}</div></div>;
 }
 
 function FinalShowcaseView({state}) {
@@ -477,10 +487,15 @@ function FinalShowcaseView({state}) {
   return <div className={`pir-showcase-stage pir-tv-showcase ${f.stage==="complete"&&winner?"pir-showcase-won":""}`}>
     {f.stage==="complete"&&winner&&<><div className="pir-confetti" aria-hidden="true">{Array.from({length:70},(_,i)=><i key={i} style={{"--i":i}} />)}</div><div className="pir-winner-spectacular"><small>THE SHOWCASE WINNER IS</small><strong>{winner.name}!</strong><span>🎉 🏆 🎉</span><b>{f.doubleShowcase?"YOU WON BOTH SHOWCASES!":"YOU WON YOUR SHOWCASE!"}</b></div></>}
     <div className="pir-pricing-kicker">THE FINAL SHOWCASE</div><h2 className="pir-pricing-title">{s.title}</h2>
-    {!f.stage.startsWith("reveal")&&f.stage!=="complete"&&(state.showcaseAnnouncement?<GameCards items={[state.showcaseAnnouncement]}/>:<div className="pir-showcase-prizes">{s.prizes.map((p,i)=><div key={i}><img src={p.image} alt=""/><b>{p.name}</b></div>)}</div>)}
+    {!f.stage.startsWith("reveal")&&f.stage!=="complete"&&(state.showcaseAnnouncement?<div className="pir-model-presentation pir-showcase-model-presentation"><img className="pir-prize-models" src={prizeModelsUrl} alt="Prize models presenting the showcase prize"/><div className="pir-model-prize"><GameCards items={[state.showcaseAnnouncement]}/></div></div>:<div className="pir-showcase-prizes">{s.prizes.map((p,i)=><div key={i}><img src={p.image} alt=""/><b>{p.name}</b></div>)}</div>)}
     <div className="pir-showcase-podiums">{f.contestants.map((c,i)=>{const showcaseIndex=f.assignments?.indexOf(c.id),r=f.results?.find(x=>x.playerId===c.id);return <div key={`${c.id}-${i}`} className={`pir-showcase-podium ${i%2?"blue":"red"} ${c.id===f.winnerId?"winner":""}`}><div className="pir-showcase-screen"><small>{showcaseIndex>=0?`SHOWCASE ${showcaseIndex+1}`:"FINALIST"}</small><b>{c.name}</b></div><div className="pir-showcase-readouts"><div><small>BID</small><strong>{f.bids[c.id]?`$${f.bids[c.id].toLocaleString("en-CA")}`:"—"}</strong></div><div className={r?"revealed":""}><small>ACTUAL RETAIL PRICE</small><strong>{r?`$${r.actual.toLocaleString("en-CA")}`:"?????"}</strong></div></div><div className={`pir-showcase-difference ${r?.over?"over":""}`}>{r?(r.over?"OVERBID":`DIFFERENCE $${r.difference.toLocaleString("en-CA")}`):"WAITING FOR REVEAL"}</div></div>})}</div>
     <div className="pir-pricing-prompt">{f.result||state.hostLine.text}</div>
   </div>;
+}
+
+function EndCredits({state,config}){
+  const names=state.players?.map(player=>player.name).join(" · ")||"Our wonderful contestants";
+  return <div className="pir-end-credits"><div className="pir-credit-logo">THE PRICE IS RIGHT</div><div className="pir-credit-roll"><section><small>YOUR HOST</small><strong>{config.hostName||"Robbie Archer"}</strong></section><section><small>ANNOUNCER</small><strong>The Voice of The Price Is Right</strong></section><section><small>TODAY'S CONTESTANTS</small><strong>{names}</strong></section><section><small>PRICING GAMES · BIG WHEEL · SHOWCASES</small><strong>Made for Family Game Night</strong></section><section><small>SPECIAL THANKS</small><strong>To everyone shouting advice from the audience!</strong></section></div><div className="pir-credit-goodbye">{state.hostLine.text}</div></div>;
 }
 
 function DemoLobby({ state, joinUrl }) {
@@ -663,7 +678,7 @@ function RevealView({ state, code, onStartPricing, onNextRound, onNewPlayers }) 
 export function PricingGameView({ game, spotlight = null, rulesOnly = false }) {
   if (!game) return <div className="pir-loading">Loading pricing game…</div>;
   if (rulesOnly) return <div className={`pir-pricing-board pir-game-${game.type} pir-rules-only ${game.type==="plinko"?"pir-plinko-intro":""}`}>{game.type==="plinko"&&<><div className="pir-plinko-logo">PLINKO!</div><div className="pir-plinko-jackpot">A CHANCE TO WIN<br/><strong>$50,000!!!</strong></div></>}<div className="pir-pricing-kicker">HOW TO PLAY</div>{game.type!=="plinko"&&<h2 className="pir-pricing-title">{game.title}</h2>}<p className="pir-pricing-rules">{game.instructions}</p>{game.type==="cliffHangers"&&<CliffBoard game={game} /> }<div className="pir-pricing-prompt">Listen to the rules…</div></div>;
-  if (spotlight) { const isCar=/car/i.test(spotlight.name||"")||/new car/i.test(spotlight.announcerText||""),isGrand=!isCar&&(spotlight.id===game.bonusPrize?.id||Boolean(game.featuredIntroCount)); return <div className={`pir-pricing-board pir-game-${game.type} ${isCar?"pir-new-car-stage":""} ${isGrand?"pir-shell-grand-intro":""}`}><div className="pir-pricing-kicker">PRIZE INTRODUCTION</div>{isCar&&<div className="pir-new-car-flash">IT'S A NEW CAR!!!</div>}{isGrand&&<div className="pir-shell-grand-flash">PLAYING FOR THIS GRAND PRIZE!</div>}<h2 className="pir-pricing-title">{game.title}</h2><GameCards items={[spotlight]} /><div className="pir-pricing-prompt">Listen to the announcer…</div></div>; }
+  if (spotlight) { const isCar=/IT'S A NEW CAR/i.test(spotlight.announcerText||""),isGrand=!isCar&&(spotlight.id===game.bonusPrize?.id||Boolean(game.featuredIntroCount)); return <div className={`pir-pricing-board pir-game-${game.type} pir-model-presentation ${isCar?"pir-new-car-stage":""} ${isGrand?"pir-shell-grand-intro":""}`}><div className="pir-pricing-kicker">PRIZE INTRODUCTION</div>{isCar&&<div className="pir-new-car-flash">IT'S A NEW CAR!!!</div>}{isGrand&&<div className="pir-shell-grand-flash">PLAYING FOR THIS GRAND PRIZE!</div>}<h2 className="pir-pricing-title">{game.title}</h2><img className="pir-prize-models" src={prizeModelsUrl} alt="Prize models presenting the prize"/><div className="pir-model-prize"><GameCards items={[spotlight]} /></div><div className="pir-pricing-prompt">Listen to the announcer…</div></div>; }
   if(game.priceReveal&&game.type==="cliffHangers")return <div className={`pir-pricing-board pir-game-cliffHangers ${game.cliffFinalWin?"pir-cliff-victory":""}`}><div className="pir-pricing-kicker">CLIFF HANGERS</div><h2 className="pir-pricing-title">{game.title}</h2><GameCards items={[game.priceReveal]} /><CliffBoard game={game} reveal={game.priceReveal}/>{game.cliffFinalWin&&game.priceReveal.actual==null&&<div className="pir-cliff-win-flash">HE MADE IT!<small>YOU WON ALL THREE PRIZES!</small></div>}</div>;
   if (game.priceReveal) return <div className={`pir-pricing-board pir-game-${game.type}`}><div className="pir-pricing-kicker">PRICE REVEAL</div><h2 className="pir-pricing-title">{game.title}</h2><GameCards items={[{...game.priceReveal,revealedPrice:game.priceReveal.actual}]} /><div className={`pir-pricing-prompt ${game.priceReveal.actual==null?"":"revealed"}`}>{game.priceReveal.actual==null?"SHOW ME THE PRICE!":game.priceReveal.correct?"THAT'S RIGHT!":"OH, SO CLOSE!"}</div></div>;
   return (
