@@ -269,7 +269,7 @@ export async function startPricingGame(room) {
   const winner = room.winnerIndices.map(i => room.contestants[i]).find(c => c && !c.isAI);
   if (!winner) throw new Error("No human winner is available for a pricing game");
   const retailerPool=await getPrizePool();
-  const livePricingItems=retailerPool.filter(item=>item.image&&Number(item.price)>=20&&Number(item.price)<=500).map(item=>({name:item.name,brand:item.brand||item.retailer,description:`Available from ${item.retailer}.`,price:Math.round(Number(item.price)),image:item.image,imageVerified:true,category:item.bidCategory||item.category||"retail"}));
+  const livePricingItems=retailerPool.filter(item=>item.image&&Number(item.price)>=20&&Number(item.price)<=500).map(item=>({id:item.id,name:item.name,brand:item.brand||item.retailer,description:`Available from ${item.retailer}.`,price:Math.round(Number(item.price)),image:item.image,imageAlt:item.imageAlt||item.name,imageVerified:true,sourceUrl:item.url,category:item.bidCategory||item.category||"retail"}));
   room.pricingGame = createPricingGame(winner, room.playedPricingGames, room.usedPricingPrizeNames,livePricingItems);
   room.playedPricingGames.push(room.pricingGame.type);
   room.usedPricingPrizeNames.push(...pricingPrizeNames(room.pricingGame));
@@ -334,6 +334,11 @@ export function continuePricingPrice(room) {
   if (room.phase !== "pricingPriceShown" || !room.pricingGame) throw new Error("No revealed price is waiting");
   const g=room.pricingGame;
   clearDeferredPrice(g);
+  if(g.type==="cliffHangers"&&g.cliffOver){
+    room.phase="pricingGame";
+    setHostLine(room,"","pricingResult");
+    return;
+  }
   if (g.pendingPrizeAnnouncement) {
     room.pricingAnnouncementQueue=[g.pendingPrizeAnnouncement];
     g.pendingPrizeAnnouncement=null;
@@ -354,7 +359,7 @@ export function settlePricingGame(room) {
   if(room.pricingGame.type==="cliffHangers"&&room.pricingGame.stage!=="climbing"&&room.pricingGame.priceReveal)return room;
   settlePricingAnimation(room.pricingGame);
   const g=room.pricingGame;
-  if(g._pendingPriceReveal){room.phase="pricingRevealCue";setHostLine(room,g.cliffFinalWin?"HE MADE IT! You won all three prizes!":`The climber stopped at step ${g.climber}. Now, show me the actual price!`,"pricingRevealCue");return room;}
+  if(g._pendingPriceReveal){room.phase="pricingRevealCue";setHostLine(room,g.cliffFinalWin?"HE MADE IT! You won all three prizes!":g.cliffOver?"OH, sorry, he went over the cliff.":`The climber stopped at step ${g.climber}. Now, show me the actual price!`,"pricingRevealCue");return room;}
   setHostLine(room,g.status==="playing"?g.prompt:g.result,g.status==="playing"?"pricingPrompt":"pricingResult");
 }
 

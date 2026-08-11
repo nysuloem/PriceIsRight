@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { acknowledgeWheelResult, advance, beginPricingGame, createPricingGameDemo, createRoom, joinRoom, publicState, restart, revealReplacement, settlePricingGame, settleWheelGame, wheelGameAction } from "./rooms.js";
+import { acknowledgeWheelResult, advance, beginPricingGame, continuePricingPrice, createPricingGameDemo, createRoom, joinRoom, publicState, restart, revealPricingPrice, revealReplacement, settlePricingGame, settleWheelGame, wheelGameAction } from "./rooms.js";
 import { createShowdown } from "./showFlow.js";
 import { createPricingGameForType, playPricingGame } from "./pricingGames.js";
 
@@ -27,6 +27,23 @@ test("duplicate Plinko animation completion cannot freeze or double-award a chip
   const g=room.pricingGame;g.stage="drop";g.chipsLeft=2;playPricingGame(g,{position:5});
   settlePricingGame(room);const winnings=g.winnings;
   assert.doesNotThrow(()=>settlePricingGame(room));assert.equal(g.winnings,winnings);assert.equal(g.chipsLeft,1);assert.equal(g.stage,"drop");
+});
+
+test("Cliff Hangers apologizes before revealing the losing prize price, then ends silently",()=>{
+  const room=createRoom();room.pricingGame=createPricingGameForType("cliffHangers",{id:"p",name:"Player"});room.phase="pricingGame";
+  const g=room.pricingGame;g.climber=24;g.itemIndex=0;
+  playPricingGame(g,{value:g._prices[0]+2});
+  settlePricingGame(room);
+  assert.equal(g.cliffOver,true);
+  assert.equal(room.phase,"pricingRevealCue");
+  assert.match(room.hostLine.text,/OH, sorry, he went over the cliff/i);
+  assert.equal(g.priceReveal.actual,null);
+  revealPricingPrice(room);
+  assert.equal(g.priceReveal.actual,g._prices[0]);
+  continuePricingPrice(room);
+  assert.equal(g.status,"lost");
+  assert.equal(room.hostLine.type,"pricingResult");
+  assert.equal(room.hostLine.text,"");
 });
 
 test("car games introduce the car before the host explains the rules",()=>{
