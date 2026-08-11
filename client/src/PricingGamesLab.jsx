@@ -9,10 +9,12 @@ const GAMES = [
   ["diceGame", "Dice Game", "Roll and complete the digits in a car price."],
   ["groceryGame", "Grocery Game", "Shop your way to a total between $20 and $22."],
   ["oneAway", "One Away", "Change every car-price digit one higher or lower."],
-  ["clockGame", "Clock Game", "Use higher/lower clues to price two prizes in 30 seconds."],
+  ["clockGame", "Clock Game", "Use higher/lower clues to price two prizes in 90 seconds."],
   ["anyNumber", "Any Number", "Call digits to complete a prize price."],
   ["grandGame", "Grand Game", "Find four grocery products below the target price."],
   ["shellGame", "Shell Game", "Earn shells and find the hidden ball."],
+  ["moneyGame", "Money Game", "Find the first and last pairs in a new car's price."],
+  ["luckySeven", "Lucky Seven", "Keep at least one dollar while completing a new car's price."],
 ];
 
 export default function PricingGamesLab({ navigate }) {
