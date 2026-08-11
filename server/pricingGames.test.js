@@ -119,3 +119,7 @@ test("used middle-price prizes are replaced and categories are varied",()=>{
   assert.equal(second.items.some(x=>used.includes(x.name)),false);
   assert.ok(new Set(second.items.map(x=>x.category)).size>=3);
 });
+
+test("pricing games never send unverified stock photos to the host screen",()=>{
+  for(const type of types){const publicGame=publicPricingGame(createPricingGameForType(type,player)),json=JSON.stringify(publicGame);assert.doesNotMatch(json,/images\.unsplash\.com/);const prizes=[...(publicGame.qualifiers||[]),...(publicGame.items||[]),...(publicGame.introPrizes||[])];for(const prize of prizes)assert.ok(prize.visual,"every prize has a matched visual fallback");}
+});
