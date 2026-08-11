@@ -3,7 +3,7 @@ import { ArrowLeft, Gamepad2 } from "lucide-react";
 import { createPricingGameDemo } from "./api.js";
 
 const GAMES = [
-  ["plinko", "Plinko", "Earn up to four chips, choose a drop point, and watch every chip fall."],
+  ["plinko", "Plinko", "Start with one free chip, earn up to four more, and play for as much as $50,000."],
   ["cliffHangers", "Cliff Hangers", "Price three prizes without sending the climber over the edge."],
   ["punchABunch", "Punch-a-Bunch", "Earn up to three punches, then choose whether to keep the cash."],
   ["diceGame", "Dice Game", "Roll and complete the digits in a car price."],
