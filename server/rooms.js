@@ -3,7 +3,7 @@ import {
   buildLineup, computeAIBid, computeWinners, makeAIContestant, STRATEGIES, shuffle,
 } from "./gameLogic.js";
 import { getPrizePool, pickRandomItem } from "./prizeSource.js";
-import { clearDeferredPrice, createPricingGame, createPricingGameForType, initialPrizeAnnouncements, playPricingGame, pricingPrizeNames, publicPricingGame, revealDeferredPrice, settlePricingAnimation } from "./pricingGames.js";
+import { clearDeferredPrice, createPricingGame, createPricingGameForType, initialPrizeAnnouncements, playPricingGame, pricingPrizeNames, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
 import { advanceShowcase, createFinalShowcase, createShowdown, publicFinalShowcase, publicShowdown, resolveShowcaseAI, resolveWheelAI, settleWheel, showcaseAction, wheelAction } from "./showFlow.js";
 
 const rooms = new Map();
@@ -96,6 +96,7 @@ export function createPricingGameDemo(type) {
 // Strip base64 photo from public state to keep polling payloads small;
 // the photo is sent once at join time and the client caches it locally.
 export function publicState(room) {
+  if(syncClockGame(room.pricingGame)&&room.phase==="pricingGame")setHostLine(room,"Time is up!","pricingResult");
   return {
     code: room.code,
     phase: room.phase,
@@ -300,6 +301,7 @@ export function beginPricingGame(room) {
     if (room.pricingGame.type === "clockGame" && !room.pricingGame._clockStarted) {
       room.pricingGame._startedAt = Date.now();
       room.pricingGame._clockStarted = true;
+      room.pricingGame.clockEndsAt = room.pricingGame._startedAt + room.pricingGame.secondsLeft * 1000;
     }
     setHostLine(room, room.pricingGame.prompt, "pricingPrompt");
   }
