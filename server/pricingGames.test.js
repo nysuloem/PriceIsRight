@@ -60,6 +60,30 @@ test("every car game uses the new-car announcement",()=>{
   }
 });
 
+test("Ten Chances rejects a repeated guess without using a chance",()=>{
+  const g=createPricingGameForType("tenChances",player),digits=g.digitSets[0];
+  const guesses=digits.flatMap(a=>digits.filter(b=>b!==a).map(b=>Number(`${a}${b}`))).filter(guess=>String(guess).length===2);
+  const wrong=guesses.find(guess=>guess!==g._prices[0]);
+  playPricingGame(g,{value:wrong});
+  assert.equal(g.chancesLeft,9);
+  playPricingGame(g,{value:wrong});
+  assert.equal(g.chancesLeft,9);
+  assert.equal(g.guesses.length,1);
+  assert.match(g.prompt,/already tried/i);
+  assert.match(g.prompt,/does not use a chance/i);
+});
+
+test("Ten Chances ends on chance ten and can never go negative",()=>{
+  const g=createPricingGameForType("tenChances",player),digits=g.digitSets[0];
+  const wrong=digits.flatMap(a=>digits.filter(b=>b!==a).map(b=>Number(`${a}${b}`))).filter(guess=>String(guess).length===2).find(guess=>guess!==g._prices[0]);
+  g.chancesLeft=1;
+  playPricingGame(g,{value:wrong});
+  assert.equal(g.status,"lost");
+  assert.equal(g.chancesLeft,0);
+  assert.throws(()=>playPricingGame(g,{value:wrong}),/not active/i);
+  assert.equal(g.chancesLeft,0);
+});
+
 test("Money Game always displays a complete five-digit car price",()=>{
   const g=createPricingGameForType("moneyGame",player);
   assert.equal(String(g._front).length,2);
