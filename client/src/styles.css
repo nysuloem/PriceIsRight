@@ -400,6 +400,7 @@ body {
   text-align: center;
   font-size: 13px;
 }
+.pir-item-visual{font-size:clamp(46px,8vw,86px);line-height:1}.pir-skip-rules{margin:10px auto 0;position:relative;z-index:2;background:linear-gradient(#ffe66d,#ffb300);color:#241300;box-shadow:0 4px 0 #a65b00,0 0 18px #ffe66d88}
 .pir-item-info h3 {
   font-family: "Anton", sans-serif;
   letter-spacing: 1px;

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, playPricingGame, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
+import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, expandedBiddingCatalog, playPricingGame, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
 
 const player = { id: "human-1", name: "Test Player" };
 const types = ["plinko","cliffHangers","punchABunch","diceGame","groceryGame","oneAway","clockGame","anyNumber","grandGame","shellGame","moneyGame","luckySeven","doublePrices","threeStrikes","switchGame","tenChances"];
@@ -12,6 +12,24 @@ test("all twelve pricing games can be created without leaking answers", () => {
     assert.equal(game.status, "playing");
     assert.doesNotMatch(JSON.stringify(publicPricingGame(game)), /"_/);
   }
+});
+
+test("the built-in bidding catalogue is large, varied, and uniquely keyed",()=>{
+  const catalog=expandedBiddingCatalog();
+  assert.ok(catalog.length>=100);
+  assert.equal(new Set(catalog.map(item=>item.id)).size,catalog.length);
+  assert.ok(new Set(catalog.map(item=>item.category)).size>=8);
+});
+
+test("Dice Game locks phone controls while its digits reveal automatically",()=>{
+  const g=createPricingGameForType("diceGame",player);
+  while(g.digitIndex<4){
+    if(g.stage==="roll")playPricingGame(g,{choice:"Roll"});
+    else playPricingGame(g,{choice:g._digits[g.digitIndex]>g.rolls[g.digitIndex]?"Higher":"Lower"});
+  }
+  assert.equal(g.stage,"reveal");
+  assert.equal(g.mode,"wait");
+  assert.deepEqual(g.options,[]);
 });
 
 test("pricing-game selection respects a scheduled car or non-car category",()=>{

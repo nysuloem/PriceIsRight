@@ -478,7 +478,7 @@ function PlayerItemImage({ item }) {
   if (err || !item.image) {
     return (
       <div className="pir-item-frame pir-centered-frame">
-        <div className="pir-item-placeholder"><span>{item.name}</span></div>
+        <div className="pir-item-placeholder"><span className="pir-item-visual">{item.visual||"🎁"}</span><span>{item.name}</span></div>
       </div>
     );
   }

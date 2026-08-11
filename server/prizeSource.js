@@ -1,4 +1,5 @@
 // prizeSource.js — builds a 500+ item prize pool from Canadian retailer feeds.
+import { expandedBiddingCatalog } from "./pricingGames.js";
 //
 // Prices are in CAD and deliberately use the REGULAR price. Temporary sale,
 // coupon, loyalty, financing, marketplace, open-box, and refurbished prices
@@ -434,7 +435,8 @@ export async function fetchPrizePool() {
   }
 
   const curated = await Promise.all(CURATED_FALLBACKS.map(fetchCuratedFallback));
-  items = reduceSimilarPrizes(deduplicate([...items, ...curated]).map(enrichPrize));
+  const localCatalog = expandedBiddingCatalog();
+  items = reduceSimilarPrizes(deduplicate([...items, ...curated, ...localCatalog]).map(enrichPrize));
 
   if (items.length < 200) {
     console.warn(
@@ -448,7 +450,7 @@ export async function fetchPrizePool() {
 
 // Always keep a usable local pool ready. Live retailer refreshes happen in the
 // background, so a round transition never waits on several slow shop sites.
-let cache = { items: reduceSimilarPrizes(CURATED_FALLBACKS.map(enrichPrize)), fetchedAt: 0 };
+let cache = { items: reduceSimilarPrizes([...CURATED_FALLBACKS.map(enrichPrize),...expandedBiddingCatalog().map(enrichPrize)]), fetchedAt: 0 };
 let refreshPromise = null;
 
 async function refreshPrizePool() {

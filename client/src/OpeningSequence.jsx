@@ -80,8 +80,7 @@ export default function OpeningSequence({
     const theme = themeRef.current;
     if (theme) {
       try {
-        const { THEME_B64 } = await import("./themeMusic.js");
-        theme.src = THEME_B64;
+        theme.src = "/media/price-is-right-theme.mp3";
         theme.volume = 0.28;
         theme.loop = true;
         await theme.play().catch(() => {});
@@ -106,7 +105,14 @@ export default function OpeningSequence({
 
     await wait(400);
 
-    await announce("You are the first four contestants on The Price Is Right!");
+    const countLine = contestants.length === 1
+      ? "You are the only contestant on The Price Is Right!"
+      : contestants.length === 2
+        ? "You are the two contestants on The Price Is Right!"
+        : contestants.length === 3
+          ? "You are the three contestants on The Price Is Right!"
+          : "You are the first four contestants on The Price Is Right!";
+    await announce(countLine);
     await wait(350);
 
     // 4. Hand off to host

@@ -4,7 +4,7 @@ import { Mic2, Bot, Trophy, ArrowRight, ChefHat } from "lucide-react";
 import {
   getState, startGame, callNext, advance,
   nextTurn, restartGame, resetBids, ttsUrl, playerPhotoUrl, getConfig,
-  startPricingGame,
+  startPricingGame, pricingGameAction,
   beginPricingGame,
   settlePricingGame,
   revealPricingPrice, continuePricingPrice,
@@ -12,15 +12,17 @@ import {
   settleWheel, acknowledgeWheel, resolveWheelAI, finishShowdown, advanceShowcase, resolveShowcaseAI,
 } from "./api.js";
 import OpeningSequence from "./OpeningSequence.jsx";
-import cliffYodelBase64 from "./assets/cliff-hangers-yodel.b64?raw";
-import clockBellBase64 from "./assets/clock-game-bell.b64?raw";
-import prizeModelsBase64 from "./assets/prize-models.webp.b64?raw";
-
-const cliffYodelUrl=`data:audio/mpeg;base64,${cliffYodelBase64.trim()}`;
-const clockBellUrl=`data:audio/mpeg;base64,${clockBellBase64.trim()}`;
-const prizeModelsUrl=`data:image/webp;base64,${prizeModelsBase64.trim()}`;
+const cliffYodelUrl="/media/cliff-hangers-yodel.mp3";
+const clockBellUrl="/media/clock-game-bell.mp3";
+const prizeModelsUrl="/media/prize-models.webp";
 
 const POLL_MS = 500;
+let sharedAudioContext;
+function audioContext(){
+  if(!sharedAudioContext||sharedAudioContext.state==="closed")sharedAudioContext=new(window.AudioContext||window.webkitAudioContext)();
+  if(sharedAudioContext.state==="suspended")sharedAudioContext.resume().catch(()=>{});
+  return sharedAudioContext;
+}
 
 // ---------------------------------------------------------------------------
 // playTTS — fetch audio from the server and play it.
@@ -81,14 +83,14 @@ class ErrorBoundary extends Component {
 // ---------------------------------------------------------------------------
 function playBuzzer() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = audioContext();
     [392,294].forEach((frequency,i)=>{const osc=ctx.createOscillator(),gain=ctx.createGain(),t=ctx.currentTime+i*.22;osc.connect(gain);gain.connect(ctx.destination);osc.type="sine";osc.frequency.setValueAtTime(frequency,t);osc.frequency.exponentialRampToValueAtTime(frequency*.82,t+.18);gain.gain.setValueAtTime(.001,t);gain.gain.exponentialRampToValueAtTime(.13,t+.015);gain.gain.exponentialRampToValueAtTime(.001,t+.2);osc.start(t);osc.stop(t+.22);});
   } catch (e) { console.warn("buzzer failed", e); }
 }
 
 function playAlarm() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = audioContext();
     for (let i = 0; i < 3; i++) {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -105,11 +107,11 @@ function playAlarm() {
 }
 
 function playSuccess() {
-  try { const ctx=new (window.AudioContext||window.webkitAudioContext)(); [523,659,784,1047].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.1;o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.25,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.28);o.start(t);o.stop(t+.3);}); } catch {}
+  try { const ctx=audioContext(); [523,659,784,1047].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.1;o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.25,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.28);o.start(t);o.stop(t+.3);}); } catch {}
 }
 
 function playClockTick(){
-  try{const ctx=new(window.AudioContext||window.webkitAudioContext)(),o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime;o.type="square";o.frequency.setValueAtTime(1250,t);o.frequency.exponentialRampToValueAtTime(760,t+.035);g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(.001,t+.055);o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+.06);}catch{}
+  try{const ctx=audioContext(),o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime;o.type="square";o.frequency.setValueAtTime(1250,t);o.frequency.exponentialRampToValueAtTime(760,t+.035);g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(.001,t+.055);o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+.06);}catch{}
 }
 
 function playClockBell(){
@@ -117,24 +119,24 @@ function playClockBell(){
 }
 
 function playCarFanfare() {
-  try { const ctx=new (window.AudioContext||window.webkitAudioContext)(); [392,523,659,784,1047].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.11;o.type="square";o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.2,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.42);o.start(t);o.stop(t+.44);}); } catch {}
+  try { const ctx=audioContext(); [392,523,659,784,1047].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.11;o.type="square";o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.2,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.42);o.start(t);o.stop(t+.44);}); } catch {}
 }
 
 function playPlinkoFanfare() {
-  try { const ctx=new (window.AudioContext||window.webkitAudioContext)();[392,523,659,784,1047,1319].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.13;o.type=i%2?"triangle":"square";o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.24,t+.025);g.gain.exponentialRampToValueAtTime(.001,t+.5);o.start(t);o.stop(t+.52);});}catch{}
+  try { const ctx=audioContext();[392,523,659,784,1047,1319].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.13;o.type=i%2?"triangle":"square";o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.24,t+.025);g.gain.exponentialRampToValueAtTime(.001,t+.5);o.start(t);o.stop(t+.52);});}catch{}
 }
 
 function playShowcaseCelebration() {
-  try { const ctx=new (window.AudioContext||window.webkitAudioContext)(); [523,659,784,1047,1319,1568].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.13;o.type=i%2?"triangle":"square";o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.22,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.55);o.start(t);o.stop(t+.58);}); } catch {}
+  try { const ctx=audioContext(); [523,659,784,1047,1319,1568].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.13;o.type=i%2?"triangle":"square";o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.22,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.55);o.start(t);o.stop(t+.58);}); } catch {}
 }
 
 function playWomp() {
-  try { const ctx=new (window.AudioContext||window.webkitAudioContext)(); [330,262,220].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.2;o.type="sine";o.connect(g);g.connect(ctx.destination);o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(f*.88,t+.18);g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.11,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.2);o.start(t);o.stop(t+.22);}); } catch {}
+  try { const ctx=audioContext(); [330,262,220].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.2;o.type="sine";o.connect(g);g.connect(ctx.destination);o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(f*.88,t+.18);g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.11,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.2);o.start(t);o.stop(t+.22);}); } catch {}
 }
 
 function playWheelClicks(duration=3400){
   let stopped=false,timer=null,elapsed=0;
-  const click=()=>{if(stopped)return;try{const ctx=new(window.AudioContext||window.webkitAudioContext)(),o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime;o.type="square";o.frequency.setValueAtTime(1450,t);o.frequency.exponentialRampToValueAtTime(620,t+.025);g.gain.setValueAtTime(.09,t);g.gain.exponentialRampToValueAtTime(.001,t+.035);o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+.04);}catch{}const progress=Math.min(1,elapsed/duration),delay=38+Math.pow(progress,2.7)*245;elapsed+=delay;if(elapsed<duration)timer=setTimeout(click,delay);};
+  const click=()=>{if(stopped)return;try{const ctx=audioContext(),o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime;o.type="square";o.frequency.setValueAtTime(1450,t);o.frequency.exponentialRampToValueAtTime(620,t+.025);g.gain.setValueAtTime(.09,t);g.gain.exponentialRampToValueAtTime(.001,t+.035);o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+.04);}catch{}const progress=Math.min(1,elapsed/duration),delay=38+Math.pow(progress,2.7)*245;elapsed+=delay;if(elapsed<duration)timer=setTimeout(click,delay);};
   click();return()=>{stopped=true;clearTimeout(timer);};
 }
 
@@ -302,7 +304,9 @@ function HostViewInner({ code }) {
     } else if (type === "pricingPriceShown") {
       setTimeout(() => current(() => playTTS(el, text, () => safely(() => continuePricingPrice(code)), voice, "host")), 650);
     } else if (type === "pricingGame" || type === "pricingPrompt") {
-      playTTS(el, text, () => {}, voice);
+      const diceReveal=state.pricingGame?.type==="diceGame"&&state.pricingGame?.stage==="reveal";
+      if(diceReveal)playTTS(ann,text,()=>setTimeout(()=>safely(()=>pricingGameAction(code,state.pricingGame.playerId,{choice:"Reveal next digit"})),650),config.announcerVoice||"onyx","announcer");
+      else playTTS(el, text, () => {}, voice);
     } else if (type === "pricingResult") {
       const finish=()=>playTTS(el, text, () => { if (!state.isDemo) safely(() => restartGame(code, "sameLineup")); }, voice);
       if(state.pricingGame?.type==="clockGame"&&state.pricingGame?.status==="won")setTimeout(()=>current(finish),4000);else finish();
@@ -407,7 +411,7 @@ function HostViewInner({ code }) {
       {/* Audio elements always in DOM */}
       <audio ref={audioRef} style={{ display: "none" }} />
       <audio ref={announcerRef} style={{ display: "none" }} />
-      <audio ref={cliffYodelRef} src={cliffYodelUrl} preload="auto" style={{ display: "none" }} />
+      <audio ref={cliffYodelRef} src={cliffYodelUrl} preload="none" style={{ display: "none" }} />
       {kissBurst&&<div className="pir-kiss-burst" aria-live="polite"><span>💋</span><span>😘</span><span>💖</span><b>{kissBurst.playerName} kissed the host!</b><span>💋</span><span>💕</span></div>}
       {audienceBurst&&<div className="pir-audience-burst" aria-live="polite"><small>{audienceBurst.playerName} shouts</small><strong>{audienceBurst.choice}!</strong>{audienceBurst.count>1&&<b>{audienceBurst.count} audience votes</b>}</div>}
 
@@ -454,7 +458,7 @@ function HostViewInner({ code }) {
                   onNewPlayers={action(() => restartGame(code, "newPlayers"))} />
               )}
               {(state.phase === "pricingIntro" || state.phase === "pricingPrizeIntro" || state.phase === "pricingGame" || state.phase === "pricingRevealCue" || state.phase === "pricingPriceShown") && (
-                <PricingGameView game={state.pricingGame} spotlight={state.phase === "pricingPrizeIntro" ? state.pricingAnnouncement : null} rulesOnly={state.phase === "pricingIntro"} />
+                <PricingGameView game={state.pricingGame} spotlight={state.phase === "pricingPrizeIntro" ? state.pricingAnnouncement : null} rulesOnly={state.phase === "pricingIntro"} onSkipRules={state.phase==="pricingIntro"?forceAction(()=>beginPricingGame(code)):null} />
               )}
               {state.phase === "showcaseShowdown" && <WheelView showdown={state.showdown} />}
               {(state.phase.startsWith("showcase")||state.phase.startsWith("credits")) && state.finalShowcase && (state.phase.startsWith("credits")?<EndCredits state={state} config={config}/>:<FinalShowcaseView state={state} />)}
@@ -671,9 +675,9 @@ function RevealView({ state, code, onStartPricing, onNextRound, onNewPlayers }) 
 // Pricing games — the contestant controls these from their phone. The host
 // screen is a read-only game board that mirrors every choice.
 // ---------------------------------------------------------------------------
-export function PricingGameView({ game, spotlight = null, rulesOnly = false }) {
+export function PricingGameView({ game, spotlight = null, rulesOnly = false, onSkipRules = null }) {
   if (!game) return <div className="pir-loading">Loading pricing game…</div>;
-  if (rulesOnly) return <div className={`pir-pricing-board pir-game-${game.type} pir-rules-only ${game.type==="plinko"?"pir-plinko-intro":""}`}>{game.type==="plinko"&&<><div className="pir-plinko-logo">PLINKO!</div><div className="pir-plinko-jackpot">A CHANCE TO WIN<br/><strong>$50,000!!!</strong></div></>}<div className="pir-pricing-kicker">HOW TO PLAY</div>{game.type!=="plinko"&&<h2 className="pir-pricing-title">{game.title}</h2>}<p className="pir-pricing-rules">{game.instructions}</p>{game.type==="cliffHangers"&&<CliffBoard game={game} /> }<div className="pir-pricing-prompt">Listen to the rules…</div></div>;
+  if (rulesOnly) return <div className={`pir-pricing-board pir-game-${game.type} pir-rules-only ${game.type==="plinko"?"pir-plinko-intro":""}`}>{game.type==="plinko"&&<><div className="pir-plinko-logo">PLINKO!</div><div className="pir-plinko-jackpot">A CHANCE TO WIN<br/><strong>$50,000!!!</strong></div></>}<div className="pir-pricing-kicker">HOW TO PLAY</div>{game.type!=="plinko"&&<h2 className="pir-pricing-title">{game.title}</h2>}<p className="pir-pricing-rules">{game.instructions}</p>{game.type==="cliffHangers"&&<CliffBoard game={game} /> }<div className="pir-pricing-prompt">Listen to the rules…</div>{onSkipRules&&<button className="pir-btn pir-skip-rules" onClick={onSkipRules}>SKIP RULES — LET'S PLAY!</button>}</div>;
   if (spotlight) { const isCar=/IT'S A NEW CAR/i.test(spotlight.announcerText||""),isGrand=!isCar&&(spotlight.id===game.bonusPrize?.id||Boolean(game.featuredIntroCount)); return <div className={`pir-pricing-board pir-game-${game.type} pir-model-presentation ${isCar?"pir-new-car-stage":""} ${isGrand?"pir-shell-grand-intro":""}`}><div className="pir-pricing-kicker">PRIZE INTRODUCTION</div>{isCar&&<div className="pir-new-car-flash">IT'S A NEW CAR!!!</div>}{isGrand&&<div className="pir-shell-grand-flash">PLAYING FOR THIS GRAND PRIZE!</div>}<h2 className="pir-pricing-title">{game.title}</h2><img className="pir-prize-models" src={prizeModelsUrl} alt="Prize models presenting the prize"/><div className="pir-model-prize"><GameCards items={[spotlight]} /></div><div className="pir-pricing-prompt">Listen to the announcer…</div></div>; }
   if(game.priceReveal&&game.type==="cliffHangers")return <div className={`pir-pricing-board pir-game-cliffHangers ${game.cliffFinalWin?"pir-cliff-victory":""}`}><div className="pir-pricing-kicker">CLIFF HANGERS</div><h2 className="pir-pricing-title">{game.title}</h2><GameCards items={[game.priceReveal]} /><CliffBoard game={game} reveal={game.priceReveal}/>{game.cliffFinalWin&&game.priceReveal.actual==null&&<div className="pir-cliff-win-flash">HE MADE IT!<small>YOU WON ALL THREE PRIZES!</small></div>}</div>;
   if (game.priceReveal) return <div className={`pir-pricing-board pir-game-${game.type}`}><div className="pir-pricing-kicker">PRICE REVEAL</div><h2 className="pir-pricing-title">{game.title}</h2><GameCards items={[{...game.priceReveal,revealedPrice:game.priceReveal.actual}]} /><div className={`pir-pricing-prompt ${game.priceReveal.actual==null?"":"revealed"}`}>{game.priceReveal.actual==null?"SHOW ME THE PRICE!":game.priceReveal.correct?"THAT'S RIGHT!":"OH, SO CLOSE!"}</div></div>;
@@ -886,7 +890,7 @@ function ItemImage({ item }) {
   if (err || !item.image) {
     return (
       <div className="pir-item-frame">
-        <div className="pir-item-placeholder"><ChefHat size={40} /><span>{item.name}</span></div>
+        <div className="pir-item-placeholder"><span className="pir-item-visual">{item.visual||<ChefHat size={40} />}</span><span>{item.name}</span></div>
       </div>
     );
   }
