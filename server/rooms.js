@@ -14,14 +14,15 @@ const CAR_FIRST_GAMES = new Set(["diceGame", "oneAway", "anyNumber", "moneyGame"
 
 function preparePricingIntroduction(room, player) {
   const game=room.pricingGame;
-  if (CAR_FIRST_GAMES.has(game.type)) {
-    const car=initialPrizeAnnouncements(game)[0];
-    game._carIntroducedFirst=true;
+  if (CAR_FIRST_GAMES.has(game.type) || game.type==="shellGame") {
+    const featuredPrize=initialPrizeAnnouncements(game)[0];
+    game._featuredPrizeIntroducedFirst=true;
+    game._carIntroducedFirst=CAR_FIRST_GAMES.has(game.type);
     game._rulesIntroduced=false;
     room.pricingAnnouncementQueue=[];
-    room.pricingAnnouncement=car;
+    room.pricingAnnouncement=featuredPrize;
     room.phase="pricingPrizeIntro";
-    setHostLine(room,car?.announcerText||"IT'S A NEW CAR!","pricingPrizeIntro");
+    setHostLine(room,featuredPrize?.announcerText||(game._carIntroducedFirst?"IT'S A NEW CAR!":"Take a look at the grand prize!"),"pricingPrizeIntro");
   } else {
     room.phase="pricingIntro";
     setHostLine(room,game.type==="plinko"?`${player.name}, you're going to play PLINKO! You have a chance to win up to $50,000 in cash!`:`${player.name}, you are going to play ${game.title}!`,"pricingGameIntro");
@@ -279,14 +280,14 @@ export async function startPricingGame(room) {
 export function beginPricingGame(room) {
   if (!room.pricingGame) throw new Error("No pricing game introduction is active");
   const game=room.pricingGame;
-  if (room.phase === "pricingPrizeIntro" && game._carIntroducedFirst && !game._rulesIntroduced) {
+  if (room.phase === "pricingPrizeIntro" && game._featuredPrizeIntroducedFirst && !game._rulesIntroduced) {
     game._rulesIntroduced=true;
     room.pricingAnnouncement=null;
     room.phase="pricingIntro";
     setHostLine(room,`${game.playerName}, you are going to play ${game.title}!`,"pricingGameIntro");
     return;
   }
-  if (room.phase === "pricingIntro") room.pricingAnnouncementQueue = game._carIntroducedFirst ? initialPrizeAnnouncements(game).slice(1) : initialPrizeAnnouncements(game);
+  if (room.phase === "pricingIntro") room.pricingAnnouncementQueue = game._featuredPrizeIntroducedFirst ? initialPrizeAnnouncements(game).slice(1) : initialPrizeAnnouncements(game);
   else if (room.phase !== "pricingPrizeIntro") throw new Error("No pricing game introduction is active");
   const next = room.pricingAnnouncementQueue.shift();
   if (next) {
