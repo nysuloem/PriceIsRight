@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import {
   buildLineup, computeAIBid, computeWinners, shuffle,
 } from "./gameLogic.js";
-import { getPrizePool, pickRandomItem } from "./prizeSource.js";
+import { getPrizePool, pickRandomItem, retirePrize } from "./prizeSource.js";
 import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, initialPrizeAnnouncements, playPricingGame, pricingPrizeNames, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
 import { advanceShowcase, createFinalShowcase, createShowdown, publicFinalShowcase, publicShowdown, resolveShowcaseAI, resolveWheelAI, settleWheel, showcaseAction, wheelAction } from "./showFlow.js";
 import { generateClosingLine } from "./tts.js";
@@ -13,7 +13,6 @@ const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const MAX_PLAYERS = 8;   // how many humans can join
 const CAR_FIRST_GAMES = new Set(["diceGame", "oneAway", "anyNumber", "moneyGame", "luckySeven", "threeStrikes", "tenChances"]);
 const recentPricingPrizeNames=[];
-const recentBiddingPrizeIds=[];
 export function makePricingGameSchedule(random=Math.random){const schedule=Array(6).fill("nonCar");schedule[Math.floor(random()*3)]="car";schedule[3+Math.floor(random()*3)]="car";return schedule;}
 function rememberPricingPrizes(names){for(const name of names){const old=recentPricingPrizeNames.indexOf(name);if(old>=0)recentPricingPrizeNames.splice(old,1);recentPricingPrizeNames.push(name);}if(recentPricingPrizeNames.length>240)recentPricingPrizeNames.splice(0,recentPricingPrizeNames.length-240);}
 
@@ -141,8 +140,7 @@ export function publicState(room) {
 
 async function selectFreshPrize(room) {
   let pool = await getPrizePool();
-  let unused = pool.filter(item => !room.usedPrizeIds.includes(item.id)&&!recentBiddingPrizeIds.includes(item.id));
-  if(!unused.length)unused=pool.filter(item=>!room.usedPrizeIds.includes(item.id));
+  let unused = pool.filter(item => !room.usedPrizeIds.includes(item.id));
   if (!unused.length) {
     pool = await getPrizePool(true);
     unused = pool.filter(item => !room.usedPrizeIds.includes(item.id));
@@ -159,8 +157,7 @@ async function selectFreshPrize(room) {
   const item = pickRandomItem(balanced.length ? balanced : unused);
   if (!item) throw new Error("No prizes are currently available");
   room.usedPrizeIds.push(item.id);
-  recentBiddingPrizeIds.push(item.id);
-  if(recentBiddingPrizeIds.length>150)recentBiddingPrizeIds.splice(0,recentBiddingPrizeIds.length-150);
+  retirePrize(item.id);
   room.usedPrizeFamilies.push(item.prizeFamily);
   room.prizeCategoryCounts[item.bidCategory] = (room.prizeCategoryCounts[item.bidCategory] || 0) + 1;
   return item;

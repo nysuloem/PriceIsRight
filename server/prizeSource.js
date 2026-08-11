@@ -24,6 +24,8 @@ const REQUEST_TIMEOUT_MS = 15000;
 // These are first-party Canadian storefronts. Shopify's public product feed
 // supplies current CAD prices, product URLs, vendor names, and product images.
 const SHOPIFY_RETAILERS = [
+  { retailer: "The Brick", baseUrl: "https://www.thebrick.com" },
+  { retailer: "Leon's", baseUrl: "https://www.leons.ca" },
   { retailer: "Province of Canada", baseUrl: "https://provinceofcanada.com" },
   { retailer: "Peace Collective", baseUrl: "https://www.peace-collective.com" },
   { retailer: "Knix Canada", baseUrl: "https://knix.ca" },
@@ -92,6 +94,54 @@ const CURATED_FALLBACKS = [
   },
 ];
 
+// Large static fallback catalogue inspired by Canadian brick-and-mortar retail.
+// These are not live offers; they keep Contestants' Row varied when public
+// product feeds are slow or temporarily unavailable.
+const CANADIAN_RETAILER_VARIANTS = [
+  ["Classic", 0],
+  ["Deluxe", 0.12],
+  ["Premium", 0.24],
+  ["Compact", -0.1],
+];
+
+const CANADIAN_RETAILER_PRIZE_BLUEPRINTS = [
+  { retailers: ["The Brick", "Leon's"], category: "Furniture", items: [
+    ["fabric sofa", 1199], ["leather recliner", 899], ["sectional sofa", 2299],
+    ["dining room set", 1499], ["queen bedroom suite", 1899], ["king mattress set", 1699],
+    ["coffee table set", 699], ["TV stand with fireplace", 799], ["accent chair pair", 649],
+    ["home office desk", 549], ["bookcase wall unit", 899], ["storage ottoman", 299],
+  ] },
+  { retailers: ["The Brick", "Leon's", "Canadian Appliance Source"], category: "Appliances", items: [
+    ["French-door refrigerator", 2499], ["front-load washer", 1099], ["electric dryer", 999],
+    ["stainless-steel range", 1299], ["built-in dishwasher", 899], ["over-the-range microwave", 449],
+    ["chest freezer", 699], ["wine fridge", 549], ["upright freezer", 1099], ["range hood", 399],
+  ] },
+  { retailers: ["RONA", "Canadian Tire", "Home Depot Canada"], category: "Tools & Home Improvement", items: [
+    ["cordless drill kit", 249], ["mitre saw", 399], ["socket and wrench set", 179],
+    ["wet-dry shop vacuum", 169], ["laser level kit", 159], ["pressure washer", 349],
+    ["step ladder", 129], ["garage shelving unit", 199], ["tool chest", 499],
+    ["bathroom vanity", 699], ["kitchen faucet", 239], ["smart thermostat", 229],
+  ] },
+  { retailers: ["RONA", "Canadian Tire", "Home Depot Canada"], category: "Outdoor Living", items: [
+    ["propane barbecue", 799], ["patio conversation set", 1499], ["gazebo", 999],
+    ["electric lawn mower", 599], ["snow blower", 1099], ["garden shed", 899],
+    ["fire pit table", 699], ["deck box", 199], ["patio umbrella", 249],
+    ["string light package", 129], ["planter collection", 159], ["hose reel cart", 119],
+  ] },
+  { retailers: ["Best Buy Canada", "Staples Canada"], category: "Electronics", items: [
+    ["4K smart television", 899], ["sound bar system", 499], ["laptop computer", 1199],
+    ["tablet bundle", 649], ["wireless printer", 249], ["mesh Wi-Fi system", 349],
+    ["noise-cancelling headphones", 329], ["gaming monitor", 399], ["robot vacuum", 599],
+    ["smartwatch", 449], ["Bluetooth party speaker", 299], ["streaming camera kit", 229],
+  ] },
+  { retailers: ["Sleep Country Canada", "The Brick", "Leon's"], category: "Home & Kitchen", items: [
+    ["memory-foam mattress", 1399], ["adjustable bed base", 1199], ["duvet and pillow set", 349],
+    ["weighted blanket", 229], ["sheet and towel package", 299], ["air purifier", 399],
+    ["espresso machine", 799], ["stand mixer", 549], ["air fryer oven", 279],
+    ["cookware set", 399], ["countertop ice maker", 249], ["food processor", 219],
+  ] },
+];
+
 function slugify(value) {
   return String(value)
     .normalize("NFKD")
@@ -132,6 +182,40 @@ function clipSpeechLine(value, maxLength = 110) {
 function makeHostDescription(retailer, name) {
   const intro = `From ${retailer} — ${name}!`;
   return clipSpeechLine(intro);
+}
+
+function buildCanadianRetailerCatalog() {
+  const prizes = [];
+  for (const section of CANADIAN_RETAILER_PRIZE_BLUEPRINTS) {
+    section.items.forEach(([baseName, basePrice], itemIndex) => {
+      section.retailers.forEach((retailer, retailerIndex) => {
+        CANADIAN_RETAILER_VARIANTS.forEach(([variant, multiplier], variantIndex) => {
+          const name = `${variant} ${baseName}`;
+          const exactPrice = Math.max(
+            MIN_PRICE,
+            Math.round((basePrice * (1 + multiplier) + retailerIndex * 37 + itemIndex * 11) * 100) / 100,
+          );
+          prizes.push({
+            id: `canadian-retail-${slugify(retailer)}-${slugify(name)}-${variantIndex}`,
+            name,
+            brand: retailer,
+            retailer,
+            exactPrice,
+            price: Math.round(exactPrice),
+            priceIsLive: false,
+            priceKind: "regular",
+            currency: "CAD",
+            url: `catalogue:${slugify(retailer)}/${slugify(name)}`,
+            image: null,
+            imageAlt: name,
+            category: section.category,
+            hostDescription: makeHostDescription(retailer, name),
+          });
+        });
+      });
+    });
+  }
+  return prizes;
 }
 
 async function fetchData(url) {
@@ -436,7 +520,10 @@ export async function fetchPrizePool() {
 
   const curated = await Promise.all(CURATED_FALLBACKS.map(fetchCuratedFallback));
   const localCatalog = expandedBiddingCatalog();
-  items = reduceSimilarPrizes(deduplicate([...items, ...curated, ...localCatalog]).map(enrichPrize));
+  const canadianRetailerCatalog = buildCanadianRetailerCatalog();
+  items = reduceSimilarPrizes(
+    deduplicate([...items, ...curated, ...localCatalog, ...canadianRetailerCatalog]).map(enrichPrize),
+  );
 
   if (items.length < 200) {
     console.warn(
@@ -450,14 +537,30 @@ export async function fetchPrizePool() {
 
 // Always keep a usable local pool ready. Live retailer refreshes happen in the
 // background, so a round transition never waits on several slow shop sites.
-let cache = { items: reduceSimilarPrizes([...CURATED_FALLBACKS.map(enrichPrize),...expandedBiddingCatalog().map(enrichPrize)]), fetchedAt: 0 };
+const retiredPrizeIds = new Set();
+const REFILL_THRESHOLD = 120;
+const buildLocalFallbackPool = () => reduceSimilarPrizes(
+  [
+    ...CURATED_FALLBACKS.map(enrichPrize),
+    ...expandedBiddingCatalog().map(enrichPrize),
+    ...buildCanadianRetailerCatalog().map(enrichPrize),
+  ],
+);
+let cache = { items: buildLocalFallbackPool(), fetchedAt: 0 };
 let refreshPromise = null;
 
 async function refreshPrizePool() {
   if (refreshPromise) return refreshPromise;
   refreshPromise = fetchPrizePool()
-    .then(items => { cache = { items, fetchedAt: Date.now() }; return items; })
-    .catch(err => { console.error("[prizeSource] fetchPrizePool failed:", err.message); return cache.items; })
+    .then((items) => {
+      const available = items.filter((item) => !retiredPrizeIds.has(item.id));
+      cache = { items: available, fetchedAt: Date.now() };
+      return available;
+    })
+    .catch((err) => {
+      console.error("[prizeSource] fetchPrizePool failed:", err.message);
+      return cache.items;
+    })
     .finally(() => { refreshPromise = null; });
   return refreshPromise;
 }
@@ -465,8 +568,35 @@ async function refreshPrizePool() {
 export async function getPrizePool(forceRefresh = false) {
   const stale = Date.now() - cache.fetchedAt > CACHE_TTL_MS;
   if (forceRefresh) return refreshPrizePool();
-  if (stale) void refreshPrizePool();
+  if (stale || cache.items.length < REFILL_THRESHOLD) void refreshPrizePool();
   return cache.items;
+}
+
+// Mirrors Trivial Pursuit's used-question bank: a selected prize immediately
+// leaves the available bank. A low bank triggers a background retailer refill;
+// only genuinely new verified product IDs can enter again.
+export function retirePrize(id) {
+  if (!id) return false;
+  const alreadyRetired = retiredPrizeIds.has(id);
+  retiredPrizeIds.add(id);
+  cache = { ...cache, items: cache.items.filter((item) => item.id !== id) };
+  if (cache.items.length < REFILL_THRESHOLD) void refreshPrizePool();
+  return !alreadyRetired;
+}
+
+export function prizeBankStats() {
+  return {
+    available: cache.items.length,
+    used: retiredPrizeIds.size,
+    refilling: Boolean(refreshPromise),
+    threshold: REFILL_THRESHOLD,
+  };
+}
+
+export function resetPrizeBankForTests() {
+  retiredPrizeIds.clear();
+  cache = { items: buildLocalFallbackPool(), fetchedAt: Date.now() };
+  refreshPromise = null;
 }
 
 export function pickRandomItem(pool, excludeId = null) {

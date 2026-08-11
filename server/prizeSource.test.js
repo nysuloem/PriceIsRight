@@ -1,6 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { prizeCategory, prizeFamily } from "./prizeSource.js";
+import {
+  getPrizePool,
+  prizeBankStats,
+  prizeCategory,
+  prizeFamily,
+  resetPrizeBankForTests,
+  retirePrize,
+} from "./prizeSource.js";
 
 test("similar shirts collapse into the same bidding family", () => {
   const a = { name: "Men's Classic Blue Logo T-Shirt", category: "Apparel" };
@@ -8,4 +15,26 @@ test("similar shirts collapse into the same bidding family", () => {
   assert.equal(prizeFamily(a), "t-shirt");
   assert.equal(prizeFamily(b), "t-shirt");
   assert.equal(prizeCategory(a), "Apparel");
+});
+
+test("the fallback bidding bank is broad and Canadian-retailer weighted", async () => {
+  resetPrizeBankForTests();
+  const pool = await getPrizePool();
+  const retailers = new Set(pool.map((item) => item.retailer));
+  assert.ok(pool.length >= 500);
+  assert.ok(retailers.has("The Brick"));
+  assert.ok(retailers.has("Leon's"));
+  assert.ok(retailers.has("RONA"));
+});
+
+test("a used bidding prize leaves the available bank permanently", async () => {
+  resetPrizeBankForTests();
+  const before = await getPrizePool();
+  const used = before[0];
+  const statsBefore = prizeBankStats();
+  assert.equal(retirePrize(used.id), true);
+  assert.equal(retirePrize(used.id), false);
+  const after = await getPrizePool();
+  assert.equal(after.some((item) => item.id === used.id), false);
+  assert.equal(prizeBankStats().used, statsBefore.used + 1);
 });
