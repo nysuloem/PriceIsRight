@@ -3,7 +3,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { Mic2, Bot, Trophy, ArrowRight, ChefHat } from "lucide-react";
 import {
   getState, startGame, callNext, advance,
-  resolveAITurn, nextTurn, restartGame, resetBids, ttsUrl, playerPhotoUrl, getConfig,
+  nextTurn, restartGame, resetBids, ttsUrl, playerPhotoUrl, getConfig,
   startPricingGame,
   beginPricingGame,
   settlePricingGame,
@@ -258,11 +258,9 @@ function HostViewInner({ code }) {
         }
       }), voice);
     } else if (type === "prompt") {
-      const c = state.contestants[state.turn];
-      if (c?.isAI) playTTS(el, text, () => safely(() => resolveAITurn(code)), voice);
-      else playTTS(el, text, () => {}, voice);
+      playTTS(el, text, () => {}, voice);
     } else if (type === "bidResult") {
-      const last = state.turn >= state.contestants.length - 1;
+      const last = state.contestants.every(c => c.bid != null);
       playTTS(el, text, () => safely(() => last ? advance(code, "reveal") : nextTurn(code)), voice);
     } else if (type === "reveal") {
       const humanWinner = state.winnerIndices
@@ -528,9 +526,7 @@ function Lobby({ state, code, joinUrl, onStart }) {
               <span>{p.name}</span>
             </div>
           ))}
-          {state.players.length === 0 && (
-            <p className="pir-helptext">AI contestants fill any empty seats.</p>
-          )}
+          {state.players.length === 0 && <p className="pir-helptext">At least one human player must join to begin.</p>}
         </div>
       </div>
       <div className="pir-actions">

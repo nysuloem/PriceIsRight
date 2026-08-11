@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import {
-  buildLineup, computeAIBid, computeWinners, makeAIContestant, STRATEGIES, shuffle,
+  buildLineup, computeAIBid, computeWinners, shuffle,
 } from "./gameLogic.js";
 import { getPrizePool, pickRandomItem } from "./prizeSource.js";
 import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, initialPrizeAnnouncements, playPricingGame, pricingPrizeNames, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
@@ -59,6 +59,7 @@ export function createRoom() {
     item: null,
     callIndex: -1,
     turn: 0,
+    firstBidderId: null,
     winnerIndices: [],
     usedPrizeIds: [],
     usedPrizeFamilies: [],
@@ -194,12 +195,14 @@ export function getPlayerPhoto(room, playerId) {
 
 export async function startGame(room) {
   if (room.phase !== "lobby") throw new Error("Already started");
+  if (!room.players.length) throw new Error("At least one human player must join before the game can start");
   room.contestants = buildLineup(room.players);
   room.calledHumanIds = room.contestants.filter(c=>!c.isAI).map(c=>c.id);
   room.returningHumanQueue = [];
   room.item = await selectFreshPrize(room);
   room.callIndex = -1;
   room.turn = 0;
+  room.firstBidderId = room.contestants[0]?.id || null;
   room.winnerIndices = [];
   room.completedRounds = 0;
   room.pricingGameSchedule = makePricingGameSchedule();
@@ -264,7 +267,8 @@ export function advance(room, to) {
   } else if (to === "bidding") {
     if (room.phase !== "item") throw new Error("Bad phase for 'bidding'");
     room.phase = "bidding";
-    room.turn = 0;
+    const firstIndex = room.contestants.findIndex(c => c.id === room.firstBidderId);
+    room.turn = firstIndex >= 0 ? firstIndex : 0;
     promptTurn(room);
   } else if (to === "reveal") {
     if (room.phase !== "bidding") throw new Error("Bad phase for 'reveal'");
@@ -432,10 +436,11 @@ export function resetBids(room) {
   if (room.phase !== "reveal") throw new Error("Not in reveal phase");
   room.contestants.forEach(c => { c.bid = null; });
   room.phase = "bidding";
-  room.turn = 0;
+  const firstIndex = room.contestants.findIndex(c => c.id === room.firstBidderId);
+  room.turn = firstIndex >= 0 ? firstIndex : 0;
   room.winnerIndices = [];
   room.revealType = null;
-  const c = room.contestants[0];
+  const c = room.contestants[room.turn];
   setHostLine(room, `Alright ${c.name} — what's your bid this time?`, "prompt");
 }
 
@@ -443,8 +448,11 @@ export function nextTurn(room) {
   if (room.phase !== "bidding") throw new Error("Bidding isn't open");
   const c = room.contestants[room.turn];
   if (!c || c.bid == null) throw new Error("Current bid not set yet");
-  if (room.turn >= room.contestants.length - 1) throw new Error("Already at last turn");
-  room.turn += 1;
+  if (room.contestants.every(contestant => contestant.bid != null)) throw new Error("Already at last turn");
+  for (let offset = 1; offset <= room.contestants.length; offset += 1) {
+    const candidate = (room.turn + offset) % room.contestants.length;
+    if (room.contestants[candidate].bid == null) { room.turn = candidate; break; }
+  }
   promptTurn(room);
 }
 
@@ -458,6 +466,7 @@ export async function restart(room, mode) {
     room.item = null;
     room.callIndex = -1;
     room.turn = 0;
+    room.firstBidderId = null;
     room.winnerIndices = [];
     room.usedPrizeIds = [];
     room.usedPrizeFamilies = [];
@@ -493,14 +502,8 @@ export async function restart(room, mode) {
       // still points at the same phone, allowing a human to earn multiple
       // independent spots in a Showcase Showdown (and even the Showcase).
       room.showcaseContestants.push({ ...winner, id:`${winner.id}:round:${round}`, controllerPlayerId:winner.id, bid:null, oneBidValue, pricingWinnings:gameValue, totalWinnings:oneBidValue+gameValue, round });
-      if(!winner.isAI) room.returningHumanQueue.push(winner.id);
       room.completedRounds+=1;
     }
-    room.contestants = room.contestants.filter((_, index) => index !== winnerIndex).map((c) => ({
-      ...c,
-      bid: null,
-      strategy: c.isAI ? shuffle(STRATEGIES)[0] : c.strategy,
-    }));
 
     if(room.completedRounds===3||room.completedRounds===6){
       const group=room.showcaseContestants.filter(c=>c.round>(room.completedRounds-3));
@@ -527,8 +530,10 @@ function pricingGameValue(game){
 }
 
 async function prepareReplacement(room){
-    if (room.contestants.length !== 3) throw new Error(`Contestants' Row must have three people before a replacement is called; found ${room.contestants.length}`);
-    const unavailable = new Set(room.contestants.map(c => c.id));
+    const winnerIndex=room.winnerIndices[0];
+    const winner=room.contestants[winnerIndex];
+    if(!winner)throw new Error("No Contestants' Row winner is available for the next round");
+    const unavailable = new Set(room.contestants.filter((_,index)=>index!==winnerIndex).map(c => c.id));
     // First call every human who has never appeared. Only then cycle previous
     // winners in FIFO order, putting each new win at the bottom of that queue.
     const called = new Set(room.calledHumanIds);
@@ -540,19 +545,28 @@ async function prepareReplacement(room){
         if(!unavailable.has(id)) waitingHuman=room.players.find(player=>player.id===id);
       }
     }
-    const replacement = waitingHuman
-      ? { id: waitingHuman.id, name: waitingHuman.name, isAI: false, strategy: null, bid: null, photo: waitingHuman.photo || null }
-      : makeAIContestant([...room.contestants, ...room.showcaseContestants], room.showcaseContestants.length);
-    // The new contestant is placed first in the bidding order. Keeping them at
-    // index zero lets the existing turn engine naturally proceed through all
-    // four bidders without ever adding a fifth podium.
-    room.contestants.unshift(replacement);
+    room.contestants.forEach(c=>{c.bid=null;});
+    room.winnerIndices=[];
+    room.pricingGame=null;
+    room.item = await selectFreshPrize(room);
+    if(!waitingHuman){
+      // With four or fewer humans nobody leaves the Row. The winner keeps the
+      // same podium, but bidding first next round removes the usual advantage.
+      room.firstBidderId=winner.id;
+      room.replacementContestantId=null;
+      room.replacementVisible=true;
+      room.phase="item";
+      setHostLine(room,`Here's the next prize up for bids!||${room.item.hostDescription}`,"itemIntro");
+      return;
+    }
+    room.returningHumanQueue.push(winner.id);
+    const replacement = { id: waitingHuman.id, name: waitingHuman.name, isAI: false, strategy: null, bid: null, photo: waitingHuman.photo || null };
+    // Preserve every podium position: only the winner's vacated spot changes.
+    room.contestants[winnerIndex]=replacement;
+    room.firstBidderId=replacement.id;
     room.replacementContestantId = replacement.id;
     room.replacementVisible = false;
-    room.item = await selectFreshPrize(room);
-    room.turn = 0;
-    room.winnerIndices = [];
-    room.pricingGame = null;
+    room.turn = winnerIndex;
     room.phase = "replacement";
     setHostLine(room,
       `We need a new contestant!||Here's one for you... ${replacement.name}, come on down! You're the next contestant on The Price Is Right!`,
