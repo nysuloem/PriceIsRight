@@ -691,7 +691,15 @@ export function PricingGameView({ game, spotlight = null, rulesOnly = false }) {
       {game.type === "doublePrices" && <><GameCards items={[game.prize]} /><div className="pir-double-prices">{game.prices.map(price=><span key={price} className={game.revealedPrice===price?"right":""}>${Number(price).toLocaleString("en-CA")}</span>)}</div></>}
       {game.type === "threeStrikes" && <><GameCards items={[game.car]} /><div className="pir-three-strikes"><div className="pir-strike-price">{game.revealed.map((digit,i)=><span key={i}>{digit??"_"}</span>)}</div><div className="pir-strike-hopper"><div key={game.drawSeq} className={`pir-drawn-ball ${game.currentBall==="X"?"strike":""}`}>{game.currentBall??"?"}</div><small>{game.stage==="place"?"PLACE THIS DIGIT":"DRAW FROM THE HOPPER"}</small></div><div className="pir-strike-count">{[0,1,2].map(i=><b key={i} className={i<game.strikes?"lit":""}>X</b>)}</div></div></>}
       {game.type === "switchGame" && <><GameCards items={game.items.map((item,i)=>({...item,shownPrice:game.finalPrices?.[i]??game.shownPrices[i]}))}/><div className="pir-switch-sign">SWITCH?</div></>}
-      {game.type === "tenChances" && <><GameCards items={[game.prizes[game.prizeIndex]?{...game.prizes[game.prizeIndex],revealedPrice:game.revealedPrice}:null].filter(Boolean)} /><div className="pir-ten-chances"><div className="pir-ten-counter">CHANCES LEFT <strong>{game.chancesLeft}</strong></div><div className="pir-ten-digits">{game.digitSets[game.prizeIndex]?.map((digit,i)=><span key={`${digit}-${i}`}>{digit}</span>)}</div></div></>}
+      {game.type === "tenChances" && <div className="pir-ten-stage">
+        <div className="pir-ten-logo"><b>10</b><span>CHANCES</span></div>
+        <div className="pir-ten-prizes">{game.prizes.map((prize,i)=><div key={prize.name} className={`${i===game.prizeIndex?"active":""} ${i<game.prizeIndex?"won":""}`}><small>{i===0?"2 DIGITS":i===1?"3 DIGITS":"NEW CAR"}</small><strong>{prize.name}</strong></div>)}</div>
+        <div className="pir-ten-board">
+          <div className="pir-ten-guess-row">{Array.from({length:10},(_,i)=>{const entry=game.guesses?.[i];return <div className={`pir-ten-attempt ${entry?"used":""} ${entry?.correct?"correct":""}`} key={i}><div>{entry?`$${Number(entry.guess).toLocaleString("en-CA")}`:""}</div><span>{i+1}</span></div>;})}</div>
+          <div className="pir-ten-current"><div><small>CHANCES LEFT</small><strong>{game.chancesLeft}</strong></div><div className="pir-ten-digits">{game.digitSets[game.prizeIndex]?.map((digit,i)=><span key={`${digit}-${i}`}>{digit}</span>)}</div></div>
+        </div>
+        <GameCards items={[game.prizes[game.prizeIndex]?{...game.prizes[game.prizeIndex],revealedPrice:game.revealedPrice}:null].filter(Boolean)} />
+      </div>}
 
       <div className={`pir-pricing-prompt ${game.status}`}>{game.status === "playing" ? game.prompt : game.result}</div>
       {!!game.clue && <div className="pir-pricing-clue">{game.clue}</div>}

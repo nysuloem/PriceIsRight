@@ -58,6 +58,21 @@ test("car games introduce the car before the host explains the rules",()=>{
   assert.equal(room.phase,"pricingGame");
 });
 
+test("Ten Chances introduces the car, then rules, then its first small prize",()=>{
+  const {room}=createPricingGameDemo("tenChances");
+  joinRoom(room,"Ten Chances Player");
+  assert.equal(room.phase,"pricingPrizeIntro");
+  assert.equal(room.pricingAnnouncement.name,room.pricingGame.prizes[2].name);
+  assert.match(room.hostLine.text,/NEW CAR/i);
+  beginPricingGame(room);
+  assert.equal(room.phase,"pricingIntro");
+  beginPricingGame(room);
+  assert.equal(room.phase,"pricingPrizeIntro");
+  assert.equal(room.pricingAnnouncement.name,room.pricingGame.prizes[0].name);
+  beginPricingGame(room);
+  assert.equal(room.phase,"pricingGame");
+});
+
 test("Any Number introduces its three-digit prize after the car and rules",()=>{
   const {room}=createPricingGameDemo("anyNumber");
   joinRoom(room,"Any Number Player");
