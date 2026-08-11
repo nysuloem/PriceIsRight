@@ -10,7 +10,7 @@ const rooms = new Map();
 const ROOM_TTL_MS = 4 * 60 * 60 * 1000;
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const MAX_PLAYERS = 8;   // how many humans can join
-const CAR_FIRST_GAMES = new Set(["diceGame", "oneAway", "anyNumber", "moneyGame", "luckySeven"]);
+const CAR_FIRST_GAMES = new Set(["diceGame", "oneAway", "anyNumber", "moneyGame", "luckySeven", "threeStrikes"]);
 const recentPricingPrizeNames=[];
 function rememberPricingPrizes(names){for(const name of names){const old=recentPricingPrizeNames.indexOf(name);if(old>=0)recentPricingPrizeNames.splice(old,1);recentPricingPrizeNames.push(name);}if(recentPricingPrizeNames.length>240)recentPricingPrizeNames.splice(0,recentPricingPrizeNames.length-240);}
 
