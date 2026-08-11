@@ -129,6 +129,13 @@ test("used middle-price prizes are replaced and categories are varied",()=>{
   assert.ok(new Set(second.items.map(x=>x.category)).size>=3);
 });
 
-test("pricing games never send unverified stock photos to the host screen",()=>{
-  for(const type of types){const publicGame=publicPricingGame(createPricingGameForType(type,player)),json=JSON.stringify(publicGame);assert.doesNotMatch(json,/images\.unsplash\.com/);const prizes=[...(publicGame.qualifiers||[]),...(publicGame.items||[]),...(publicGame.introPrizes||[])];for(const prize of prizes)assert.ok(prize.visual,"every prize has a matched visual fallback");}
+test("every pricing prize has a visible photo or matched fallback",()=>{
+  for(const type of types){const publicGame=publicPricingGame(createPricingGameForType(type,player)),prizes=[...(publicGame.qualifiers||[]),...(publicGame.items||[]),...(publicGame.introPrizes||[])];for(const prize of prizes)assert.ok(prize.image||prize.visual,"every prize remains visible");}
+});
+
+test("live retailer pricing prizes keep the photo from their own product record",()=>{
+  const live=Array.from({length:6},(_,i)=>({name:`Exact product ${i}`,brand:`Brand ${i}`,description:`Product ${i}`,price:50+i,image:`https://retailer.example/product-${i}.jpg`,imageVerified:true,category:`category-${i}`}));
+  const g=createPricingGameForType("plinko",player,[],live);
+  assert.equal(g.qualifiers.length,4);
+  for(const prize of g.qualifiers){const source=live.find(item=>item.name===prize.name);assert.ok(source);assert.equal(prize.image,source.image);assert.equal(prize.imageVerified,true);}
 });

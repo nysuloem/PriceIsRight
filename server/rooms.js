@@ -264,11 +264,13 @@ export function advance(room, to) {
   }
 }
 
-export function startPricingGame(room) {
+export async function startPricingGame(room) {
   if (room.phase !== "reveal") throw new Error("Finish Contestants' Row first");
   const winner = room.winnerIndices.map(i => room.contestants[i]).find(c => c && !c.isAI);
   if (!winner) throw new Error("No human winner is available for a pricing game");
-  room.pricingGame = createPricingGame(winner, room.playedPricingGames, room.usedPricingPrizeNames);
+  const retailerPool=await getPrizePool();
+  const livePricingItems=retailerPool.filter(item=>item.image&&Number(item.price)>=20&&Number(item.price)<=250).map(item=>({name:item.name,brand:item.brand||item.retailer,description:`Available from ${item.retailer}.`,price:Math.round(Number(item.price)),image:item.image,imageVerified:true,category:item.bidCategory||item.category||"retail"}));
+  room.pricingGame = createPricingGame(winner, room.playedPricingGames, room.usedPricingPrizeNames,livePricingItems);
   room.playedPricingGames.push(room.pricingGame.type);
   room.usedPricingPrizeNames.push(...pricingPrizeNames(room.pricingGame));
   preparePricingIntroduction(room,winner);
