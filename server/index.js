@@ -191,7 +191,7 @@ app.post(
   "/api/rooms/:code/pricing-game/start",
   wrap(async (req, res) => {
     const room = requireRoom(req);
-    startPricingGame(room);
+    await startPricingGame(room);
     res.json(publicState(room));
   })
 );
