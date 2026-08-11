@@ -331,7 +331,8 @@ function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError
   const [listening,setListening]=useState(false);
   const [heard,setHeard]=useState("");
   const recognitionRef=useRef(null);
-  useEffect(()=>()=>recognitionRef.current?.abort(),[]);
+  const continuousMicRef=useRef(false),micSendingRef=useRef(false);
+  useEffect(()=>()=>{continuousMicRef.current=false;recognitionRef.current?.abort();},[]);
   if (!game) return <div className="pir-panel">Loading pricing game…</div>;
   const isPlayer = game.playerId === playerId;
   const send = async (action) => {
@@ -341,14 +342,16 @@ function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError
     finally { setBusy(false); }
   };
   const speechRecognition=typeof window!=="undefined"&&(window.SpeechRecognition||window.webkitSpeechRecognition);
+  const stopClockMic=()=>{continuousMicRef.current=false;recognitionRef.current?.stop();setListening(false);};
   const startClockMic=()=>{
     if(!speechRecognition){onError("Voice guesses are not supported in this browser. You can still type your guess.");return;}
     recognitionRef.current?.abort();
-    const recognition=new speechRecognition();recognitionRef.current=recognition;recognition.lang="en-CA";recognition.interimResults=false;recognition.maxAlternatives=1;
+    continuousMicRef.current=true;
+    const recognition=new speechRecognition();recognitionRef.current=recognition;recognition.lang="en-CA";recognition.continuous=true;recognition.interimResults=false;recognition.maxAlternatives=1;
     recognition.onstart=()=>{setListening(true);setHeard("");onError("");};
-    recognition.onend=()=>setListening(false);
+    recognition.onend=()=>{if(!continuousMicRef.current){setListening(false);return;}setTimeout(()=>{try{recognition.start();}catch{}},180);};
     recognition.onerror=e=>{setListening(false);if(e.error!=="aborted"&&e.error!=="no-speech")onError(`Microphone error: ${e.error}. You can still type your guess.`);};
-    recognition.onresult=e=>{const transcript=e.results?.[0]?.[0]?.transcript||"",value=parseSpokenNumber(transcript);setHeard(transcript);if(value==null){onError(`I heard “${transcript},” but not a number. Please try again.`);return;}setNumber(String(value));send({value});};
+    recognition.onresult=async e=>{const result=e.results?.[e.resultIndex],transcript=result?.[0]?.transcript||"",value=parseSpokenNumber(transcript);setHeard(transcript);if(value==null){onError(`I heard “${transcript},” but not a number. Please try again.`);return;}if(micSendingRef.current)return;micSendingRef.current=true;setNumber(String(value));await send({value});micSendingRef.current=false;};
     recognition.start();
   };
   if (!isPlayer) return <div className="pir-panel pir-center"><h2>{game.title}</h2><p>{game.playerName} is playing—watch the big screen!</p></div>;
@@ -362,7 +365,7 @@ function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError
       <div className="pir-pricing-prompt">{game.prompt}</div>
       {game.mode === "number" && <>
         <div className="pir-led pir-bid-input"><span>$</span><input type="number" value={number} autoFocus min="0" onChange={e=>setNumber(e.target.value)} /></div>
-        {game.type==="clockGame"&&<div className="pir-clock-mic"><button className={`pir-btn ${listening?"listening":"secondary"}`} disabled={busy} onClick={startClockMic}>{listening?<><MicOff size={20}/> LISTENING…</>:<><Mic size={20}/> SAY YOUR GUESS</>}</button>{heard&&<small>Heard: “{heard}”</small>}<small>Works best in Chrome. Typed guesses remain available.</small></div>}
+        {game.type==="clockGame"&&<div className="pir-clock-mic"><button className={`pir-btn ${listening?"listening":"secondary"}`} disabled={busy&&!listening} onClick={listening?stopClockMic:startClockMic}>{listening?<><MicOff size={20}/> LISTENING — TAP TO STOP</>:<><Mic size={20}/> START MICROPHONE</>}</button>{heard&&<small>Heard: “{heard}”</small>}<small>Once started, it keeps listening for guesses. Typed entry remains available.</small></div>}
         <button className="pir-btn" disabled={busy || number === ""} onClick={()=>send({ value: number })}>Submit</button>
       </>}
       {game.mode === "choice" && <div className="pir-choice-grid">{game.options.map(option=><button key={option} className="pir-btn secondary" disabled={busy} onClick={()=>send({ choice: option })}>{option}</button>)}</div>}
