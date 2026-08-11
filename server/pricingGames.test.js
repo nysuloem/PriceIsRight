@@ -24,7 +24,7 @@ test("all twelve pricing game engines can reach a result", () => {
   g = createPricingGameForType("clockGame", player); g._startedAt=Date.now(); playPricingGame(g,{value:g._prices[0]}); playPricingGame(g,{value:g._prices[1]}); assert.equal(g.status,"won");
   g = createPricingGameForType("anyNumber", player); for (const digit of g._answers[0].slice(1)) { if(g.status === "playing") playPricingGame(g,{choice:String(digit)}); } assert.equal(g.status,"won");
   g = createPricingGameForType("grandGame", player); for (const i of g._prices.map((p,i)=>p<g.target?i:-1).filter(i=>i>=0)) { if(g.status === "playing") playPricingGame(g,{choice:`${i+1}. item`}); } assert.equal(g.status,"won");
-  g = createPricingGameForType("shellGame", player); while(g.stage === "prices") { const i=g.itemIndex; playPricingGame(g,{choice:g._prices[i]>g.items[i].shownPrice?"Higher":"Lower"}); } assert.equal(g.stage,"bonusGuess"); playPricingGame(g,{choice:String(g._ball+1)}); assert.equal(g.status,"won");
+  g = createPricingGameForType("shellGame", player); while(g.stage === "prices") { const i=g.itemIndex; playPricingGame(g,{choice:g._prices[i]>g.items[i].shownPrice?"Higher":"Lower"}); } assert.equal(g.stage,"shell"); playPricingGame(g,{choice:String(g._ball+1)}); assert.equal(g.status,"won");
   g = createPricingGameForType("moneyGame", player); playPricingGame(g,{choice:g._front}); playPricingGame(g,{choice:g._back}); assert.equal(g.status,"won");
   g = createPricingGameForType("luckySeven", player); for(let i=1;i<5;i++)playPricingGame(g,{choice:String(g._digits[i])}); assert.equal(g.status,"won");
 });
@@ -104,13 +104,13 @@ test("Shell Game asks for another shell and exposes the ball for the final lift"
   playPricingGame(g,{choice:"2"});assert.equal(g.status,"lost");assert.equal(g.revealedBall,4);assert.equal(g.winnings,127);
 });
 
-test("four correct Shell Game prices guarantee the bonus prize and unlock its equal cash bonus",()=>{
+test("four correct Shell Game prices guarantee the grand prize without a cash bonus",()=>{
   const g=createPricingGameForType("shellGame",player);
   while(g.stage==="prices"){const i=g.itemIndex;playPricingGame(g,{choice:g._prices[i]>g.items[i].shownPrice?"Higher":"Lower"});}
-  assert.equal(g.stage,"bonusGuess");assert.equal(g.mainPrizeWon,true);assert.equal(g.shells,4);
+  assert.equal(g.stage,"shell");assert.equal(g.shells,4);assert.match(g.prompt,/guaranteed/i);
   const smallTotal=g.wonSmallValue,bonus=g._bonusPrice;
   playPricingGame(g,{choice:String(g._ball+1)});
-  assert.equal(g.status,"won");assert.equal(g.cashBonus,bonus);assert.equal(g.winnings,smallTotal+bonus*2);
+  assert.equal(g.status,"won");assert.equal(g.cashBonus,undefined);assert.equal(g.winnings,smallTotal+bonus);
 });
 
 test("Plinko physics always ends at the bottom in the awarded slot",()=>{
