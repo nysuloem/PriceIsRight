@@ -145,14 +145,6 @@ function HostViewInner({ code }) {
     else if (event.kind === "failure") playBuzzer();
   }, [state?.pricingGame?.lastOutcome]);
 
-  useEffect(() => {
-    const game=state?.pricingGame, drop=game?.lastDrop;
-    if(game?.type!=="plinko"||game.stage!=="dropping"||!drop||drop.id===lastSettledDropRef.current)return;
-    lastSettledDropRef.current=drop.id;
-    const timer=setTimeout(()=>settlePricingGame(code).catch(e=>setError(e.message)),3400);
-    return()=>clearTimeout(timer);
-  },[state?.pricingGame?.lastDrop?.id,state?.pricingGame?.stage,code]);
-
   useEffect(()=>{const s=state?.showdown;if(!s||!["spinning","bonusSpinning"].includes(s.stage))return;const key=`${s.half}-${s.spinSeq}`;if(key===lastSettledWheelRef.current)return;lastSettledWheelRef.current=key;let stopped=false;const attempt=async(retries=0)=>{try{await settleWheel(code);}catch(e){if(!stopped&&retries<2)setTimeout(()=>attempt(retries+1),1200);else if(!stopped){lastSettledWheelRef.current="";setError(e.message);}}};const timer=setTimeout(()=>attempt(),(s.spinDuration||3400)+150);return()=>{stopped=true;clearTimeout(timer);};},[state?.showdown?.half,state?.showdown?.spinSeq,state?.showdown?.stage,state?.showdown?.spinDuration,code]);
 
   // AI turns must not depend on speech audio reaching its `ended` event.
@@ -638,7 +630,7 @@ export function PricingGameView({ game, spotlight = null, rulesOnly = false }) {
         <div className="pir-plinko-board">
           {game.stage === "qualify" && <GameCards items={[game.qualifiers[game.qualifierIndex]].filter(Boolean)} />}
           <div className="pir-plinko-drop-line">{Array.from({length:9},(_,i)=><span key={i}>{i+1}</span>)}</div>
-          <div className="pir-plinko-field"><div className="pir-plinko-pegs">{Array.from({ length: 108 }, (_, i) => <i key={i} />)}</div>{game.lastDrop && <PlinkoChip key={game.lastDrop.id} drop={game.lastDrop} />}</div>
+          <div className="pir-plinko-field"><div className="pir-plinko-pegs">{Array.from({length:12},(_,row)=><div key={row} className={row%2?"offset":""}>{Array.from({length:row%2?8:9},(_,peg)=><i key={peg} />)}</div>)}</div>{game.lastDrop && <PlinkoChip key={game.lastDrop.id} drop={game.lastDrop} onLanded={()=>{if(game.stage!=="dropping"||game.lastDrop.id===lastSettledDropRef.current)return;lastSettledDropRef.current=game.lastDrop.id;settlePricingGame(code).catch(e=>{lastSettledDropRef.current=0;setError(e.message);});}} />}</div>
           <div className="pir-plinko-slots">{game.slots.map((v,i) => <span key={i}>${v}</span>)}</div>
           {game.lastDrop?.value != null && <div className="pir-plinko-result">LANDED ON ${game.lastDrop.value.toLocaleString("en-CA")}</div>}
           <b>{game.stage === "qualify" ? `${game.chips} chip${game.chips === 1 ? "" : "s"} earned` : `${game.chipsLeft} chip${game.chipsLeft === 1 ? "" : "s"} left`}</b>
@@ -664,9 +656,10 @@ export function PricingGameView({ game, spotlight = null, rulesOnly = false }) {
   );
 }
 
-function PlinkoChip({drop}) {
+function PlinkoChip({drop,onLanded}) {
   const ref=useRef(null);
-  useEffect(()=>{const chip=ref.current,field=chip?.parentElement;if(!chip||!field||!drop?.path?.length)return;const column=field.clientWidth/9,height=field.clientHeight-chip.offsetHeight,start=drop.path[0];const frames=drop.path.map((col,i)=>({transform:`translate(${(col-start)*column}px, ${i*height/(drop.path.length-1)}px) rotate(${i%2?18:-18}deg) scale(${i===drop.path.length-1?1.08:1})`,offset:i/(drop.path.length-1),easing:i===drop.path.length-1?"ease-out":"cubic-bezier(.2,.8,.35,1)"}));const animation=chip.animate(frames,{duration:3200,fill:"forwards"});return()=>animation.cancel();},[drop]);
+  const landedRef=useRef(onLanded);useEffect(()=>{landedRef.current=onLanded;},[onLanded]);
+  useEffect(()=>{const chip=ref.current,field=chip?.parentElement;if(!chip||!field||!drop?.path?.length)return;const width=field.clientWidth-chip.offsetWidth,height=field.clientHeight-chip.offsetHeight,startX=(drop.start+.5)*width/9;const frames=drop.path.map((point,i)=>({transform:`translate(${point.x*width/9-startX}px, ${point.y*height}px) rotate(${point.rotation||0}deg) scale(${i===drop.path.length-1?1.06:1})`,offset:i/(drop.path.length-1),easing:i===drop.path.length-1?"cubic-bezier(.2,.8,.2,1)":"cubic-bezier(.35,.05,.65,.95)"}));const animation=chip.animate(frames,{duration:drop.duration||5600,fill:"forwards"});animation.finished.then(()=>landedRef.current?.()).catch(()=>{});return()=>animation.cancel();},[drop.id]);
   return <div ref={ref} className="pir-plinko-chip" style={{left:`calc(${(drop.start+.5)*100/9}% - 13px)`}} />;
 }
 
