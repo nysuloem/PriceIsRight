@@ -48,6 +48,17 @@ test("a second dollar on the bonus spin adds another $1,000",()=>{
   assert.match(s.result,/another \$1,000/);
 });
 
+test("one phone can control multiple independently keyed appearances",()=>{
+  const repeat=[
+    {id:"jason:r1",controllerPlayerId:"jason",name:"Jason",totalWinnings:1000,isAI:false},
+    {id:"jason:r2",controllerPlayerId:"jason",name:"Jason",totalWinnings:2000,isAI:false},
+    {id:"other:r3",controllerPlayerId:"other",name:"Other",totalWinnings:3000,isAI:false},
+  ];
+  const s=createShowdown(1,repeat);
+  wheelAction(s,"jason","spin");
+  assert.equal(s.stage,"spinning");
+});
+
 test("Final Showcase supports bid or pass, two bids, reveal and double-showcase rule",()=>{
   const f=createFinalShowcase([players[0],players[2]]);
   assert.equal(publicFinalShowcase(f).showcases[0].actualPrice,undefined);
