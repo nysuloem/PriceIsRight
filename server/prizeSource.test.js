@@ -33,6 +33,7 @@ test("fallback bidding prizes are display-ready with photos and useful copy", as
   assert.equal(pool.some((item) => !item.image), false);
   assert.equal(pool.some((item) => !item.description || item.description.length < 35), false);
   assert.equal(pool.some((item) => /^From [^—]+—[^.!]+!?$/i.test(item.description)), false);
+  assert.equal(pool.some((item) => /contestants?'? row|substantial|department/i.test(item.description)), false);
 });
 
 test("a used bidding prize leaves the available bank permanently", async () => {

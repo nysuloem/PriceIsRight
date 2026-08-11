@@ -211,13 +211,37 @@ function makeHostDescription(retailer, name) {
 
 function fallbackDescription(retailer, variant, baseName, category) {
   const style = {
-    Classic: "a dependable everyday",
-    Deluxe: "an upgraded",
+    Classic: "a dependable",
+    Deluxe: "a deluxe",
     Premium: "a premium",
     Compact: "a space-saving",
   }[variant] || "a featured";
-  const categoryText = String(category || "home").toLowerCase();
-  return `From ${retailer}, ${style} ${baseName} from the ${categoryText} department, chosen as a substantial Contestants' Row prize.`;
+  const feature = fallbackFeatureDetails(baseName, category);
+  return `From ${retailer}, ${style} ${baseName} with ${feature}.`;
+}
+
+function fallbackFeatureDetails(baseName, category) {
+  const text = `${baseName} ${category || ""}`.toLowerCase();
+  const details = [
+    [/washer/i, "a roomy drum, multiple wash cycles, and a modern laundry-room finish"],
+    [/dryer/i, "sensor drying programs, generous capacity, and a clean front-control design"],
+    [/refrigerator/i, "wide food storage, adjustable shelves, and a stainless-style finish"],
+    [/dishwasher/i, "quiet cleaning cycles, flexible racks, and a streamlined kitchen look"],
+    [/range|microwave|hood/i, "everyday cooking power, easy controls, and a coordinated kitchen finish"],
+    [/freezer|wine fridge/i, "organized cold storage, adjustable temperature control, and a compact footprint"],
+    [/sofa|sectional|recliner|chair/i, "comfortable seating, tailored upholstery, and a polished living-room look"],
+    [/dining/i, "coordinated seating, a sturdy tabletop, and room for family dinners"],
+    [/bedroom|mattress|bed base/i, "a coordinated sleep setup, supportive comfort, and a fresh bedroom style"],
+    [/desk|office/i, "a practical work surface, built-in storage, and a clean home-office profile"],
+    [/bookcase|tv stand|coffee table|ottoman/i, "useful storage, durable surfaces, and a coordinated living-space design"],
+    [/drill|saw|socket|tool|vacuum|level|ladder|shelving/i, "workshop-ready construction, practical storage, and everyday project versatility"],
+    [/vanity|faucet|thermostat/i, "a polished home-upgrade look, easy controls, and practical everyday use"],
+    [/barbecue|patio|gazebo|mower|snow blower|shed|fire pit|deck box|umbrella|planter|hose/i, "outdoor-ready construction, useful seasonal features, and backyard-friendly style"],
+    [/television|sound bar|laptop|tablet|printer|wi-fi|headphones|monitor|smartwatch|speaker|camera/i, "modern connectivity, easy controls, and everyday entertainment value"],
+    [/duvet|blanket|sheet|towel|air purifier/i, "comfort-focused materials, simple everyday care, and a fresh home feel"],
+    [/espresso|mixer|air fryer|cookware|ice maker|food processor/i, "countertop convenience, easy controls, and everyday kitchen versatility"],
+  ];
+  return details.find(([regex]) => regex.test(text))?.[1] || "practical features, everyday usefulness, and a polished home-ready design";
 }
 
 function fallbackImage(baseName, category) {
@@ -264,7 +288,7 @@ function buildCanadianRetailerCatalog() {
             imageAlt: name,
             description,
             category: section.category,
-            hostDescription: clipSpeechLine(`${makeHostDescription(retailer, name)} ${description}`, 170),
+            hostDescription: clipSpeechLine(`${makeHostDescription(retailer, name)} ${description.replace(/^From [^,]+,\s*/i, "")}`, 170),
           });
         });
       });
