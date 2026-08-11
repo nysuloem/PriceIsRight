@@ -91,6 +91,13 @@ test("Cliff Hangers hides the actual price until the climber stops",()=>{
   revealDeferredPrice(g);assert.equal(g.priceReveal.actual,actual);
 });
 
+test("a safe third Cliff Hangers climb wins all three prizes before the subtle price reveal",()=>{
+  const g=createPricingGameForType("cliffHangers",player);g.itemIndex=2;g.climber=4;const actual=g._prices[2];
+  playPricingGame(g,{value:actual});settlePricingAnimation(g);
+  assert.equal(g.status,"won");assert.equal(g.cliffFinalWin,true);assert.equal(g.winnings,g._prices.reduce((sum,price)=>sum+price,0));assert.equal(g.priceReveal.actual,null);
+  revealDeferredPrice(g);assert.equal(g.priceReveal.actual,actual);
+});
+
 test("Shell Game asks for another shell and exposes the ball for the final lift",()=>{
   const g=createPricingGameForType("shellGame",player);g.stage="shell";g.shells=2;g.wonSmallValue=127;g.chosenShells=[];g.options=["1","2","3","4"];g._ball=3;
   playPricingGame(g,{choice:"1"});assert.equal(g.prompt,"Pick another shell.");
