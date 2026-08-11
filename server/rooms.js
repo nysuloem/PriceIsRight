@@ -348,8 +348,10 @@ export function settlePricingGame(room) {
   // Animation completion can be reported by both the normal browser event and
   // its watchdog (or by two host displays). Treat repeats as harmless.
   if(room.pricingGame.type==="plinko"&&room.pricingGame.stage!=="dropping"&&room.pricingGame.lastDrop?.value!=null)return room;
+  if(room.pricingGame.type==="cliffHangers"&&room.pricingGame.stage!=="climbing"&&room.pricingGame.priceReveal)return room;
   settlePricingAnimation(room.pricingGame);
   const g=room.pricingGame;
+  if(g._pendingPriceReveal){room.phase="pricingRevealCue";setHostLine(room,`The climber stopped at step ${g.climber}. Now, show me the actual price!`,"pricingRevealCue");return room;}
   setHostLine(room,g.status==="playing"?g.prompt:g.result,g.status==="playing"?"pricingPrompt":"pricingResult");
 }
 
