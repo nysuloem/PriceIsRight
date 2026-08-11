@@ -12,6 +12,9 @@ import {
   settleWheel, acknowledgeWheel, resolveWheelAI, finishShowdown, advanceShowcase, resolveShowcaseAI,
 } from "./api.js";
 import OpeningSequence from "./OpeningSequence.jsx";
+import cliffYodelBase64 from "./assets/cliff-hangers-yodel.b64?raw";
+
+const cliffYodelUrl=`data:audio/mpeg;base64,${cliffYodelBase64.trim()}`;
 
 const POLL_MS = 1200;
 
@@ -116,8 +119,6 @@ function playPlinkoFanfare() {
   try { const ctx=new (window.AudioContext||window.webkitAudioContext)();[392,523,659,784,1047,1319].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.13;o.type=i%2?"triangle":"square";o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.24,t+.025);g.gain.exponentialRampToValueAtTime(.001,t+.5);o.start(t);o.stop(t+.52);});}catch{}
 }
 
-function playCliffYodel(duration=2200){try{const ctx=new(window.AudioContext||window.webkitAudioContext)(),notes=[659,784,880,784,988,880,784,659];for(let i=0,t=ctx.currentTime;i<Math.max(4,Math.ceil(duration/230));i++,t+=.23){const o=ctx.createOscillator(),g=ctx.createGain();o.type="triangle";o.connect(g);g.connect(ctx.destination);o.frequency.setValueAtTime(notes[i%notes.length],t);o.frequency.linearRampToValueAtTime(notes[(i+1)%notes.length],t+.2);g.gain.setValueAtTime(.001,t);g.gain.linearRampToValueAtTime(.16,t+.025);g.gain.exponentialRampToValueAtTime(.001,t+.21);o.start(t);o.stop(t+.22);}}catch{}}
-
 function playShowcaseCelebration() {
   try { const ctx=new (window.AudioContext||window.webkitAudioContext)(); [523,659,784,1047,1319,1568].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.13;o.type=i%2?"triangle":"square";o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.22,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.55);o.start(t);o.stop(t+.58);}); } catch {}
 }
@@ -139,6 +140,7 @@ function HostViewInner({ code }) {
   const lastSettledDropRef = useRef(0);
   const lastSettledClimbRef = useRef(0);
   const lastYodelClimbRef = useRef(0);
+  const cliffYodelRef = useRef(null);
   const lastSettledWheelRef = useRef("");
   const lastAIWheelActionRef = useRef("");
   const finishPlinkoDrop=useCallback((dropId)=>{if(!dropId||dropId===lastSettledDropRef.current)return;lastSettledDropRef.current=dropId;settlePricingGame(code).catch(e=>{lastSettledDropRef.current=0;setError(e.message);});},[code]);
@@ -164,7 +166,7 @@ function HostViewInner({ code }) {
 
   useEffect(()=>{const game=state?.pricingGame,climb=game?.lastClimb;if(game?.type!=="cliffHangers"||game.stage!=="climbing"||!climb)return;const timer=setTimeout(()=>finishCliffClimb(climb.id),(climb.duration||1000)+700);return()=>clearTimeout(timer);},[state?.pricingGame?.lastClimb?.id,state?.pricingGame?.stage,state?.pricingGame?.lastClimb?.duration,finishCliffClimb]);
 
-  useEffect(()=>{const game=state?.pricingGame,climb=game?.lastClimb;if(game?.type!=="cliffHangers"||game.stage!=="climbing"||!climb||climb.id===lastYodelClimbRef.current)return;lastYodelClimbRef.current=climb.id;playCliffYodel(climb.duration);},[state?.pricingGame?.lastClimb?.id,state?.pricingGame?.stage]);
+  useEffect(()=>{const game=state?.pricingGame,climb=game?.lastClimb,audio=cliffYodelRef.current;if(game?.type!=="cliffHangers"||game.stage!=="climbing"||!climb){if(audio){audio.pause();audio.currentTime=0;}return;}if(climb.id===lastYodelClimbRef.current)return;lastYodelClimbRef.current=climb.id;audio.pause();audio.currentTime=0;audio.loop=true;audio.volume=.72;audio.play().catch(()=>{});return()=>{audio.pause();audio.currentTime=0;};},[state?.pricingGame?.lastClimb?.id,state?.pricingGame?.stage]);
 
   // AI turns must not depend on speech audio reaching its `ended` event.
   useEffect(()=>{const s=state?.showdown,p=s?.participants?.[s.currentIndex];if(!s||!p?.isAI||!["turn","decision","bonusTurn"].includes(s.stage))return;const key=`${s.half}-${s.currentIndex}-${s.stage}-${p.spins?.length||0}-${s.spinSeq}`;if(key===lastAIWheelActionRef.current)return;lastAIWheelActionRef.current=key;let stopped=false;const timer=setTimeout(async()=>{try{await resolveWheelAI(code);}catch(e){if(!stopped){lastAIWheelActionRef.current="";setError(e.message);}}},1800);return()=>{stopped=true;clearTimeout(timer);};},[state?.showdown?.half,state?.showdown?.currentIndex,state?.showdown?.stage,state?.showdown?.spinSeq,code]);
@@ -377,6 +379,7 @@ function HostViewInner({ code }) {
       {/* Audio elements always in DOM */}
       <audio ref={audioRef} style={{ display: "none" }} />
       <audio ref={announcerRef} style={{ display: "none" }} />
+      <audio ref={cliffYodelRef} src={cliffYodelUrl} preload="auto" style={{ display: "none" }} />
 
       {phase === "opening" && state && (
         <OpeningSequence
@@ -684,9 +687,10 @@ function PlinkoChip({drop,onLanded}) {
 }
 
 function CliffClimber({position,climb,onStopped}){
-  const ref=useRef(null),stoppedRef=useRef(onStopped);useEffect(()=>{stoppedRef.current=onStopped;},[onStopped]);
-  useEffect(()=>{const el=ref.current;if(!el||!climb)return;const from=Math.min(104,climb.from*4),to=Math.min(104,climb.to*4),fell=climb.to>25;const animation=el.animate([{left:`${from}%`,transform:"translateX(-50%) rotate(0deg)"},{left:`${to}%`,transform:fell?"translateX(-20%) translateY(55px) rotate(105deg)":"translateX(-50%) rotate(0deg)"}],{duration:climb.duration||1000,easing:"linear",fill:"forwards"});animation.onfinish=()=>stoppedRef.current?.();if(animation.finished?.then)animation.finished.then(()=>stoppedRef.current?.()).catch(()=>{});return()=>animation.cancel();},[climb?.id]);
-  return <div ref={ref} className="pir-climber" style={{left:`${Math.min(104,position*4)}%`}}>🧗</div>;
+  const initial=climb?climb.from:position,[displayPosition,setDisplayPosition]=useState(initial),stoppedRef=useRef(onStopped),settledRef=useRef(0);useEffect(()=>{stoppedRef.current=onStopped;},[onStopped]);
+  useEffect(()=>{if(!climb){setDisplayPosition(position);return;}settledRef.current=0;setDisplayPosition(climb.from);let secondFrame,firstFrame=requestAnimationFrame(()=>{secondFrame=requestAnimationFrame(()=>setDisplayPosition(climb.to));});return()=>{cancelAnimationFrame(firstFrame);cancelAnimationFrame(secondFrame);};},[climb?.id,position]);
+  const finish=()=>{if(!climb||settledRef.current===climb.id)return;settledRef.current=climb.id;stoppedRef.current?.();},fell=displayPosition>25;
+  return <div className={`pir-climber ${fell?"fell":""}`} onTransitionEnd={e=>{if(e.propertyName==="left")finish();}} style={{left:`${Math.min(104,displayPosition*4)}%`,transitionDuration:`${climb?.duration||0}ms`,transitionTimingFunction:"linear",transform:fell?"translateX(-20%) translateY(55px) rotate(105deg)":"translateX(-50%) rotate(0deg)"}}>🧗</div>;
 }
 
 function GameCards({ items = [] }) {

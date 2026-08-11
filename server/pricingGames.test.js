@@ -85,6 +85,7 @@ test("Cliff Hangers hides the actual price until the climber stops",()=>{
   const g=createPricingGameForType("cliffHangers",player),actual=g._prices[0];
   playPricingGame(g,{value:actual-7});
   assert.equal(g.stage,"climbing");assert.equal(g.climber,7);assert.equal(g.priceReveal,undefined);assert.equal(g.lastClimb.from,0);assert.equal(g.lastClimb.to,7);
+  assert.equal(g.lastClimb.duration,6300);assert.equal(g.lastClimb.stepDuration,900);
   settlePricingAnimation(g);
   assert.equal(g.priceReveal.actual,null);assert.ok(g._pendingPriceReveal);
   revealDeferredPrice(g);assert.equal(g.priceReveal.actual,actual);
