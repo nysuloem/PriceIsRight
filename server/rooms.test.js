@@ -72,6 +72,19 @@ test("Any Number introduces its three-digit prize after the car and rules",()=>{
   assert.equal(room.phase,"pricingGame");
 });
 
+test("Shell Game introduces the grand prize before the rules and first small prize",()=>{
+  const {room}=createPricingGameDemo("shellGame");
+  joinRoom(room,"Shell Player");
+  assert.equal(room.phase,"pricingPrizeIntro");
+  assert.equal(room.pricingAnnouncement.id,room.pricingGame.bonusPrize.id);
+  beginPricingGame(room);
+  assert.equal(room.phase,"pricingIntro");
+  assert.doesNotMatch(room.pricingGame.instructions,/cash bonus/i);
+  beginPricingGame(room);
+  assert.equal(room.phase,"pricingPrizeIntro");
+  assert.equal(room.pricingAnnouncement.id,room.pricingGame.items[0].id);
+});
+
 test("replacement contestant stays off the row until the name call begins", () => {
   const room = createRoom();
   room.phase = "replacement";
