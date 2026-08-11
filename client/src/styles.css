@@ -1069,3 +1069,56 @@ body {
 @media(max-width:1050px){.pir-wheel-leader{position:static;max-width:260px;margin:4px auto}.pir-wheel-machine{transform:scale(.88);transform-origin:top center;margin-bottom:-35px}}
 .pir-grocery-grand{display:flex;align-items:center;justify-content:center;gap:12px;margin:4px auto 8px;padding:6px 12px;border:4px solid #f4cf39;background:#164b92;color:#fff;width:min(920px,94%)}.pir-grocery-grand>b{font:900 22px "Anton",sans-serif;color:#ffdf42}.pir-grocery-grand .pir-game-cards{margin:0;flex:1}.pir-grocery-grand .pir-prize-card{min-height:110px}.pir-grocery-grand .pir-prize-image{height:90px}
 .pir-kiss-btn{margin-top:14px;background:linear-gradient(135deg,#e91e63,#ff6f91)}.pir-kiss-burst{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;gap:clamp(8px,2vw,28px);pointer-events:none;background:#ff4f8b22;animation:kissFade 2.6s ease both}.pir-kiss-burst span{font-size:clamp(48px,9vw,130px);animation:kissPop .8s ease both}.pir-kiss-burst span:nth-child(even){animation-delay:.15s}.pir-kiss-burst b{padding:18px 28px;border:6px solid #fff;border-radius:24px;background:#e91e63;color:#fff;font:900 clamp(25px,4vw,62px) "Anton",sans-serif;text-align:center;box-shadow:0 8px 30px #0008;animation:kissPop .65s ease both}@keyframes kissPop{0%{transform:scale(.1) rotate(-20deg);opacity:0}70%{transform:scale(1.15) rotate(5deg);opacity:1}100%{transform:scale(1)}}@keyframes kissFade{0%,75%{opacity:1}100%{opacity:0}}
+
+/* TV viewport fitting -----------------------------------------------------
+   The host screen is normally a 16:9 television. During the stage games the
+   persistent Contestants' Row heading is redundant, so reclaim that height
+   and compact the tallest components instead of allowing a page scrollbar. */
+@media (min-width:900px) and (orientation:landscape) {
+  .pir-host-root:has(> .pir-pricing-board) .pir-title-row,
+  .pir-host-root:has(> .pir-wheel-stage) .pir-title-row,
+  .pir-host-root:has(> .pir-showcase-stage) .pir-title-row{display:none}
+  .pir-host-root>.pir-pricing-board,.pir-host-root>.pir-wheel-stage,.pir-host-root>.pir-showcase-stage{max-height:calc(100dvh - 20px);overflow:hidden;margin:auto}
+}
+@media (min-width:900px) and (max-height:1100px) and (orientation:landscape) {
+  .pir-host-root:has(> .pir-pricing-board){padding:8px}
+  .pir-host-root>.pir-pricing-board{width:100%;padding:10px 16px;border-width:6px;border-radius:16px}
+  .pir-host-root .pir-pricing-title{font-size:clamp(30px,5.2vh,48px);line-height:1;margin:2px 0}
+  .pir-host-root .pir-pricing-kicker{font-size:11px}
+  .pir-host-root .pir-pricing-rules{margin:4px auto 8px;line-height:1.25;font-size:clamp(15px,2vh,21px)}
+  .pir-host-root .pir-pricing-prompt{padding:8px 12px;margin:8px auto 4px;font-size:clamp(15px,2.3vh,21px)}
+  .pir-host-root .pir-game-cards{gap:7px;margin:7px 0}
+  .pir-host-root .pir-game-cards>div{padding:6px 5px;gap:2px;border-width:3px;min-height:54px}
+  .pir-host-root .pir-prize-picture,.pir-host-root .pir-game-cards img{height:clamp(62px,9.5vh,92px)}
+  .pir-host-root .pir-game-cards p{font-size:10px;line-height:1.1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .pir-host-root .pir-game-history{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;margin:5px auto 0;padding:5px 8px;font-size:11px;line-height:1.2}
+  .pir-host-root .pir-price-digits{margin:7px 0}
+  .pir-host-root .pir-price-digits span{height:clamp(48px,7vh,66px);font-size:clamp(25px,4.5vh,40px)}
+  .pir-host-root .pir-plinko-field{height:clamp(235px,37vh,350px)}
+  .pir-host-root .pir-plinko-board{padding:7px 24px}
+  .pir-host-root .pir-plinko-result{margin-top:5px;padding:5px;font-size:20px}
+  .pir-host-root .pir-grocery-grand{margin:2px auto 4px;padding:3px 8px}
+  .pir-host-root .pir-grocery-grand .pir-prize-card{min-height:72px}
+  .pir-host-root .pir-grocery-grand .pir-prize-picture,.pir-host-root .pir-grocery-grand .pir-game-cards img{height:58px}
+  .pir-host-root .pir-register,.pir-host-root .pir-grand-money{padding:6px 18px;border-width:4px;font-size:25px}
+  .pir-host-root .pir-shell-status{margin-top:5px;padding:4px 10px}
+  .pir-host-root .pir-shell-board{margin:4px auto;gap:9px}
+  .pir-host-root .pir-shell-board>div{min-height:76px}
+  .pir-host-root .pir-shell-cup{font-size:50px}
+  .pir-host-root .pir-ten-stage{margin:3px auto 7px;padding:6px 12px 9px;border-width:6px}
+  .pir-host-root .pir-ten-logo{font-size:clamp(30px,5vh,52px)}
+  .pir-host-root .pir-ten-logo b{width:52px;height:52px;font-size:34px}
+  .pir-host-root .pir-ten-board{padding:7px;border-width:4px}
+  .pir-host-root .pir-ten-attempt div{height:38px;border-width:2px}
+  .pir-host-root .pir-ten-attempt span{width:20px;height:20px;margin-top:3px;border-width:2px;font-size:11px}
+  .pir-host-root .pir-ten-current>div:first-child strong{font-size:30px}
+  .pir-host-root .pir-ten-digits span{width:38px;height:44px;font-size:27px;border-width:3px}
+  .pir-host-root .pir-cliff{margin:12px auto 5px;padding-top:38px}
+  .pir-host-root .pir-clock{width:92px;height:92px;border-width:7px;font-size:42px}
+  .pir-host-root .pir-three-strikes{margin:6px auto;padding:9px}
+  .pir-host-root .pir-wheel-stage,.pir-host-root .pir-showcase-stage{padding:10px 16px;border-width:6px}
+  .pir-host-root .pir-wheel-machine{transform:scale(.82);transform-origin:top center;margin-bottom:-72px}
+  .pir-host-root .pir-wheel-scoreboard,.pir-host-root .pir-showcase-contestants{margin:6px auto}
+  .pir-host-root .pir-showcase-prizes img{height:clamp(90px,16vh,145px)}
+  .pir-host-root .pir-showcase-prizes>div{padding:5px;border-width:4px}
+}
