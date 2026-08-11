@@ -334,6 +334,11 @@ export function continuePricingPrice(room) {
   if (room.phase !== "pricingPriceShown" || !room.pricingGame) throw new Error("No revealed price is waiting");
   const g=room.pricingGame;
   clearDeferredPrice(g);
+  if(g.type==="cliffHangers"&&g.cliffOver){
+    room.phase="pricingGame";
+    setHostLine(room,"","pricingResult");
+    return;
+  }
   if (g.pendingPrizeAnnouncement) {
     room.pricingAnnouncementQueue=[g.pendingPrizeAnnouncement];
     g.pendingPrizeAnnouncement=null;
@@ -354,7 +359,7 @@ export function settlePricingGame(room) {
   if(room.pricingGame.type==="cliffHangers"&&room.pricingGame.stage!=="climbing"&&room.pricingGame.priceReveal)return room;
   settlePricingAnimation(room.pricingGame);
   const g=room.pricingGame;
-  if(g._pendingPriceReveal){room.phase="pricingRevealCue";setHostLine(room,g.cliffFinalWin?"HE MADE IT! You won all three prizes!":`The climber stopped at step ${g.climber}. Now, show me the actual price!`,"pricingRevealCue");return room;}
+  if(g._pendingPriceReveal){room.phase="pricingRevealCue";setHostLine(room,g.cliffFinalWin?"HE MADE IT! You won all three prizes!":g.cliffOver?"OH, sorry, he went over the cliff.":`The climber stopped at step ${g.climber}. Now, show me the actual price!`,"pricingRevealCue");return room;}
   setHostLine(room,g.status==="playing"?g.prompt:g.result,g.status==="playing"?"pricingPrompt":"pricingResult");
 }
 
