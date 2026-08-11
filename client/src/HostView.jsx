@@ -701,8 +701,16 @@ function CliffBoard({game,reveal=null,onStopped}){
   return <div className="pir-cliff"><CliffClimber position={game.climber} climb={game.stage==="climbing"?game.lastClimb:null} onStopped={onStopped}/><div className="pir-cliff-track" /><b>{game.stage==="climbing"?"WATCH HIM CLIMB...":`Step ${game.climber} / 25`}</b>{reveal&&<div className={`pir-cliff-price-pop ${reveal.actual==null?"waiting":game.cliffFinalWin?"subtle":""}`}><small>YOUR GUESS: {reveal.guess}</small>{reveal.actual==null?<span>?</span>:<><em>ACTUAL RETAIL PRICE</em><strong>${Number(reveal.actual).toLocaleString("en-CA")}</strong></>}</div>}</div>;
 }
 
+function PrizePhoto({item}){
+  const [status,setStatus]=useState("loading");
+  const identity=item.imageKey||`${item.id||item.name}|${item.image||"no-photo"}`;
+  useEffect(()=>setStatus("loading"),[identity]);
+  if(!item.image)return null;
+  return <img key={identity} src={item.image} alt={item.imageAlt||item.name} data-prize-image-key={identity} style={{visibility:status==="loaded"?"visible":"hidden"}} onLoad={()=>setStatus("loaded")} onError={()=>setStatus("error")} />;
+}
+
 function GameCards({ items = [] }) {
-  return <div className="pir-game-cards">{items.map((item,i)=><div key={item.id ?? i} className={item.used || item.selected ? "used" : ""}><div className="pir-prize-picture"><div className="pir-prize-visual" role="img" aria-label={item.name}>{item.visual||"🎁"}</div>{item.image&&<img src={item.image} alt={item.name} onError={e=>{e.currentTarget.style.display="none"}} />}</div><b>{item.brand && <small>{item.brand}</small>}{item.name}</b>{item.description && <p>{item.description}</p>}{item.revealedPrice != null ? <span className="pir-revealed-price">${Number(item.revealedPrice).toLocaleString("en-CA")}</span> : item.shownPrice != null && <span>${item.shownPrice}</span>}</div>)}</div>;
+  return <div className="pir-game-cards">{items.map((item,i)=>{const identity=item.imageKey||item.id||`${item.brand||""}-${item.name}-${i}`;return <div key={identity} className={item.used || item.selected ? "used" : ""}><div className="pir-prize-picture"><div className="pir-prize-visual" role="img" aria-label={item.name}>{item.visual||"🎁"}</div><PrizePhoto key={identity} item={item}/></div><b>{item.brand && <small>{item.brand}</small>}{item.name}</b>{item.description && <p>{item.description}</p>}{item.revealedPrice != null ? <span className="pir-revealed-price">${Number(item.revealedPrice).toLocaleString("en-CA")}</span> : item.shownPrice != null && <span>${item.shownPrice}</span>}</div>})}</div>;
 }
 
 // Canadian $100 bill — SVG illustration
