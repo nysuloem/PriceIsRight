@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { acknowledgeWheelResult, advance, beginPricingGame, continuePricingPrice, createPricingGameDemo, createRoom, joinRoom, kissHost, makePricingGameSchedule, publicState, restart, revealPricingPrice, revealReplacement, settlePricingGame, settleWheelGame, wheelGameAction } from "./rooms.js";
+import { acknowledgeWheelResult, advance, advanceShowcasePresentation, beginPricingGame, continuePricingPrice, createPricingGameDemo, createRoom, joinRoom, kissHost, makePricingGameSchedule, pricingGameAction, publicState, restart, revealPricingPrice, revealReplacement, settlePricingGame, settleWheelGame, wheelGameAction } from "./rooms.js";
 import { createShowdown } from "./showFlow.js";
 import { createPricingGameForType, playPricingGame } from "./pricingGames.js";
 
@@ -138,6 +138,25 @@ test("only a human bidding winner can trigger the host-kiss celebration",()=>{
   assert.equal(event.playerName,"Jamie");
   assert.equal(publicState(room).kissEvent.seq,1);
   assert.throws(()=>kissHost(room,"other"),/winning contestant/i);
+});
+
+test("non-playing humans can shout pricing suggestions without changing the game",()=>{
+  const room=createRoom();room.phase="pricingGame";room.players=[{id:"player",name:"Player"},{id:"audience",name:"Audience"}];room.pricingGame=createPricingGameForType("punchABunch",room.players[0]);
+  const before=room.pricingGame.qualifierIndex;
+  pricingGameAction(room,"audience",{audienceChoice:"Higher"});
+  assert.equal(room.pricingGame.qualifierIndex,before);
+  assert.equal(room.pricingGame.audienceSuggestions.latest.choice,"Higher");
+  assert.equal(room.pricingGame.audienceSuggestions.latest.playerName,"Audience");
+  assert.equal(room.pricingGame.audienceSuggestions.counts.Higher,1);
+  assert.throws(()=>pricingGameAction(room,"player",{audienceChoice:"Lower"}),/non-playing/i);
+});
+
+test("the completed Showcase advances through host and announcer credits",()=>{
+  const room=createRoom();room.finalShowcase={stage:"complete"};room.phase="showcaseReveal";room.closingLine="Be kind and share the snacks!";
+  advanceShowcasePresentation(room);
+  assert.equal(room.phase,"creditsHost");assert.equal(room.hostLine.type,"endHost");assert.match(room.hostLine.text,/Good bye/i);
+  advanceShowcasePresentation(room);
+  assert.equal(room.phase,"creditsAnnouncer");assert.equal(room.hostLine.type,"endAnnouncer");assert.match(room.hostLine.text,/wishing you a good day/i);
 });
 
 test("replacement contestant stays off the row until the name call begins", () => {
