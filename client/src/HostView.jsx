@@ -13,8 +13,10 @@ import {
 } from "./api.js";
 import OpeningSequence from "./OpeningSequence.jsx";
 import cliffYodelBase64 from "./assets/cliff-hangers-yodel.b64?raw";
+import clockBellBase64 from "./assets/clock-game-bell.b64?raw";
 
 const cliffYodelUrl=`data:audio/mpeg;base64,${cliffYodelBase64.trim()}`;
+const clockBellUrl=`data:audio/mpeg;base64,${clockBellBase64.trim()}`;
 
 const POLL_MS = 1200;
 
@@ -111,6 +113,14 @@ function playSuccess() {
   try { const ctx=new (window.AudioContext||window.webkitAudioContext)(); [523,659,784,1047].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.1;o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.25,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.28);o.start(t);o.stop(t+.3);}); } catch {}
 }
 
+function playClockTick(){
+  try{const ctx=new(window.AudioContext||window.webkitAudioContext)(),o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime;o.type="square";o.frequency.setValueAtTime(1250,t);o.frequency.exponentialRampToValueAtTime(760,t+.035);g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(.001,t+.055);o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+.06);}catch{}
+}
+
+function playClockBell(){
+  try{const audio=new Audio(clockBellUrl);audio.volume=.78;audio.play().catch(()=>playSuccess());}catch{playSuccess();}
+}
+
 function playCarFanfare() {
   try { const ctx=new (window.AudioContext||window.webkitAudioContext)(); [392,523,659,784,1047].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.11;o.type="square";o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.2,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.42);o.start(t);o.stop(t+.44);}); } catch {}
 }
@@ -153,7 +163,8 @@ function HostViewInner({ code }) {
     const event = state?.pricingGame?.lastOutcome;
     if (!event || event.seq === lastOutcomeRef.current) return;
     lastOutcomeRef.current = event.seq;
-    if (event.kind === "success" || event.kind === "win") playSuccess();
+    if (state?.pricingGame?.type==="clockGame"&&(event.kind==="success"||event.kind==="win"))playClockBell();
+    else if (event.kind === "success" || event.kind === "win") playSuccess();
     else if (event.kind === "loss") playWomp();
     else if (event.kind === "failure") playBuzzer();
   }, [state?.pricingGame?.lastOutcome]);
@@ -277,7 +288,8 @@ function HostViewInner({ code }) {
     } else if (type === "pricingPrizeIntro") {
       if (/new car/i.test(text)) playCarFanfare();
       else if(state.pricingGame?.type==="shellGame"&&state.pricingAnnouncement?.id===state.pricingGame?.bonusPrize?.id)playShowcaseCelebration();
-      setTimeout(() => current(() => playTTS(ann, text, () => safely(() => beginPricingGame(code)), config.announcerVoice || "onyx", "announcer")), 650);
+      const bellDelay=state.pricingGame?.type==="clockGame"&&state.pricingGame?.lastOutcome?.kind==="success"?4000:650;
+      setTimeout(() => current(() => playTTS(ann, text, () => safely(() => beginPricingGame(code)), config.announcerVoice || "onyx", "announcer")), bellDelay);
     } else if (type === "pricingRevealCue") {
       playTTS(el, text, () => safely(() => revealPricingPrice(code)), voice, "host");
     } else if (type === "pricingPriceShown") {
@@ -285,7 +297,8 @@ function HostViewInner({ code }) {
     } else if (type === "pricingGame" || type === "pricingPrompt") {
       playTTS(el, text, () => {}, voice);
     } else if (type === "pricingResult") {
-      playTTS(el, text, () => { if (!state.isDemo) safely(() => restartGame(code, "sameLineup")); }, voice);
+      const finish=()=>playTTS(el, text, () => { if (!state.isDemo) safely(() => restartGame(code, "sameLineup")); }, voice);
+      if(state.pricingGame?.type==="clockGame"&&state.pricingGame?.status==="won")setTimeout(()=>current(finish),4000);else finish();
     } else if (type === "wheelIntro" || type === "wheelPrompt" || type === "wheelAdvance") {
       playTTS(el,text,()=>{},voice);
     } else if (type === "wheelSpin") {
@@ -669,7 +682,7 @@ export function PricingGameView({ game, spotlight = null, rulesOnly = false }) {
       {game.type === "diceGame" && <><GameCards items={[game.car]} /><div className="pir-dice-board"><div className="pir-price-digits"><span>{game.firstDigit}</span>{game.revealed.map((n,i)=><span key={i} className={game.correct[i]===false?"wrong":game.correct[i]===true?"right":""}>{n ?? "?"}</span>)}</div><div className="pir-dice-columns">{game.rolls.map((roll,i)=><div key={i}><div className={`pir-die ${i===game.digitIndex&&game.stage==="roll"?"rolling":""}`}>{roll ?? "–"}</div><b>{game.choices[i] || "WAITING"}</b><small>{game.correct[i]===true?"✓ RIGHT":game.correct[i]===false?"✕ WRONG":"LOCKED"}</small></div>)}</div></div></>}
       {game.type === "groceryGame" && <><div className="pir-register">TOTAL ${game.total.toFixed(2)}</div><GameCards items={game.items} /></>}
       {game.type === "oneAway" && <><GameCards items={[game.car]} /><div className="pir-price-digits">{game.shownDigits.map((n,i)=><span key={i}>{game.answers[i] ? n+(game.answers[i]==="Higher"?1:-1) : n}</span>)}</div>{game.rightCount != null && <div className="pir-pricing-clue">{game.rightCount} RIGHT</div>}</>}
-      {game.type === "clockGame" && <><div className="pir-clock">{game.secondsLeft}</div><GameCards items={[game.items[game.itemIndex]].filter(Boolean)} /></>}
+      {game.type === "clockGame" && <><ClockDisplay endsAt={game.clockEndsAt} fallback={game.secondsLeft} running={game.status==="playing"}/><GameCards items={[game.items[game.itemIndex]].filter(Boolean)} /></>}
       {game.type === "anyNumber" && <div className="pir-any-number">{game.boards.map(b => <div key={b.label}><b>{b.label}</b><div className="pir-price-digits">{b.cells.map((n,i)=><span key={i}>{n ?? "_"}</span>)}</div></div>)}</div>}
       {game.type === "grandGame" && <><div className="pir-grand-money">${game.winnings}</div><div>Target: under ${game.target}</div><GameCards items={game.items} /></>}
       {game.type === "shellGame" && <><div className={`pir-shell-prize-stage ${game.stage==="prices"?"pricing":""}`}><div className="pir-shell-bonus"><b>GRAND PRIZE</b><GameCards items={[game.bonusPrize].filter(Boolean)} /></div>{game.stage==="prices"&&<div className="pir-shell-small"><div className="pir-small-prize-label">SMALL PRIZE {game.itemIndex+1} OF 4</div><GameCards items={[game.items[game.itemIndex]].filter(Boolean)} /></div>}</div><div className="pir-shell-status">SHELL MARKERS EARNED: {game.shells} · SMALL PRIZES WON: ${Number(game.wonSmallValue||0).toLocaleString("en-CA")}</div><div className="pir-shell-board">{[1,2,3,4].map(n=><div key={n} className={game.revealedBall===n?"ball-revealed":game.chosenShells?.includes(n)?"shell-lifted":""}><span className="pir-shell-cup">🐚</span><i>{game.revealedBall===n?"●":""}</i><b>{n}</b></div>)}</div></>}
@@ -689,6 +702,12 @@ function PlinkoChip({drop,onLanded}) {
   const landedRef=useRef(onLanded);useEffect(()=>{landedRef.current=onLanded;},[onLanded]);
   useEffect(()=>{const chip=ref.current,field=chip?.parentElement;if(!chip||!field||!drop?.path?.length)return;const width=field.clientWidth-chip.offsetWidth,height=field.clientHeight-chip.offsetHeight,startX=(drop.start+.5)*width/9;const frames=drop.path.map((point,i)=>({transform:`translate(${point.x*width/9-startX}px, ${point.y*height}px) rotate(${point.rotation||0}deg) scale(${i===drop.path.length-1?1.06:1})`,offset:i/(drop.path.length-1),easing:i===drop.path.length-1?"cubic-bezier(.2,.8,.2,1)":"cubic-bezier(.35,.05,.65,.95)"}));const animation=chip.animate(frames,{duration:drop.duration||5600,fill:"forwards"});animation.onfinish=()=>landedRef.current?.();if(animation.finished?.then)animation.finished.then(()=>landedRef.current?.()).catch(()=>{});return()=>animation.cancel();},[drop.id]);
   return <div ref={ref} className="pir-plinko-chip" style={{left:`calc(${(drop.start+.5)*100/9}% - 13px)`}} />;
+}
+
+function ClockDisplay({endsAt,fallback=90,running=true}){
+  const remaining=()=>endsAt?Math.max(0,Math.ceil((endsAt-Date.now())/1000)):fallback,[seconds,setSeconds]=useState(remaining),previous=useRef(seconds);
+  useEffect(()=>{setSeconds(remaining());if(!running||!endsAt)return;const timer=setInterval(()=>{const next=remaining();setSeconds(next);if(next>0&&next!==previous.current)playClockTick();previous.current=next;},100);return()=>clearInterval(timer);},[endsAt,running]);
+  return <div className="pir-clock">{seconds}</div>;
 }
 
 function CliffClimber({position,climb,onStopped}){
