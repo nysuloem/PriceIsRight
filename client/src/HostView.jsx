@@ -694,7 +694,7 @@ function CliffClimber({position,climb,onStopped}){
   const initial=climb?climb.from:position,[displayPosition,setDisplayPosition]=useState(initial),stoppedRef=useRef(onStopped),settledRef=useRef(0);useEffect(()=>{stoppedRef.current=onStopped;},[onStopped]);
   useEffect(()=>{if(!climb){setDisplayPosition(position);return;}settledRef.current=0;setDisplayPosition(climb.from);let secondFrame,firstFrame=requestAnimationFrame(()=>{secondFrame=requestAnimationFrame(()=>setDisplayPosition(climb.to));});return()=>{cancelAnimationFrame(firstFrame);cancelAnimationFrame(secondFrame);};},[climb?.id,position]);
   const finish=()=>{if(!climb||settledRef.current===climb.id)return;settledRef.current=climb.id;stoppedRef.current?.();},fell=displayPosition>25;
-  return <div className={`pir-climber ${fell?"fell":""}`} onTransitionEnd={e=>{if(e.propertyName==="left")finish();}} style={{left:`${Math.min(104,displayPosition*4)}%`,transitionDuration:`${climb?.duration||0}ms`,transitionTimingFunction:"linear",transform:fell?"translateX(-20%) translateY(55px) rotate(105deg)":"translateX(-50%) rotate(0deg)"}}>🧗</div>;
+  return <div className={`pir-climber ${fell?"fell":""}`} onTransitionEnd={e=>{if(e.propertyName==="left")finish();}} style={{left:`${Math.min(104,displayPosition*4)}%`,transitionDuration:`${climb?.duration||0}ms`,transitionTimingFunction:"linear",transform:"translateX(-50%)"}}>🧗</div>;
 }
 
 function CliffBoard({game,reveal=null,onStopped}){
