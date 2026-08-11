@@ -24,7 +24,7 @@ function preparePricingIntroduction(room, player) {
     setHostLine(room,car?.announcerText||"IT'S A NEW CAR!","pricingPrizeIntro");
   } else {
     room.phase="pricingIntro";
-    setHostLine(room,`${player.name}, you are going to play ${game.title}!`,"pricingGameIntro");
+    setHostLine(room,game.type==="plinko"?`${player.name}, you're going to play PLINKO! You have a chance to win up to $50,000 in cash!`:`${player.name}, you are going to play ${game.title}!`,"pricingGameIntro");
   }
 }
 
@@ -345,6 +345,9 @@ export function continuePricingPrice(room) {
 
 export function settlePricingGame(room) {
   if (!room.pricingGame) throw new Error("No pricing game is active");
+  // Animation completion can be reported by both the normal browser event and
+  // its watchdog (or by two host displays). Treat repeats as harmless.
+  if(room.pricingGame.type==="plinko"&&room.pricingGame.stage!=="dropping"&&room.pricingGame.lastDrop?.value!=null)return room;
   settlePricingAnimation(room.pricingGame);
   const g=room.pricingGame;
   setHostLine(room,g.status==="playing"?g.prompt:g.result,g.status==="playing"?"pricingPrompt":"pricingResult");
