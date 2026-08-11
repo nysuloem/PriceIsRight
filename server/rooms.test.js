@@ -1,8 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { acknowledgeWheelResult, advance, beginPricingGame, continuePricingPrice, createPricingGameDemo, createRoom, joinRoom, publicState, restart, revealPricingPrice, revealReplacement, settlePricingGame, settleWheelGame, wheelGameAction } from "./rooms.js";
+import { acknowledgeWheelResult, advance, beginPricingGame, continuePricingPrice, createPricingGameDemo, createRoom, joinRoom, makePricingGameSchedule, publicState, restart, revealPricingPrice, revealReplacement, settlePricingGame, settleWheelGame, wheelGameAction } from "./rooms.js";
 import { createShowdown } from "./showFlow.js";
 import { createPricingGameForType, playPricingGame } from "./pricingGames.js";
+
+test("each half schedules exactly one car game and two non-car games",()=>{
+  for(const random of [0,.2,.34,.67,.999]){
+    const schedule=makePricingGameSchedule(()=>random);
+    assert.equal(schedule.slice(0,3).filter(type=>type==="car").length,1);
+    assert.equal(schedule.slice(0,3).filter(type=>type==="nonCar").length,2);
+    assert.equal(schedule.slice(3,6).filter(type=>type==="car").length,1);
+    assert.equal(schedule.slice(3,6).filter(type=>type==="nonCar").length,2);
+  }
+});
 
 test("pricing game demos wait for a phone, introduce the game, then unlock controls", () => {
   const { room } = createPricingGameDemo("plinko");
