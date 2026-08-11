@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Bot, Trophy, Camera, Upload, X, Check } from "lucide-react";
+import { Bot, Trophy, Camera, Upload, X, Check, Mic, MicOff } from "lucide-react";
 import { getState, joinRoom, submitBid, pricingGameAction, showcaseAction, wheelAction } from "./api.js";
 
 const POLL_MS = 1200;
@@ -309,11 +309,29 @@ function WheelPhone({showdown,playerId,code,onError}){const[busy,setBusy]=useSta
 
 function ShowcasePhone({finalShowcase,playerId,code,onError}){const[bid,setBid]=useState("");const[busy,setBusy]=useState(false);const send=async action=>{setBusy(true);try{await showcaseAction(code,playerId,action);setBid("");}catch(e){onError(e.message);}finally{setBusy(false);}};const f=finalShowcase,controls=c=>c?.id===playerId||c?.controllerPlayerId===playerId;if(f.stage==="complete")return <div className="pir-panel pir-center"><h2>Final Showcase</h2><p className="pir-pricing-result">{f.result}</p></div>;if(f.stage==="choice"&&controls(f.contestants[0]))return <div className="pir-panel pir-center"><h2>Bid or Pass?</h2><p>As the top winner, the first Showcase is yours to bid on—or pass to your opponent.</p><div className="pir-actions"><button className="pir-btn" disabled={busy} onClick={()=>send({choice:"bid"})}>BID ON IT</button><button className="pir-btn secondary" disabled={busy} onClick={()=>send({choice:"pass"})}>PASS</button></div></div>;const i=f.stage==="firstBid"?0:f.stage==="secondBid"?1:-1,assigned=i>=0?f.contestants.find(c=>c.id===f.assignments[i]):null;if(i>=0&&controls(assigned))return <div className="pir-panel pir-center"><h2>Your Showcase Bid</h2><div className="pir-led pir-bid-input"><span>$</span><input type="number" min="1" value={bid} onChange={e=>setBid(e.target.value)}/></div><button className="pir-btn" disabled={busy||!bid} onClick={()=>send({bid})}>LOCK IN BID</button></div>;return <div className="pir-panel pir-center"><h2>The Final Showcase</h2><p>Watch the prizes and bidding on the main screen!</p></div>}
 
+function parseSpokenNumber(transcript){
+  const numeric=String(transcript).replace(/[$,]/g,"").match(/\d+/);
+  if(numeric)return Number(numeric[0]);
+  const small={zero:0,oh:0,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12,thirteen:13,fourteen:14,fifteen:15,sixteen:16,seventeen:17,eighteen:18,nineteen:19},tens={twenty:20,thirty:30,forty:40,fifty:50,sixty:60,seventy:70,eighty:80,ninety:90};
+  let total=0,current=0,recognized=false;
+  for(const word of String(transcript).toLowerCase().replace(/-/g," ").split(/\s+/)){
+    if(word in small){current+=small[word];recognized=true;}
+    else if(word in tens){current+=tens[word];recognized=true;}
+    else if(word==="hundred"){current=Math.max(1,current)*100;recognized=true;}
+    else if(word==="thousand"){total+=Math.max(1,current)*1000;current=0;recognized=true;}
+  }
+  return recognized?total+current:null;
+}
+
 function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError }) {
   const [number, setNumber] = useState("");
   const [order, setOrder] = useState([]);
   const [busy, setBusy] = useState(false);
   const [answers, setAnswers] = useState([]);
+  const [listening,setListening]=useState(false);
+  const [heard,setHeard]=useState("");
+  const recognitionRef=useRef(null);
+  useEffect(()=>()=>recognitionRef.current?.abort(),[]);
   if (!game) return <div className="pir-panel">Loading pricing game…</div>;
   const isPlayer = game.playerId === playerId;
   const send = async (action) => {
@@ -321,6 +339,17 @@ function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError
     try { await pricingGameAction(code, playerId, action); setNumber(""); }
     catch (e) { onError(e.message); }
     finally { setBusy(false); }
+  };
+  const speechRecognition=typeof window!=="undefined"&&(window.SpeechRecognition||window.webkitSpeechRecognition);
+  const startClockMic=()=>{
+    if(!speechRecognition){onError("Voice guesses are not supported in this browser. You can still type your guess.");return;}
+    recognitionRef.current?.abort();
+    const recognition=new speechRecognition();recognitionRef.current=recognition;recognition.lang="en-CA";recognition.interimResults=false;recognition.maxAlternatives=1;
+    recognition.onstart=()=>{setListening(true);setHeard("");onError("");};
+    recognition.onend=()=>setListening(false);
+    recognition.onerror=e=>{setListening(false);if(e.error!=="aborted"&&e.error!=="no-speech")onError(`Microphone error: ${e.error}. You can still type your guess.`);};
+    recognition.onresult=e=>{const transcript=e.results?.[0]?.[0]?.transcript||"",value=parseSpokenNumber(transcript);setHeard(transcript);if(value==null){onError(`I heard “${transcript},” but not a number. Please try again.`);return;}setNumber(String(value));send({value});};
+    recognition.start();
   };
   if (!isPlayer) return <div className="pir-panel pir-center"><h2>{game.title}</h2><p>{game.playerName} is playing—watch the big screen!</p></div>;
   if (game.status !== "playing") return <div className="pir-panel pir-center"><h2>{game.title}</h2><p className="pir-pricing-result">{game.result}</p>{isDemo && <button className="pir-btn" onClick={onBackToGames}>Try Another Game</button>}</div>;
@@ -333,6 +362,7 @@ function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError
       <div className="pir-pricing-prompt">{game.prompt}</div>
       {game.mode === "number" && <>
         <div className="pir-led pir-bid-input"><span>$</span><input type="number" value={number} autoFocus min="0" onChange={e=>setNumber(e.target.value)} /></div>
+        {game.type==="clockGame"&&<div className="pir-clock-mic"><button className={`pir-btn ${listening?"listening":"secondary"}`} disabled={busy} onClick={startClockMic}>{listening?<><MicOff size={20}/> LISTENING…</>:<><Mic size={20}/> SAY YOUR GUESS</>}</button>{heard&&<small>Heard: “{heard}”</small>}<small>Works best in Chrome. Typed guesses remain available.</small></div>}
         <button className="pir-btn" disabled={busy || number === ""} onClick={()=>send({ value: number })}>Submit</button>
       </>}
       {game.mode === "choice" && <div className="pir-choice-grid">{game.options.map(option=><button key={option} className="pir-btn secondary" disabled={busy} onClick={()=>send({ choice: option })}>{option}</button>)}</div>}
