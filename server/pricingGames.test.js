@@ -16,7 +16,7 @@ test("all twelve pricing games can be created without leaking answers", () => {
 
 test("all twelve pricing game engines can reach a result", () => {
   let g = createPricingGameForType("plinko", player); while(g.stage === "qualify") { playPricingGame(g,{choice:g._qualifierCorrect[g.qualifierIndex]}); g.pendingPrizeAnnouncement=null; } while(g.status === "playing") { playPricingGame(g,{position:5}); settlePricingAnimation(g); } assert.notEqual(g.status,"playing");
-  g = createPricingGameForType("cliffHangers", player); for (const price of [...g._prices]) playPricingGame(g,{value:price}); assert.equal(g.status,"won");
+  g = createPricingGameForType("cliffHangers", player); for (const price of [...g._prices]) { playPricingGame(g,{value:price}); settlePricingAnimation(g); clearDeferredPrice(g); } assert.equal(g.status,"won");
   g = createPricingGameForType("punchABunch", player); while(g.stage === "qualify") { const i=g.qualifierIndex; playPricingGame(g,{choice:g._qualifierPrices[i]>g.qualifiers[i].shownPrice?"Higher":"Lower"}); } playPricingGame(g,{choice:"1"}); if(g.stage === "decision") playPricingGame(g,{choice:"Keep it"}); assert.equal(g.status,"won");
   g = createPricingGameForType("diceGame", player); while(g.status === "playing") { if(g.stage === "roll") playPricingGame(g,{choice:"Roll"}); else if(g.stage === "direction") { const i=g.digitIndex; playPricingGame(g,{choice:g._digits[i]>g.rolls[i]?"Higher":"Lower"}); } else playPricingGame(g,{choice:"Reveal next digit"}); } assert.equal(g.status,"won");
   g = createPricingGameForType("groceryGame", player); playPricingGame(g,{choice:g.options[0]}); playPricingGame(g,{value:20}); assert.notEqual(g.status,"playing");
@@ -79,6 +79,15 @@ test("Clock Game accepts the exact integer between adjacent clues and allows 90 
   playPricingGame(g,{value:67});assert.equal(g.clue,"Lower!");
   playPricingGame(g,{value:66});assert.equal(g.itemIndex,1);
   assert.ok(g.secondsLeft>=89);
+});
+
+test("Cliff Hangers hides the actual price until the climber stops",()=>{
+  const g=createPricingGameForType("cliffHangers",player),actual=g._prices[0];
+  playPricingGame(g,{value:actual-7});
+  assert.equal(g.stage,"climbing");assert.equal(g.climber,7);assert.equal(g.priceReveal,undefined);assert.equal(g.lastClimb.from,0);assert.equal(g.lastClimb.to,7);
+  settlePricingAnimation(g);
+  assert.equal(g.priceReveal.actual,null);assert.ok(g._pendingPriceReveal);
+  revealDeferredPrice(g);assert.equal(g.priceReveal.actual,actual);
 });
 
 test("Shell Game asks for another shell and exposes the ball for the final lift",()=>{
