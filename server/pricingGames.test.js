@@ -104,6 +104,15 @@ test("Plinko physics always ends at the bottom in the awarded slot",()=>{
   assert.ok(g.lastDrop.path.length>=25);
 });
 
+test("Plinko starts with one free chip and offers four more without freezing between drops",()=>{
+  const g=createPricingGameForType("plinko",player);
+  assert.equal(g.qualifiers.length,4);assert.equal(g.chips,1);assert.equal(g.maxPrize,50000);
+  while(g.stage==="qualify"){const i=g.qualifierIndex;playPricingGame(g,{choice:g._qualifierCorrect[i]});}
+  assert.equal(g.chipsLeft,5);
+  playPricingGame(g,{position:5});settlePricingAnimation(g);assert.equal(g.stage,"drop");assert.equal(g.chipsLeft,4);
+  playPricingGame(g,{position:4});settlePricingAnimation(g);assert.equal(g.stage,"drop");assert.equal(g.chipsLeft,3);
+});
+
 test("used middle-price prizes are replaced and categories are varied",()=>{
   const first=createPricingGameForType("shellGame",player),used=first.items.map(x=>x.name);
   const second=createPricingGameForType("shellGame",player,used);
