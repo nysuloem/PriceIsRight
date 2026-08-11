@@ -460,12 +460,13 @@ export async function restart(room, mode) {
 }
 
 function pricingGameValue(game){
+  if(game?.type==="shellGame")return Number(game.winnings||0);
   if(!game||game.status!=="won")return 0;
   if(game.type==="diceGame")return Number(`${game.firstDigit}${game._digits.join("")}`);
   if(game.type==="moneyGame"||game.type==="luckySeven")return Number(game._digits?.join("")||game.car?.price||30000);
   if(game.type==="oneAway")return Number(game._digits.join(""));
   if(game.type==="clockGame")return game._prices.reduce((a,b)=>a+b,0);
-  if(game.type==="cliffHangers"||game.type==="groceryGame"||game.type==="shellGame")return 5000;
+  if(game.type==="cliffHangers"||game.type==="groceryGame")return 5000;
   if(game.type==="anyNumber")return Number(game._answers[0].join(""));
   return Number(game.winnings||0);
 }
