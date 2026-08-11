@@ -112,6 +112,10 @@ function playCarFanfare() {
   try { const ctx=new (window.AudioContext||window.webkitAudioContext)(); [392,523,659,784,1047].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.11;o.type="square";o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.2,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.42);o.start(t);o.stop(t+.44);}); } catch {}
 }
 
+function playPlinkoFanfare() {
+  try { const ctx=new (window.AudioContext||window.webkitAudioContext)();[392,523,659,784,1047,1319].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.13;o.type=i%2?"triangle":"square";o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.24,t+.025);g.gain.exponentialRampToValueAtTime(.001,t+.5);o.start(t);o.stop(t+.52);});}catch{}
+}
+
 function playShowcaseCelebration() {
   try { const ctx=new (window.AudioContext||window.webkitAudioContext)(); [523,659,784,1047,1319,1568].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.13;o.type=i%2?"triangle":"square";o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.22,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.55);o.start(t);o.stop(t+.58);}); } catch {}
 }
@@ -133,6 +137,7 @@ function HostViewInner({ code }) {
   const lastSettledDropRef = useRef(0);
   const lastSettledWheelRef = useRef("");
   const lastAIWheelActionRef = useRef("");
+  const finishPlinkoDrop=useCallback((dropId)=>{if(!dropId||dropId===lastSettledDropRef.current)return;lastSettledDropRef.current=dropId;settlePricingGame(code).catch(e=>{lastSettledDropRef.current=0;setError(e.message);});},[code]);
 
   useEffect(() => { if (state?.isDemo && phase !== "game") setPhase("game"); }, [state?.isDemo]);
 
@@ -146,6 +151,11 @@ function HostViewInner({ code }) {
   }, [state?.pricingGame?.lastOutcome]);
 
   useEffect(()=>{const s=state?.showdown;if(!s||!["spinning","bonusSpinning"].includes(s.stage))return;const key=`${s.half}-${s.spinSeq}`;if(key===lastSettledWheelRef.current)return;lastSettledWheelRef.current=key;let stopped=false;const attempt=async(retries=0)=>{try{await settleWheel(code);}catch(e){if(!stopped&&retries<2)setTimeout(()=>attempt(retries+1),1200);else if(!stopped){lastSettledWheelRef.current="";setError(e.message);}}};const timer=setTimeout(()=>attempt(),(s.spinDuration||3400)+150);return()=>{stopped=true;clearTimeout(timer);};},[state?.showdown?.half,state?.showdown?.spinSeq,state?.showdown?.stage,state?.showdown?.spinDuration,code]);
+
+  // TV browsers occasionally omit Web Animations' finished Promise. The
+  // animation itself settles first; this watchdog prevents a room from ever
+  // remaining stuck in "dropping" if the browser fails to send that event.
+  useEffect(()=>{const game=state?.pricingGame,drop=game?.lastDrop;if(game?.type!=="plinko"||game.stage!=="dropping"||!drop)return;const timer=setTimeout(()=>finishPlinkoDrop(drop.id),(drop.duration||5600)+900);return()=>clearTimeout(timer);},[state?.pricingGame?.lastDrop?.id,state?.pricingGame?.stage,state?.pricingGame?.lastDrop?.duration,finishPlinkoDrop]);
 
   // AI turns must not depend on speech audio reaching its `ended` event.
   useEffect(()=>{const s=state?.showdown,p=s?.participants?.[s.currentIndex];if(!s||!p?.isAI||!["turn","decision","bonusTurn"].includes(s.stage))return;const key=`${s.half}-${s.currentIndex}-${s.stage}-${p.spins?.length||0}-${s.spinSeq}`;if(key===lastAIWheelActionRef.current)return;lastAIWheelActionRef.current=key;let stopped=false;const timer=setTimeout(async()=>{try{await resolveWheelAI(code);}catch(e){if(!stopped){lastAIWheelActionRef.current="";setError(e.message);}}},1800);return()=>{stopped=true;clearTimeout(timer);};},[state?.showdown?.half,state?.showdown?.currentIndex,state?.showdown?.stage,state?.showdown?.spinSeq,code]);
@@ -248,7 +258,8 @@ function HostViewInner({ code }) {
     } else if (type === "pricingGameIntro") {
       const game = state.pricingGame;
       const hostIntro = `${text} ${game.instructions}`;
-      playTTS(el, hostIntro, () => safely(() => beginPricingGame(code)), voice, "host");
+      if(game?.type==="plinko"){playPlinkoFanfare();setTimeout(()=>current(()=>playTTS(el,hostIntro,()=>safely(()=>beginPricingGame(code)),voice,"host")),900);}
+      else playTTS(el, hostIntro, () => safely(() => beginPricingGame(code)), voice, "host");
     } else if (type === "pricingPrizeIntro") {
       if (/new car/i.test(text)) playCarFanfare();
       setTimeout(() => current(() => playTTS(ann, text, () => safely(() => beginPricingGame(code)), config.announcerVoice || "onyx", "announcer")), 650);
@@ -617,7 +628,7 @@ function RevealView({ state, code, onStartPricing, onNextRound, onNewPlayers }) 
 // ---------------------------------------------------------------------------
 export function PricingGameView({ game, spotlight = null, rulesOnly = false }) {
   if (!game) return <div className="pir-loading">Loading pricing game…</div>;
-  if (rulesOnly) return <div className={`pir-pricing-board pir-game-${game.type} pir-rules-only`}><div className="pir-pricing-kicker">HOW TO PLAY</div><h2 className="pir-pricing-title">{game.title}</h2><p className="pir-pricing-rules">{game.instructions}</p><div className="pir-pricing-prompt">Listen to the rules…</div></div>;
+  if (rulesOnly) return <div className={`pir-pricing-board pir-game-${game.type} pir-rules-only ${game.type==="plinko"?"pir-plinko-intro":""}`}>{game.type==="plinko"&&<><div className="pir-plinko-logo">PLINKO!</div><div className="pir-plinko-jackpot">A CHANCE TO WIN<br/><strong>$50,000!!!</strong></div></>}<div className="pir-pricing-kicker">HOW TO PLAY</div>{game.type!=="plinko"&&<h2 className="pir-pricing-title">{game.title}</h2>}<p className="pir-pricing-rules">{game.instructions}</p><div className="pir-pricing-prompt">Listen to the rules…</div></div>;
   if (spotlight) { const isCar=/car/i.test(spotlight.name||"")||/new car/i.test(spotlight.announcerText||""); return <div className={`pir-pricing-board pir-game-${game.type} ${isCar?"pir-new-car-stage":""}`}><div className="pir-pricing-kicker">PRIZE INTRODUCTION</div>{isCar&&<div className="pir-new-car-flash">IT'S A NEW CAR!!!</div>}<h2 className="pir-pricing-title">{game.title}</h2><GameCards items={[spotlight]} /><div className="pir-pricing-prompt">Listen to the announcer…</div></div>; }
   if (game.priceReveal) return <div className={`pir-pricing-board pir-game-${game.type}`}><div className="pir-pricing-kicker">PRICE REVEAL</div><h2 className="pir-pricing-title">{game.title}</h2><GameCards items={[{...game.priceReveal,revealedPrice:game.priceReveal.actual}]} /><div className={`pir-pricing-prompt ${game.priceReveal.actual==null?"":"revealed"}`}>{game.priceReveal.actual==null?"SHOW ME THE PRICE!":game.priceReveal.correct?"THAT'S RIGHT!":"OH, SO CLOSE!"}</div></div>;
   return (
@@ -630,7 +641,7 @@ export function PricingGameView({ game, spotlight = null, rulesOnly = false }) {
         <div className="pir-plinko-board">
           {game.stage === "qualify" && <GameCards items={[game.qualifiers[game.qualifierIndex]].filter(Boolean)} />}
           <div className="pir-plinko-drop-line">{Array.from({length:9},(_,i)=><span key={i}>{i+1}</span>)}</div>
-          <div className="pir-plinko-field"><div className="pir-plinko-pegs">{Array.from({length:12},(_,row)=><div key={row} className={row%2?"offset":""}>{Array.from({length:row%2?8:9},(_,peg)=><i key={peg} />)}</div>)}</div>{game.lastDrop && <PlinkoChip key={game.lastDrop.id} drop={game.lastDrop} onLanded={()=>{if(game.stage!=="dropping"||game.lastDrop.id===lastSettledDropRef.current)return;lastSettledDropRef.current=game.lastDrop.id;settlePricingGame(code).catch(e=>{lastSettledDropRef.current=0;setError(e.message);});}} />}</div>
+          <div className="pir-plinko-field"><div className="pir-plinko-pegs">{Array.from({length:12},(_,row)=><div key={row} className={row%2?"offset":""}>{Array.from({length:row%2?8:9},(_,peg)=><i key={peg} />)}</div>)}</div>{game.lastDrop && <PlinkoChip key={game.lastDrop.id} drop={game.lastDrop} onLanded={()=>finishPlinkoDrop(game.lastDrop.id)} />}</div>
           <div className="pir-plinko-slots">{game.slots.map((v,i) => <span key={i}>${v}</span>)}</div>
           {game.lastDrop?.value != null && <div className="pir-plinko-result">LANDED ON ${game.lastDrop.value.toLocaleString("en-CA")}</div>}
           <b>{game.stage === "qualify" ? `${game.chips} chip${game.chips === 1 ? "" : "s"} earned` : `${game.chipsLeft} chip${game.chipsLeft === 1 ? "" : "s"} left`}</b>
@@ -659,7 +670,7 @@ export function PricingGameView({ game, spotlight = null, rulesOnly = false }) {
 function PlinkoChip({drop,onLanded}) {
   const ref=useRef(null);
   const landedRef=useRef(onLanded);useEffect(()=>{landedRef.current=onLanded;},[onLanded]);
-  useEffect(()=>{const chip=ref.current,field=chip?.parentElement;if(!chip||!field||!drop?.path?.length)return;const width=field.clientWidth-chip.offsetWidth,height=field.clientHeight-chip.offsetHeight,startX=(drop.start+.5)*width/9;const frames=drop.path.map((point,i)=>({transform:`translate(${point.x*width/9-startX}px, ${point.y*height}px) rotate(${point.rotation||0}deg) scale(${i===drop.path.length-1?1.06:1})`,offset:i/(drop.path.length-1),easing:i===drop.path.length-1?"cubic-bezier(.2,.8,.2,1)":"cubic-bezier(.35,.05,.65,.95)"}));const animation=chip.animate(frames,{duration:drop.duration||5600,fill:"forwards"});animation.finished.then(()=>landedRef.current?.()).catch(()=>{});return()=>animation.cancel();},[drop.id]);
+  useEffect(()=>{const chip=ref.current,field=chip?.parentElement;if(!chip||!field||!drop?.path?.length)return;const width=field.clientWidth-chip.offsetWidth,height=field.clientHeight-chip.offsetHeight,startX=(drop.start+.5)*width/9;const frames=drop.path.map((point,i)=>({transform:`translate(${point.x*width/9-startX}px, ${point.y*height}px) rotate(${point.rotation||0}deg) scale(${i===drop.path.length-1?1.06:1})`,offset:i/(drop.path.length-1),easing:i===drop.path.length-1?"cubic-bezier(.2,.8,.2,1)":"cubic-bezier(.35,.05,.65,.95)"}));const animation=chip.animate(frames,{duration:drop.duration||5600,fill:"forwards"});animation.onfinish=()=>landedRef.current?.();if(animation.finished?.then)animation.finished.then(()=>landedRef.current?.()).catch(()=>{});return()=>animation.cancel();},[drop.id]);
   return <div ref={ref} className="pir-plinko-chip" style={{left:`calc(${(drop.start+.5)*100/9}% - 13px)`}} />;
 }
 

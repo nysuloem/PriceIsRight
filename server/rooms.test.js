@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { acknowledgeWheelResult, advance, beginPricingGame, createPricingGameDemo, createRoom, joinRoom, publicState, restart, revealReplacement, settleWheelGame, wheelGameAction } from "./rooms.js";
+import { acknowledgeWheelResult, advance, beginPricingGame, createPricingGameDemo, createRoom, joinRoom, publicState, restart, revealReplacement, settlePricingGame, settleWheelGame, wheelGameAction } from "./rooms.js";
 import { createShowdown } from "./showFlow.js";
+import { createPricingGameForType, playPricingGame } from "./pricingGames.js";
 
 test("pricing game demos wait for a phone, introduce the game, then unlock controls", () => {
   const { room } = createPricingGameDemo("plinko");
@@ -19,6 +20,13 @@ test("pricing game demos wait for a phone, introduce the game, then unlock contr
   beginPricingGame(room);
   state = publicState(room);
   assert.equal(state.phase, "pricingGame");
+});
+
+test("duplicate Plinko animation completion cannot freeze or double-award a chip",()=>{
+  const room=createRoom();room.pricingGame=createPricingGameForType("plinko",{id:"p",name:"Player"});
+  const g=room.pricingGame;g.stage="drop";g.chipsLeft=2;playPricingGame(g,{position:5});
+  settlePricingGame(room);const winnings=g.winnings;
+  assert.doesNotThrow(()=>settlePricingGame(room));assert.equal(g.winnings,winnings);assert.equal(g.chipsLeft,1);assert.equal(g.stage,"drop");
 });
 
 test("car games introduce the car before the host explains the rules",()=>{
