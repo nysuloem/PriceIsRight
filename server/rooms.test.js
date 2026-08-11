@@ -33,6 +33,20 @@ test("car games introduce the car before the host explains the rules",()=>{
   assert.equal(room.phase,"pricingGame");
 });
 
+test("Any Number introduces its three-digit prize after the car and rules",()=>{
+  const {room}=createPricingGameDemo("anyNumber");
+  joinRoom(room,"Any Number Player");
+  const carName=room.pricingAnnouncement.name;
+  beginPricingGame(room);
+  assert.equal(room.phase,"pricingIntro");
+  beginPricingGame(room);
+  assert.equal(room.phase,"pricingPrizeIntro");
+  assert.notEqual(room.pricingAnnouncement.name,carName);
+  assert.equal(room.pricingAnnouncement.name,room.pricingGame.secondaryPrize.name);
+  beginPricingGame(room);
+  assert.equal(room.phase,"pricingGame");
+});
+
 test("replacement contestant stays off the row until the name call begins", () => {
   const room = createRoom();
   room.phase = "replacement";
@@ -105,4 +119,21 @@ test("a human winner can be recalled immediately instead of adding an AI",async(
   assert.equal(room.contestants[0].id,"b");
   assert.equal(room.contestants[0].isAI,false);
   assert.equal(room.showcaseContestants[0].controllerPlayerId,"b");
+});
+
+test("never-called humans precede winners and winners return in FIFO order",async()=>{
+  const room=createRoom();
+  room.players=["a","b","c","d","e","f"].map(id=>({id,name:id.toUpperCase(),photo:null}));
+  room.calledHumanIds=["a","b","c","d"];
+  room.completedRounds=6;
+  room.contestants=room.players.slice(0,4).map(p=>({...p,isAI:false,bid:800}));
+  const playRound=async winnerId=>{
+    room.phase="reveal";room.item={id:`prize-${winnerId}`,price:900};
+    room.winnerIndices=[room.contestants.findIndex(c=>c.id===winnerId)];
+    await restart(room,"sameLineup");
+    return room.contestants[0].id;
+  };
+  assert.equal(await playRound("b"),"e");
+  assert.equal(await playRound("a"),"f");
+  assert.equal(await playRound("c"),"b");
 });

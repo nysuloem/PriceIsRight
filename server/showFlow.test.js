@@ -59,6 +59,16 @@ test("one phone can control multiple independently keyed appearances",()=>{
   assert.equal(s.stage,"spinning");
 });
 
+test("the wheel begins each spin at its previous resting angle",()=>{
+  const s=createShowdown(1,[players[0],players[1]]);
+  wheelAction(s,"a",{type:"spin",strength:"gentle"});
+  s.pendingIndex=7;settleWheel(s);
+  const resting=s.wheelRotation;
+  wheelAction(s,"a",{type:"spin",strength:"mighty"});
+  assert.equal(s.spinStartRotation,resting);
+  assert.ok(s.wheelRotation>resting);
+});
+
 test("Final Showcase supports bid or pass, two bids, reveal and double-showcase rule",()=>{
   const f=createFinalShowcase([players[0],players[2]]);
   assert.equal(publicFinalShowcase(f).showcases[0].actualPrice,undefined);
