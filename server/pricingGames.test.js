@@ -95,3 +95,18 @@ test("four correct Shell Game prices guarantee the bonus prize and unlock its eq
   playPricingGame(g,{choice:String(g._ball+1)});
   assert.equal(g.status,"won");assert.equal(g.cashBonus,bonus);assert.equal(g.winnings,smallTotal+bonus*2);
 });
+
+test("Plinko physics always ends at the bottom in the awarded slot",()=>{
+  const g=createPricingGameForType("plinko",player);g.stage="drop";g.chipsLeft=1;
+  playPricingGame(g,{position:5});
+  assert.equal(g.stage,"dropping");assert.equal(g.lastDrop.path.at(-1).y,1);
+  assert.equal(Math.floor(g.lastDrop.path.at(-1).x),g.lastDrop.landing);
+  assert.ok(g.lastDrop.path.length>=25);
+});
+
+test("used middle-price prizes are replaced and categories are varied",()=>{
+  const first=createPricingGameForType("shellGame",player),used=first.items.map(x=>x.name);
+  const second=createPricingGameForType("shellGame",player,used);
+  assert.equal(second.items.some(x=>used.includes(x.name)),false);
+  assert.ok(new Set(second.items.map(x=>x.category)).size>=3);
+});
