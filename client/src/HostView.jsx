@@ -675,7 +675,7 @@ function PlinkoChip({drop,onLanded}) {
 }
 
 function GameCards({ items = [] }) {
-  return <div className="pir-game-cards">{items.map((item,i)=><div key={item.id ?? i} className={item.used || item.selected ? "used" : ""}>{item.image && <img src={item.image} alt="" onError={e=>{e.currentTarget.style.display="none"}} />}<b>{item.brand && <small>{item.brand}</small>}{item.name}</b>{item.description && <p>{item.description}</p>}{item.revealedPrice != null ? <span className="pir-revealed-price">${Number(item.revealedPrice).toLocaleString("en-CA")}</span> : item.shownPrice != null && <span>${item.shownPrice}</span>}</div>)}</div>;
+  return <div className="pir-game-cards">{items.map((item,i)=><div key={item.id ?? i} className={item.used || item.selected ? "used" : ""}><div className="pir-prize-picture"><div className="pir-prize-visual" role="img" aria-label={item.name}>{item.visual||"🎁"}</div>{item.image&&<img src={item.image} alt={item.name} onError={e=>{e.currentTarget.style.display="none"}} />}</div><b>{item.brand && <small>{item.brand}</small>}{item.name}</b>{item.description && <p>{item.description}</p>}{item.revealedPrice != null ? <span className="pir-revealed-price">${Number(item.revealedPrice).toLocaleString("en-CA")}</span> : item.shownPrice != null && <span>${item.shownPrice}</span>}</div>)}</div>;
 }
 
 // Canadian $100 bill — SVG illustration
