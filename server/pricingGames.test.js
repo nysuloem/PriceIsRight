@@ -142,8 +142,8 @@ test("every pricing prize has a visible photo or matched fallback",()=>{
 });
 
 test("live retailer pricing prizes keep the photo from their own product record",()=>{
-  const live=Array.from({length:6},(_,i)=>({name:`Exact product ${i}`,brand:`Brand ${i}`,description:`Product ${i}`,price:50+i,image:`https://retailer.example/product-${i}.jpg`,imageVerified:true,category:`category-${i}`}));
+  const live=Array.from({length:6},(_,i)=>({id:`retailer-product-${i}`,name:`Exact product ${i}`,brand:`Brand ${i}`,description:`Product ${i}`,price:50+i,image:`https://retailer.example/product-${i}.jpg`,imageAlt:`Exact product ${i}`,imageVerified:true,category:`category-${i}`}));
   const g=createPricingGameForType("plinko",player,[],live);
   assert.equal(g.qualifiers.length,4);
-  for(const prize of g.qualifiers){const source=live.find(item=>item.name===prize.name);assert.ok(source);assert.equal(prize.image,source.image);assert.equal(prize.imageVerified,true);}
+  for(const prize of g.qualifiers){const source=live.find(item=>item.name===prize.name);assert.ok(source);assert.equal(prize.id,source.id);assert.equal(prize.image,source.image);assert.equal(prize.imageAlt,source.imageAlt);assert.equal(prize.imageKey,`${source.id}|${source.image}`);assert.equal(prize.imageVerified,true);}
 });
