@@ -140,6 +140,7 @@ function HostViewInner({ code }) {
   const lastSettledDropRef = useRef(0);
   const lastSettledClimbRef = useRef(0);
   const lastYodelClimbRef = useRef(0);
+  const lastCliffCelebrationRef = useRef(0);
   const cliffYodelRef = useRef(null);
   const lastSettledWheelRef = useRef("");
   const lastAIWheelActionRef = useRef("");
@@ -167,6 +168,8 @@ function HostViewInner({ code }) {
   useEffect(()=>{const game=state?.pricingGame,climb=game?.lastClimb;if(game?.type!=="cliffHangers"||game.stage!=="climbing"||!climb)return;const timer=setTimeout(()=>finishCliffClimb(climb.id),(climb.duration||1000)+700);return()=>clearTimeout(timer);},[state?.pricingGame?.lastClimb?.id,state?.pricingGame?.stage,state?.pricingGame?.lastClimb?.duration,finishCliffClimb]);
 
   useEffect(()=>{const game=state?.pricingGame,climb=game?.lastClimb,audio=cliffYodelRef.current;if(game?.type!=="cliffHangers"||game.stage!=="climbing"||!climb){if(audio){audio.pause();audio.currentTime=0;}return;}if(climb.id===lastYodelClimbRef.current)return;lastYodelClimbRef.current=climb.id;audio.pause();audio.currentTime=0;audio.loop=true;audio.volume=.72;audio.play().catch(()=>{});return()=>{audio.pause();audio.currentTime=0;};},[state?.pricingGame?.lastClimb?.id,state?.pricingGame?.stage]);
+
+  useEffect(()=>{const game=state?.pricingGame,id=game?.lastClimb?.id;if(game?.type!=="cliffHangers"||!game.cliffFinalWin||!id||id===lastCliffCelebrationRef.current)return;lastCliffCelebrationRef.current=id;playShowcaseCelebration();},[state?.pricingGame?.cliffFinalWin,state?.pricingGame?.lastClimb?.id]);
 
   // AI turns must not depend on speech audio reaching its `ended` event.
   useEffect(()=>{const s=state?.showdown,p=s?.participants?.[s.currentIndex];if(!s||!p?.isAI||!["turn","decision","bonusTurn"].includes(s.stage))return;const key=`${s.half}-${s.currentIndex}-${s.stage}-${p.spins?.length||0}-${s.spinSeq}`;if(key===lastAIWheelActionRef.current)return;lastAIWheelActionRef.current=key;let stopped=false;const timer=setTimeout(async()=>{try{await resolveWheelAI(code);}catch(e){if(!stopped){lastAIWheelActionRef.current="";setError(e.message);}}},1800);return()=>{stopped=true;clearTimeout(timer);};},[state?.showdown?.half,state?.showdown?.currentIndex,state?.showdown?.stage,state?.showdown?.spinSeq,code]);
@@ -640,8 +643,9 @@ function RevealView({ state, code, onStartPricing, onNextRound, onNewPlayers }) 
 // ---------------------------------------------------------------------------
 export function PricingGameView({ game, spotlight = null, rulesOnly = false }) {
   if (!game) return <div className="pir-loading">Loading pricing game…</div>;
-  if (rulesOnly) return <div className={`pir-pricing-board pir-game-${game.type} pir-rules-only ${game.type==="plinko"?"pir-plinko-intro":""}`}>{game.type==="plinko"&&<><div className="pir-plinko-logo">PLINKO!</div><div className="pir-plinko-jackpot">A CHANCE TO WIN<br/><strong>$50,000!!!</strong></div></>}<div className="pir-pricing-kicker">HOW TO PLAY</div>{game.type!=="plinko"&&<h2 className="pir-pricing-title">{game.title}</h2>}<p className="pir-pricing-rules">{game.instructions}</p><div className="pir-pricing-prompt">Listen to the rules…</div></div>;
+  if (rulesOnly) return <div className={`pir-pricing-board pir-game-${game.type} pir-rules-only ${game.type==="plinko"?"pir-plinko-intro":""}`}>{game.type==="plinko"&&<><div className="pir-plinko-logo">PLINKO!</div><div className="pir-plinko-jackpot">A CHANCE TO WIN<br/><strong>$50,000!!!</strong></div></>}<div className="pir-pricing-kicker">HOW TO PLAY</div>{game.type!=="plinko"&&<h2 className="pir-pricing-title">{game.title}</h2>}<p className="pir-pricing-rules">{game.instructions}</p>{game.type==="cliffHangers"&&<CliffBoard game={game} /> }<div className="pir-pricing-prompt">Listen to the rules…</div></div>;
   if (spotlight) { const isCar=/car/i.test(spotlight.name||"")||/new car/i.test(spotlight.announcerText||""); return <div className={`pir-pricing-board pir-game-${game.type} ${isCar?"pir-new-car-stage":""}`}><div className="pir-pricing-kicker">PRIZE INTRODUCTION</div>{isCar&&<div className="pir-new-car-flash">IT'S A NEW CAR!!!</div>}<h2 className="pir-pricing-title">{game.title}</h2><GameCards items={[spotlight]} /><div className="pir-pricing-prompt">Listen to the announcer…</div></div>; }
+  if(game.priceReveal&&game.type==="cliffHangers")return <div className={`pir-pricing-board pir-game-cliffHangers ${game.cliffFinalWin?"pir-cliff-victory":""}`}><div className="pir-pricing-kicker">CLIFF HANGERS</div><h2 className="pir-pricing-title">{game.title}</h2><GameCards items={[game.priceReveal]} /><CliffBoard game={game} reveal={game.priceReveal}/>{game.cliffFinalWin&&game.priceReveal.actual==null&&<div className="pir-cliff-win-flash">HE MADE IT!<small>YOU WON ALL THREE PRIZES!</small></div>}</div>;
   if (game.priceReveal) return <div className={`pir-pricing-board pir-game-${game.type}`}><div className="pir-pricing-kicker">PRICE REVEAL</div><h2 className="pir-pricing-title">{game.title}</h2><GameCards items={[{...game.priceReveal,revealedPrice:game.priceReveal.actual}]} /><div className={`pir-pricing-prompt ${game.priceReveal.actual==null?"":"revealed"}`}>{game.priceReveal.actual==null?"SHOW ME THE PRICE!":game.priceReveal.correct?"THAT'S RIGHT!":"OH, SO CLOSE!"}</div></div>;
   return (
     <div className={`pir-pricing-board pir-game-${game.type}`}>
@@ -659,7 +663,7 @@ export function PricingGameView({ game, spotlight = null, rulesOnly = false }) {
           <b>{game.stage === "qualify" ? `${game.chips} chip${game.chips === 1 ? "" : "s"} earned` : `${game.chipsLeft} chip${game.chipsLeft === 1 ? "" : "s"} left`}</b>
         </div>
       )}
-      {game.type === "cliffHangers" && <><GameCards items={[game.items[game.itemIndex]].filter(Boolean)} /><div className="pir-cliff"><CliffClimber position={game.climber} climb={game.stage==="climbing"?game.lastClimb:null} onStopped={()=>finishCliffClimb(game.lastClimb?.id)} /><div className="pir-cliff-track" /><b>{game.stage==="climbing"?"WATCH HIM CLIMB...":`Step ${game.climber} / 25`}</b></div></>}
+      {game.type === "cliffHangers" && <><GameCards items={[game.items[game.itemIndex]].filter(Boolean)} /><CliffBoard game={game} onStopped={()=>finishCliffClimb(game.lastClimb?.id)} /></>}
       {game.type === "punchABunch" && <><div className="pir-punch-status">PUNCHES EARNED: {game.punches}</div>{game.stage === "qualify" ? <GameCards items={[game.qualifiers[game.qualifierIndex]].filter(Boolean)} /> : <div className="pir-punch-grid">{Array.from({length:50},(_,i)=><span key={i} className={game.punched?.includes(i)?"punched":""}>{game.punched?.includes(i)?"💥":i+1}</span>)}</div>}</>}
       {game.type === "diceGame" && <><GameCards items={[game.car]} /><div className="pir-dice-board"><div className="pir-price-digits"><span>{game.firstDigit}</span>{game.revealed.map((n,i)=><span key={i} className={game.correct[i]===false?"wrong":game.correct[i]===true?"right":""}>{n ?? "?"}</span>)}</div><div className="pir-dice-columns">{game.rolls.map((roll,i)=><div key={i}><div className={`pir-die ${i===game.digitIndex&&game.stage==="roll"?"rolling":""}`}>{roll ?? "–"}</div><b>{game.choices[i] || "WAITING"}</b><small>{game.correct[i]===true?"✓ RIGHT":game.correct[i]===false?"✕ WRONG":"LOCKED"}</small></div>)}</div></div></>}
       {game.type === "groceryGame" && <><div className="pir-register">TOTAL ${game.total.toFixed(2)}</div><GameCards items={game.items} /></>}
@@ -691,6 +695,10 @@ function CliffClimber({position,climb,onStopped}){
   useEffect(()=>{if(!climb){setDisplayPosition(position);return;}settledRef.current=0;setDisplayPosition(climb.from);let secondFrame,firstFrame=requestAnimationFrame(()=>{secondFrame=requestAnimationFrame(()=>setDisplayPosition(climb.to));});return()=>{cancelAnimationFrame(firstFrame);cancelAnimationFrame(secondFrame);};},[climb?.id,position]);
   const finish=()=>{if(!climb||settledRef.current===climb.id)return;settledRef.current=climb.id;stoppedRef.current?.();},fell=displayPosition>25;
   return <div className={`pir-climber ${fell?"fell":""}`} onTransitionEnd={e=>{if(e.propertyName==="left")finish();}} style={{left:`${Math.min(104,displayPosition*4)}%`,transitionDuration:`${climb?.duration||0}ms`,transitionTimingFunction:"linear",transform:fell?"translateX(-20%) translateY(55px) rotate(105deg)":"translateX(-50%) rotate(0deg)"}}>🧗</div>;
+}
+
+function CliffBoard({game,reveal=null,onStopped}){
+  return <div className="pir-cliff"><CliffClimber position={game.climber} climb={game.stage==="climbing"?game.lastClimb:null} onStopped={onStopped}/><div className="pir-cliff-track" /><b>{game.stage==="climbing"?"WATCH HIM CLIMB...":`Step ${game.climber} / 25`}</b>{reveal&&<div className={`pir-cliff-price-pop ${reveal.actual==null?"waiting":game.cliffFinalWin?"subtle":""}`}><small>YOUR GUESS: {reveal.guess}</small>{reveal.actual==null?<span>?</span>:<><em>ACTUAL RETAIL PRICE</em><strong>${Number(reveal.actual).toLocaleString("en-CA")}</strong></>}</div>}</div>;
 }
 
 function GameCards({ items = [] }) {

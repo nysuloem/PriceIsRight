@@ -269,7 +269,7 @@ export async function startPricingGame(room) {
   const winner = room.winnerIndices.map(i => room.contestants[i]).find(c => c && !c.isAI);
   if (!winner) throw new Error("No human winner is available for a pricing game");
   const retailerPool=await getPrizePool();
-  const livePricingItems=retailerPool.filter(item=>item.image&&Number(item.price)>=20&&Number(item.price)<=250).map(item=>({name:item.name,brand:item.brand||item.retailer,description:`Available from ${item.retailer}.`,price:Math.round(Number(item.price)),image:item.image,imageVerified:true,category:item.bidCategory||item.category||"retail"}));
+  const livePricingItems=retailerPool.filter(item=>item.image&&Number(item.price)>=20&&Number(item.price)<=500).map(item=>({name:item.name,brand:item.brand||item.retailer,description:`Available from ${item.retailer}.`,price:Math.round(Number(item.price)),image:item.image,imageVerified:true,category:item.bidCategory||item.category||"retail"}));
   room.pricingGame = createPricingGame(winner, room.playedPricingGames, room.usedPricingPrizeNames,livePricingItems);
   room.playedPricingGames.push(room.pricingGame.type);
   room.usedPricingPrizeNames.push(...pricingPrizeNames(room.pricingGame));
@@ -326,7 +326,8 @@ export function revealPricingPrice(room) {
   revealDeferredPrice(room.pricingGame);
   room.phase = "pricingPriceShown";
   const r=room.pricingGame.priceReveal;
-  setHostLine(room, `$${Number(r.actual).toLocaleString("en-CA")}! ${room.pricingGame.lastOutcome?.text || ""}`, "pricingPriceShown");
+  if(room.pricingGame.type==="cliffHangers")setHostLine(room,`The actual retail price was $${Number(r.actual).toLocaleString("en-CA")}.`,"pricingPriceShown");
+  else setHostLine(room, `$${Number(r.actual).toLocaleString("en-CA")}! ${room.pricingGame.lastOutcome?.text || ""}`, "pricingPriceShown");
 }
 
 export function continuePricingPrice(room) {
@@ -353,7 +354,7 @@ export function settlePricingGame(room) {
   if(room.pricingGame.type==="cliffHangers"&&room.pricingGame.stage!=="climbing"&&room.pricingGame.priceReveal)return room;
   settlePricingAnimation(room.pricingGame);
   const g=room.pricingGame;
-  if(g._pendingPriceReveal){room.phase="pricingRevealCue";setHostLine(room,`The climber stopped at step ${g.climber}. Now, show me the actual price!`,"pricingRevealCue");return room;}
+  if(g._pendingPriceReveal){room.phase="pricingRevealCue";setHostLine(room,g.cliffFinalWin?"HE MADE IT! You won all three prizes!":`The climber stopped at step ${g.climber}. Now, show me the actual price!`,"pricingRevealCue");return room;}
   setHostLine(room,g.status==="playing"?g.prompt:g.result,g.status==="playing"?"pricingPrompt":"pricingResult");
 }
 
@@ -473,7 +474,8 @@ function pricingGameValue(game){
   if(game.type==="moneyGame"||game.type==="luckySeven")return Number(game._digits?.join("")||game.car?.price||30000);
   if(game.type==="oneAway")return Number(game._digits.join(""));
   if(game.type==="clockGame")return game._prices.reduce((a,b)=>a+b,0);
-  if(game.type==="cliffHangers"||game.type==="groceryGame")return 5000;
+  if(game.type==="cliffHangers")return Number(game.winnings||0);
+  if(game.type==="groceryGame")return 5000;
   if(game.type==="anyNumber")return Number(game._answers[0].join(""));
   return Number(game.winnings||0);
 }
