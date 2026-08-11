@@ -51,3 +51,9 @@ export async function getTTS(text, voice = "coral", style = "host") {
     return null;
   }
 }
+
+const FALLBACK_CLOSINGS=["Keep your guesses bold and your family close!","Be kind, play fair, and always leave room for dessert!","Keep smiling, keep cheering, and take good care of each other!"];
+export async function generateClosingLine(){
+  const fallback=FALLBACK_CLOSINGS[Math.floor(Math.random()*FALLBACK_CLOSINGS.length)],openai=client();if(!openai)return fallback;
+  try{const response=await openai.chat.completions.create({model:"gpt-4o-mini",temperature:1,max_tokens:35,messages:[{role:"system",content:"Write one warm, pithy, family-friendly game-show sign-off. It should be an original practical or playful reminder, 12 words maximum. Do not mention prices, bidding, spaying, neutering, or Bob Barker. Output only the sentence."}]});return response.choices?.[0]?.message?.content?.trim().replace(/^['\"]|['\"]$/g,"").slice(0,140)||fallback;}catch(err){console.warn("[closing] generation failed:",err.message);return fallback;}
+}
