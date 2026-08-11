@@ -109,6 +109,14 @@ test("Ten Chances rejects a repeated guess without using a chance",()=>{
   assert.match(g.prompt,/does not use a chance/i);
 });
 
+test("Ten Chances shuffles the car digits instead of showing the answer",()=>{
+  const g=createPricingGameForType("tenChances",player);
+  const answer=String(g._prices[2]).split("");
+  const shown=g.digitSets[2];
+  assert.deepEqual([...shown].sort(), [...answer].sort());
+  assert.notEqual(shown.join(""), answer.join(""));
+});
+
 test("Ten Chances ends on chance ten and can never go negative",()=>{
   const g=createPricingGameForType("tenChances",player),digits=g.digitSets[0];
   const wrong=digits.flatMap(a=>digits.filter(b=>b!==a).map(b=>Number(`${a}${b}`))).filter(guess=>String(guess).length===2).find(guess=>guess!==g._prices[0]);

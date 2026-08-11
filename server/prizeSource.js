@@ -142,6 +142,31 @@ const CANADIAN_RETAILER_PRIZE_BLUEPRINTS = [
   ] },
 ];
 
+const CATALOG_IMAGE_RULES = [
+  [/desk|office/i, "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=900&q=80"],
+  [/sofa|sectional/i, "https://images.unsplash.com/photo-1555041469-a586c61ea9bcf?auto=format&fit=crop&w=900&q=80"],
+  [/recliner|accent chair/i, "https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?auto=format&fit=crop&w=900&q=80"],
+  [/dining/i, "https://images.unsplash.com/photo-1617104678098-de229db51175?auto=format&fit=crop&w=900&q=80"],
+  [/bedroom|mattress|bed base/i, "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=900&q=80"],
+  [/coffee table|tv stand|bookcase|ottoman/i, "https://images.unsplash.com/photo-1618220179428-22790b461013?auto=format&fit=crop&w=900&q=80"],
+  [/refrigerator|freezer|dishwasher|range|dryer|washer|microwave|hood/i, "https://images.unsplash.com/photo-1556912173-3bb406ef7e77?auto=format&fit=crop&w=900&q=80"],
+  [/drill|saw|socket|vacuum|level|washer|ladder|shelving|tool chest/i, "https://images.unsplash.com/photo-1581166397057-235af2b3c6dd?auto=format&fit=crop&w=900&q=80"],
+  [/vanity|faucet|thermostat/i, "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=900&q=80"],
+  [/barbecue|patio|gazebo|mower|snow blower|shed|fire pit|deck box|umbrella|planter|hose/i, "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=80"],
+  [/television|sound bar|laptop|tablet|printer|wi-fi|headphones|monitor|smartwatch|speaker|camera/i, "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=900&q=80"],
+  [/duvet|blanket|sheet|towel|air purifier/i, "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?auto=format&fit=crop&w=900&q=80"],
+  [/espresso|mixer|air fryer|cookware|ice maker|food processor/i, "https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=900&q=80"],
+];
+
+const CATALOG_CATEGORY_IMAGES = {
+  Furniture: "https://images.unsplash.com/photo-1555041469-a586c61ea9bcf?auto=format&fit=crop&w=900&q=80",
+  Appliances: "https://images.unsplash.com/photo-1556912173-3bb406ef7e77?auto=format&fit=crop&w=900&q=80",
+  "Tools & Home Improvement": "https://images.unsplash.com/photo-1581166397057-235af2b3c6dd?auto=format&fit=crop&w=900&q=80",
+  "Outdoor Living": "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=80",
+  Electronics: "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=900&q=80",
+  "Home & Kitchen": "https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=900&q=80",
+};
+
 function slugify(value) {
   return String(value)
     .normalize("NFKD")
@@ -184,6 +209,34 @@ function makeHostDescription(retailer, name) {
   return clipSpeechLine(intro);
 }
 
+function fallbackDescription(retailer, variant, baseName, category) {
+  const style = {
+    Classic: "a dependable everyday",
+    Deluxe: "an upgraded",
+    Premium: "a premium",
+    Compact: "a space-saving",
+  }[variant] || "a featured";
+  const categoryText = String(category || "home").toLowerCase();
+  return `From ${retailer}, ${style} ${baseName} from the ${categoryText} department, chosen as a substantial Contestants' Row prize.`;
+}
+
+function fallbackImage(baseName, category) {
+  const matched = CATALOG_IMAGE_RULES.find(([regex]) => regex.test(baseName));
+  return matched?.[1] || CATALOG_CATEGORY_IMAGES[category] || CATALOG_CATEGORY_IMAGES["Home & Kitchen"];
+}
+
+function displayDescription(item) {
+  const existing = stripMarkup(item.description || item.shortDescription || item.hostDescription);
+  if (existing && existing.length >= 35 && !/^from [^—]+—[^.!]+!?$/i.test(existing)) return clipSpeechLine(existing, 150);
+  const category = item.category || item.bidCategory || "retail";
+  const retailer = item.retailer || item.brand || "a Canadian retailer";
+  return clipSpeechLine(`A ${String(category).toLowerCase()} prize available from ${retailer}, selected with a regular Canadian retail price.`, 150);
+}
+
+function isDisplayReadyPrize(item) {
+  return Boolean(item?.image) && displayDescription(item).length >= 35;
+}
+
 function buildCanadianRetailerCatalog() {
   const prizes = [];
   for (const section of CANADIAN_RETAILER_PRIZE_BLUEPRINTS) {
@@ -191,6 +244,7 @@ function buildCanadianRetailerCatalog() {
       section.retailers.forEach((retailer, retailerIndex) => {
         CANADIAN_RETAILER_VARIANTS.forEach(([variant, multiplier], variantIndex) => {
           const name = `${variant} ${baseName}`;
+          const description = fallbackDescription(retailer, variant, baseName, section.category);
           const exactPrice = Math.max(
             MIN_PRICE,
             Math.round((basePrice * (1 + multiplier) + retailerIndex * 37 + itemIndex * 11) * 100) / 100,
@@ -206,10 +260,11 @@ function buildCanadianRetailerCatalog() {
             priceKind: "regular",
             currency: "CAD",
             url: `catalogue:${slugify(retailer)}/${slugify(name)}`,
-            image: null,
+            image: fallbackImage(baseName, section.category),
             imageAlt: name,
+            description,
             category: section.category,
-            hostDescription: makeHostDescription(retailer, name),
+            hostDescription: clipSpeechLine(`${makeHostDescription(retailer, name)} ${description}`, 170),
           });
         });
       });
@@ -263,6 +318,7 @@ function normalizeShopifyProduct(config, product) {
     url,
     image,
     imageAlt: name,
+    description: displayDescription({ description: product.body_html, category: product.product_type, retailer: config.retailer }),
     category: stripMarkup(product.product_type) || "General merchandise",
     hostDescription: makeHostDescription(config.retailer, name, product.body_html),
   };
@@ -315,6 +371,7 @@ function normalizeBestBuyProduct(product) {
     url,
     image: product.highResImage || product.thumbnailImage || null,
     imageAlt: name,
+    description: displayDescription({ description: product.shortDescription, category: product.categoryName, retailer: "Best Buy Canada" }),
     category: stripMarkup(product.categoryName) || "Electronics",
     hostDescription: makeHostDescription(
       "Best Buy Canada",
@@ -402,6 +459,7 @@ async function fetchCuratedFallback(candidate) {
     url: candidate.url,
     image,
     imageAlt: candidate.imageAlt,
+    description: displayDescription(candidate),
     category: candidate.category || "General merchandise",
     hostDescription: clipSpeechLine(`From ${candidate.retailer} — ${candidate.name}!`),
   };
@@ -457,7 +515,8 @@ export function prizeFamily(item) {
 }
 
 function enrichPrize(item) {
-  return { ...item, bidCategory: prizeCategory(item), prizeFamily: prizeFamily(item) };
+  const enriched = { ...item, description: displayDescription(item) };
+  return { ...enriched, bidCategory: prizeCategory(enriched), prizeFamily: prizeFamily(enriched) };
 }
 
 function reduceSimilarPrizes(items) {
@@ -522,7 +581,9 @@ export async function fetchPrizePool() {
   const localCatalog = expandedBiddingCatalog();
   const canadianRetailerCatalog = buildCanadianRetailerCatalog();
   items = reduceSimilarPrizes(
-    deduplicate([...items, ...curated, ...localCatalog, ...canadianRetailerCatalog]).map(enrichPrize),
+    deduplicate([...items, ...curated, ...localCatalog, ...canadianRetailerCatalog])
+      .map(enrichPrize)
+      .filter(isDisplayReadyPrize),
   );
 
   if (items.length < 200) {
@@ -544,7 +605,7 @@ const buildLocalFallbackPool = () => reduceSimilarPrizes(
     ...CURATED_FALLBACKS.map(enrichPrize),
     ...expandedBiddingCatalog().map(enrichPrize),
     ...buildCanadianRetailerCatalog().map(enrichPrize),
-  ],
+  ].filter(isDisplayReadyPrize),
 );
 let cache = { items: buildLocalFallbackPool(), fetchedAt: 0 };
 let refreshPromise = null;

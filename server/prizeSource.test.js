@@ -27,6 +27,14 @@ test("the fallback bidding bank is broad and Canadian-retailer weighted", async 
   assert.ok(retailers.has("RONA"));
 });
 
+test("fallback bidding prizes are display-ready with photos and useful copy", async () => {
+  resetPrizeBankForTests();
+  const pool = await getPrizePool();
+  assert.equal(pool.some((item) => !item.image), false);
+  assert.equal(pool.some((item) => !item.description || item.description.length < 35), false);
+  assert.equal(pool.some((item) => /^From [^—]+—[^.!]+!?$/i.test(item.description)), false);
+});
+
 test("a used bidding prize leaves the available bank permanently", async () => {
   resetPrizeBankForTests();
   const before = await getPrizePool();

@@ -597,7 +597,7 @@ function BiddingView({ state, code }) {
       <Caption icon={<Mic2 size={20} />} text={state.hostLine.text} />
       <div className="pir-bidding-prize">
         <ItemImage item={state.item} />
-        <div><span>ITEM UP FOR BID</span><h3>{state.item.name}</h3><p>{state.item.brand || state.item.retailer}</p></div>
+        <div><span>ITEM UP FOR BID</span><h3>{state.item.name}</h3><p>{state.item.brand || state.item.retailer}</p>{state.item.description&&<p className="pir-bidding-description">{state.item.description}</p>}</div>
       </div>
       <ContestantRow contestants={state.contestants}
         activeTurn={state.turn} code={code} showBids />
