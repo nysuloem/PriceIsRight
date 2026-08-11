@@ -7,7 +7,7 @@ let _client = null;
 function client() {
   if (!_client) {
     if (!process.env.OPENAI_API_KEY) return null;
-    _client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    _client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 10000, maxRetries: 1 });
   }
   return _client;
 }
