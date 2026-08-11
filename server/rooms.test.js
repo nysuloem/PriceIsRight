@@ -58,7 +58,8 @@ test("the third on-stage winner starts the first Showcase Showdown", async()=>{
   await restart(room,"sameLineup");
   assert.equal(room.phase,"showcaseShowdown");
   assert.equal(room.completedRounds,3);
-  assert.deepEqual(room.showdown.participants.map(p=>p.id),["third","second","first"]);
+  assert.deepEqual(room.showdown.participants.map(p=>p.id),["third:round:3","second","first"]);
+  assert.equal(room.showdown.participants[0].controllerPlayerId,"third");
 });
 
 test("wheel controls remain locked until the spoken result is acknowledged",()=>{
@@ -92,4 +93,16 @@ test("a winner leaves once, replacement restores exactly four, and the newcomer 
   await restart(room,"sameLineup");
   assert.equal(room.phase,phaseAfterAdvance,"a duplicate restart is a harmless no-op");
   assert.equal(room.contestants.length,4);
+});
+
+test("a human winner can be recalled immediately instead of adding an AI",async()=>{
+  const room=createRoom();
+  room.phase="reveal";room.item={id:"family-prize",price:900};room.winnerIndices=[1];
+  room.players=["a","b","c","d"].map(id=>({id,name:id.toUpperCase(),photo:null}));
+  room.contestants=room.players.map(p=>({...p,isAI:false,bid:800}));
+  await restart(room,"sameLineup");
+  assert.equal(room.contestants.length,4);
+  assert.equal(room.contestants[0].id,"b");
+  assert.equal(room.contestants[0].isAI,false);
+  assert.equal(room.showcaseContestants[0].controllerPlayerId,"b");
 });

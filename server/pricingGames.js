@@ -7,6 +7,28 @@ const SMALL_ITEMS = [
   { name: "Hair dryer", brand: "Conair", description: "A lightweight ionic hair dryer.", price: 38, image: "https://images.unsplash.com/photo-1522338242992-e1a54906a8da?auto=format&fit=crop&w=600&q=80" },
   { name: "Waffle maker", brand: "Cuisinart", description: "A round non-stick waffle maker.", price: 67, image: "https://images.unsplash.com/photo-1562376552-0d160a2f238d?auto=format&fit=crop&w=600&q=80" },
   { name: "Digital scale", brand: "Starfrit", description: "A glass-top digital kitchen scale.", price: 29, image: "https://images.unsplash.com/photo-1591261730799-ee4e6c2d16d7?auto=format&fit=crop&w=600&q=80" },
+  { name: "French press", brand: "Bodum", description: "An eight-cup glass coffee press.", price: 42, image: "https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=600&q=80" },
+  { name: "Milk frother", brand: "Nespresso", description: "A compact electric milk frother.", price: 89, image: "https://images.unsplash.com/photo-1572442388796-11668a67e53d?auto=format&fit=crop&w=600&q=80" },
+  { name: "Rice cooker", brand: "Black+Decker", description: "A six-cup automatic rice cooker.", price: 58, image: "https://images.unsplash.com/photo-1536304993881-ff6e9eefa2a6?auto=format&fit=crop&w=600&q=80" },
+  { name: "Hand mixer", brand: "KitchenAid", description: "A five-speed electric hand mixer.", price: 75, image: "https://images.unsplash.com/photo-1594385208974-2e75f8d7bb48?auto=format&fit=crop&w=600&q=80" },
+  { name: "Popcorn maker", brand: "Dash", description: "A hot-air countertop popcorn maker.", price: 39, image: "https://images.unsplash.com/photo-1578849278619-e73505e9610f?auto=format&fit=crop&w=600&q=80" },
+  { name: "Coffee grinder", brand: "Braun", description: "A stainless-steel blade coffee grinder.", price: 36, image: "https://images.unsplash.com/photo-1520171285021-e1bb1d1c0e20?auto=format&fit=crop&w=600&q=80" },
+  { name: "Alarm clock", brand: "Sony", description: "A digital AM/FM clock radio.", price: 31, image: "https://images.unsplash.com/photo-1501139083538-0139583c060f?auto=format&fit=crop&w=600&q=80" },
+  { name: "Headphones", brand: "Skullcandy", description: "Wireless over-ear headphones.", price: 69, image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80" },
+  { name: "Computer mouse", brand: "Logitech", description: "A rechargeable wireless computer mouse.", price: 54, image: "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&w=600&q=80" },
+  { name: "Portable charger", brand: "Belkin", description: "A ten-thousand milliamp-hour power bank.", price: 47, image: "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?auto=format&fit=crop&w=600&q=80" },
+  { name: "Electric toothbrush", brand: "Oral-B", description: "A rechargeable electric toothbrush.", price: 83, image: "https://images.unsplash.com/photo-1609840114035-3c981b782dfe?auto=format&fit=crop&w=600&q=80" },
+  { name: "Beard trimmer", brand: "Philips", description: "A cordless beard and hair trimmer.", price: 57, image: "https://images.unsplash.com/photo-1621607512022-6aecc4fed814?auto=format&fit=crop&w=600&q=80" },
+  { name: "Heating pad", brand: "Sunbeam", description: "A soft electric heating pad.", price: 35, image: "https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?auto=format&fit=crop&w=600&q=80" },
+  { name: "Garment steamer", brand: "Rowenta", description: "A handheld fabric steamer.", price: 72, image: "https://images.unsplash.com/photo-1610557892470-55d9e80c0bce?auto=format&fit=crop&w=600&q=80" },
+  { name: "Yoga mat", brand: "Gaiam", description: "A cushioned non-slip exercise mat.", price: 34, image: "https://images.unsplash.com/photo-1601925260368-ae2f83cf8b7f?auto=format&fit=crop&w=600&q=80" },
+  { name: "Dumbbell set", brand: "CAP", description: "A pair of neoprene hand weights.", price: 48, image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=600&q=80" },
+  { name: "Camping lantern", brand: "Coleman", description: "A rechargeable outdoor lantern.", price: 41, image: "https://images.unsplash.com/photo-1504851149312-7a075b496cc7?auto=format&fit=crop&w=600&q=80" },
+  { name: "Binoculars", brand: "Bushnell", description: "Compact all-purpose binoculars.", price: 86, image: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=600&q=80" },
+  { name: "Tool set", brand: "Stanley", description: "A thirty-eight-piece household tool kit.", price: 78, image: "https://images.unsplash.com/photo-1581166397057-235af2b3c6dd?auto=format&fit=crop&w=600&q=80" },
+  { name: "Garden pruner", brand: "Fiskars", description: "A geared bypass pruning shear.", price: 27, image: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=600&q=80" },
+  { name: "Board game", brand: "Hasbro", description: "A family edition strategy board game.", price: 37, image: "https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?auto=format&fit=crop&w=600&q=80" },
+  { name: "Instant camera", brand: "Fujifilm", description: "A colourful instant-print camera.", price: 94, image: "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80" },
 ];
 
 const GROCERIES = [
@@ -18,6 +40,28 @@ const GROCERIES = [
   { name: "Ginger Ale", brand: "Canada Dry", description: "A twelve-pack of 355-millilitre cans.", price: 8.49, image: "https://www.canadadry.ca/images/product-ginger-ale.png" },
   { name: "All Dressed Chips", brand: "Ruffles", description: "A 200-gram bag of all-dressed potato chips.", price: 4.79, image: "https://www.tastyrewards.com/sites/default/files/2023-09/ruffles-all-dressed.png" },
   { name: "Maple Cookies", brand: "Leclerc", description: "Maple-leaf cookies made in Canada.", price: 3.49, image: "https://leclerc.ca/wp-content/uploads/2021/03/maple-leaf-cookies.png" },
+  { name: "Ketchup Chips", brand: "Lay's", description: "A family-size bag of ketchup chips.", price: 4.99, image: "https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&w=600&q=80" },
+  { name: "Peanut Butter", brand: "Kraft", description: "A jar of smooth peanut butter.", price: 7.49, image: "https://images.unsplash.com/photo-1598511757337-fe2cafc31ba0?auto=format&fit=crop&w=600&q=80" },
+  { name: "Tomato Soup", brand: "Campbell's", description: "A can of condensed tomato soup.", price: 2.49, image: "https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=600&q=80" },
+  { name: "Oat Cereal", brand: "Cheerios", description: "A family-size box of oat cereal.", price: 6.79, image: "https://images.unsplash.com/photo-1521483451569-e33803c0330c?auto=format&fit=crop&w=600&q=80" },
+  { name: "Chocolate Milk", brand: "Neilson", description: "A two-litre carton of chocolate milk.", price: 5.29, image: "https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=600&q=80" },
+  { name: "Greek Yogurt", brand: "Oikos", description: "A four-pack of vanilla Greek yogurt.", price: 5.99, image: "https://images.unsplash.com/photo-1571212515416-fca77afa66b3?auto=format&fit=crop&w=600&q=80" },
+  { name: "Frozen Pizza", brand: "Dr. Oetker", description: "A thin-crust pepperoni pizza.", price: 6.49, image: "https://images.unsplash.com/photo-1579751626657-72bc17010498?auto=format&fit=crop&w=600&q=80" },
+  { name: "Orange Juice", brand: "Tropicana", description: "A bottle of pulp-free orange juice.", price: 6.99, image: "https://images.unsplash.com/photo-1600271886742-f049cd451bba?auto=format&fit=crop&w=600&q=80" },
+  { name: "Pasta Sauce", brand: "Classico", description: "A jar of tomato basil pasta sauce.", price: 4.79, image: "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?auto=format&fit=crop&w=600&q=80" },
+  { name: "Tortillas", brand: "Dempster's", description: "A package of flour tortillas.", price: 4.29, image: "https://images.unsplash.com/photo-1624300629298-e9de39c13be5?auto=format&fit=crop&w=600&q=80" },
+  { name: "Granola Bars", brand: "MadeGood", description: "A box of chocolate granola bars.", price: 5.49, image: "https://images.unsplash.com/photo-1621939514649-280e2aa9454f?auto=format&fit=crop&w=600&q=80" },
+  { name: "Dish Soap", brand: "Sunlight", description: "A bottle of lemon dish soap.", price: 3.99, image: "https://images.unsplash.com/photo-1585832770485-e68a5dbfad52?auto=format&fit=crop&w=600&q=80" },
+  { name: "Facial Tissues", brand: "Scotties", description: "A six-box package of facial tissues.", price: 9.49, image: "https://images.unsplash.com/photo-1584556812952-905ffd0c611a?auto=format&fit=crop&w=600&q=80" },
+  { name: "Toothpaste", brand: "Crest", description: "A twin-pack of mint toothpaste.", price: 7.99, image: "https://images.unsplash.com/photo-1559591937-e6e7f1c2270c?auto=format&fit=crop&w=600&q=80" },
+  { name: "Shampoo", brand: "Dove", description: "A bottle of daily moisture shampoo.", price: 6.49, image: "https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?auto=format&fit=crop&w=600&q=80" },
+  { name: "Hand Soap", brand: "Softsoap", description: "A refill bottle of liquid hand soap.", price: 5.79, image: "https://images.unsplash.com/photo-1584305574647-0cc949a2bb9f?auto=format&fit=crop&w=600&q=80" },
+  { name: "Laundry Detergent", brand: "Tide", description: "A bottle of liquid laundry detergent.", price: 9.99, image: "https://images.unsplash.com/photo-1582735689369-4fe89db7114c?auto=format&fit=crop&w=600&q=80" },
+  { name: "Apple Sauce", brand: "Mott's", description: "A six-pack of apple sauce cups.", price: 4.69, image: "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=600&q=80" },
+  { name: "Black Tea", brand: "Red Rose", description: "A box of orange pekoe tea bags.", price: 6.29, image: "https://images.unsplash.com/photo-1594631252845-29fc4cc8cde9?auto=format&fit=crop&w=600&q=80" },
+  { name: "Pancake Mix", brand: "Pearl Milling", description: "A box of original pancake mix.", price: 4.99, image: "https://images.unsplash.com/photo-1528207776546-365bb710ee93?auto=format&fit=crop&w=600&q=80" },
+  { name: "Canned Tuna", brand: "Clover Leaf", description: "A can of flaked light tuna.", price: 2.79, image: "https://images.unsplash.com/photo-1534482421-64566f976cfa?auto=format&fit=crop&w=600&q=80" },
+  { name: "Yellow Mustard", brand: "French's", description: "A squeeze bottle of yellow mustard.", price: 3.49, image: "https://images.unsplash.com/photo-1528750717929-32abb73d3bd9?auto=format&fit=crop&w=600&q=80" },
 ];
 
 const CARS = [
@@ -29,6 +73,7 @@ const CARS = [
 const GAME_NAMES = ["plinko", "cliffHangers", "punchABunch", "diceGame", "groceryGame", "oneAway", "clockGame", "anyNumber", "grandGame", "shellGame"];
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const shuffle = (a) => { const c = [...a]; for (let i=c.length-1;i>0;i-=1) { const j=Math.floor(Math.random()*(i+1)); [c[i],c[j]]=[c[j],c[i]]; } return c; };
+const fresh = (items, excluded=[]) => { const blocked=new Set(excluded); const unused=items.filter(x=>!blocked.has(x.name)); return unused.length ? unused : items; };
 const money = (n) => `$${Number(n).toLocaleString("en-CA", { maximumFractionDigits: 2 })}`;
 const prizeIntro = (p) => ({ name:p.name, brand:p.brand, description:p.description, image:p.image, announcerText:`It's ${p.brand}'s ${p.name}! ${p.description}` });
 
@@ -51,13 +96,13 @@ function wrongTwoDigit(actual) {
   return { shownPrice:Number(shown), correctDigit:s[correctPosition], correctPosition };
 }
 
-function makePlinko(player) {
-  const q=shuffle(SMALL_ITEMS.filter(x=>x.price>=10&&x.price<100)).slice(0,3).map(p=>({...prizeIntro(p),actual:p.price,...wrongTwoDigit(p.price)}));
+function makePlinko(player, excluded=[]) {
+  const q=shuffle(fresh(SMALL_ITEMS.filter(x=>x.price>=10&&x.price<100),excluded)).slice(0,3).map(p=>({...prizeIntro(p),actual:p.price,...wrongTwoDigit(p.price)}));
   return {...base("plinko","PLINKO",player,"You get one free chip and can win three more. For each small prize, choose the correct digit in its displayed price. Then tap a drop position and watch every chip travel down the board.",q), stage:"qualify",qualifierIndex:0,qualifiers:q.map(({actual,correctDigit,correctPosition,...x})=>x),_qualifierPrices:q.map(x=>x.actual),_qualifierCorrect:q.map(x=>x.correctDigit),chips:1,chipsLeft:0,slots:[100,500,1000,0,10000,0,1000,500,100],prompt:`Choose the correct digit in the price of the ${q[0].name}.`,mode:"choice",options:String(q[0].shownPrice).padStart(2,"0").split(""),lastDrop:null};
 }
 
-function makePunch(player) {
-  const prizes=shuffle(SMALL_ITEMS).slice(0,3); const shown=prizes.map((p,i)=>p.price+(i%2?9:-8));
+function makePunch(player, excluded=[]) {
+  const prizes=shuffle(fresh(SMALL_ITEMS,excluded)).slice(0,3); const shown=prizes.map((p,i)=>p.price+(i%2?9:-8));
   return {...base("punchABunch","PUNCH-A-BUNCH",player,"Earn up to three punches by deciding whether each small prize is higher or lower than its wrong price. Then punch the board and decide whether to keep the cash or give it back for another punch.",prizes.map(prizeIntro)),stage:"qualify",qualifierIndex:0,qualifiers:prizes.map((p,i)=>({...prizeIntro(p),shownPrice:shown[i]})),_qualifierPrices:prizes.map(p=>p.price),punches:0,punchesLeft:0,prompt:`Is the ${prizes[0].name} higher or lower than ${money(shown[0])}?`,mode:"choice",options:["Higher","Lower"],_values:shuffle([100,100,250,250,500,500,1000,1000,2500,2500,5000,5000,10000,10000,25000,50000,...Array(34).fill(0).map((_,i)=>[100,250,500,1000][i%4])]),punched:[],offer:null};
 }
 
@@ -67,8 +112,8 @@ function makeDice(player) {
   return {...base("diceGame","DICE GAME",player,"Roll four dice for the last four digits of the car. Exact rolls light immediately; otherwise choose higher or lower. All choices are revealed one at a time after the final roll.",[{...prizeIntro(car),announcerText:`IT'S A NEW CAR! ${car.description}`}]),car:prizeIntro(car),firstDigit:digits[0],_digits:digits.slice(1),rolls:[null,null,null,null],choices:[null,null,null,null],revealed:[null,null,null,null],correct:[null,null,null,null],digitIndex:0,stage:"roll",prompt:"Roll the first die.",mode:"choice",options:["Roll"],rollSeq:0};
 }
 
-function makeGrocery(player) {
-  const items=shuffle(GROCERIES).slice(0,5);
+function makeGrocery(player, excluded=[]) {
+  const items=shuffle(fresh(GROCERIES,excluded)).slice(0,5);
   return {...base("groceryGame","GROCERY GAME",player,"Buy any quantity of each grocery item. Reach a total from $20 to $22 without going over $22.",items.map(prizeIntro)),items:items.map((x,i)=>({...prizeIntro(x),id:i,used:false})),_prices:items.map(x=>x.price),total:0,prompt:"Choose a Canadian grocery item.",mode:"choice",options:items.map((x,i)=>`${i+1}. ${x.brand} ${x.name}`),stage:"item"};
 }
 
@@ -77,16 +122,17 @@ function makeOneAway(player) {
   return {...base("oneAway","ONE AWAY",player,"Every digit shown is exactly one away from the car's true price. Choose higher or lower for each digit, hear how many are right, then make one final correction.",[prizeIntro(car)]),car:prizeIntro(car),shownDigits:shown,_digits:actual,answers:[],stage:"choose",digitIndex:0,prompt:`Should the first digit be one higher or one lower than ${shown[0]}?`,mode:"choice",options:["Higher","Lower"],rightCount:null};
 }
 
-function makeCliff(player) { const items=shuffle(SMALL_ITEMS).slice(0,3); return {...base("cliffHangers","CLIFF HANGERS",player,"Price three small prizes. Every dollar you miss moves the climber one step; 25 steps is the limit.",items.map(prizeIntro)),items:items.map(prizeIntro),_prices:items.map(i=>i.price),itemIndex:0,climber:0,prompt:`What is the price of the ${items[0].name}?`,mode:"number"}; }
-function makeClock(player) { const items=shuffle(SMALL_ITEMS.filter(i=>i.price>=25)).slice(0,2); return {...base("clockGame","CLOCK GAME",player,"You have 30 seconds to price two prizes. After every guess, the host tells you higher or lower.",items.map(prizeIntro)),items:items.map(prizeIntro),_prices:items.map(i=>i.price),itemIndex:0,_startedAt:null,_clockStarted:false,prompt:`Guess the price of the ${items[0].name}.`,mode:"number",clue:"30 seconds starts now!",secondsLeft:30}; }
+function makeCliff(player,excluded=[]) { const items=shuffle(fresh(SMALL_ITEMS,excluded)).slice(0,3); return {...base("cliffHangers","CLIFF HANGERS",player,"Price three small prizes. Every dollar you miss moves the climber one step; 25 steps is the limit.",items.map(prizeIntro)),items:items.map(prizeIntro),_prices:items.map(i=>i.price),itemIndex:0,climber:0,prompt:`What is the price of the ${items[0].name}?`,mode:"number"}; }
+function makeClock(player,excluded=[]) { const items=shuffle(fresh(SMALL_ITEMS.filter(i=>i.price>=25),excluded)).slice(0,2); return {...base("clockGame","CLOCK GAME",player,"You have 30 seconds to price two prizes. After every guess, the host tells you higher or lower.",items.map(prizeIntro)),items:items.map(prizeIntro),_prices:items.map(i=>i.price),itemIndex:0,_startedAt:null,_clockStarted:false,prompt:`Guess the price of the ${items[0].name}.`,mode:"number",clue:"30 seconds starts now!",secondsLeft:30}; }
 function makeAnyNumber(player) { const car=[3,...shuffle([0,1,2,4,5,6,7,8,9]).slice(0,4)], remaining=shuffle([0,1,2,4,5,6,7,8,9].filter(d=>!car.slice(1).includes(d))), small=remaining.slice(0,3), pig=remaining.slice(3,5); const carPrize=CARS[0]; return {...base("anyNumber","ANY NUMBER",player,"Call digits. You win the first price you completely reveal.",[prizeIntro(carPrize)]),boards:[{label:"Car",cells:[3,null,null,null,null]},{label:"Prize",cells:[null,null,null]},{label:"Piggy Bank",cells:[null,null]}],_answers:[car,small,pig],usedDigits:[3],prompt:"Choose a digit.",mode:"choice",options:[0,1,2,4,5,6,7,8,9].map(String)}; }
-function makeGrand(player) { const target=6, cheap=shuffle(GROCERIES.filter(i=>i.price<target)).slice(0,4), pricey=shuffle(GROCERIES.filter(i=>i.price>=target)).slice(0,2), items=shuffle([...cheap,...pricey]); return {...base("grandGame","GRAND GAME",player,"Pick the four products priced below the target. Each correct pick multiplies your money by ten.",items.map(prizeIntro)),target,items:items.map(i=>({...prizeIntro(i),selected:false})),_prices:items.map(i=>i.price),prompt:`Pick a product under ${money(target)}.`,mode:"choice",options:items.map((i,n)=>`${n+1}. ${i.name}`),correct:0,winnings:1}; }
-function makeShell(player) { const items=shuffle(SMALL_ITEMS).slice(0,3), shown=items.map((x,i)=>x.price+(i%2?-8:9)); return {...base("shellGame","SHELL GAME",player,"Win shells by deciding whether each small prize is higher or lower than its shown price, then find the hidden ball.",items.map(prizeIntro)),items:items.map((x,i)=>({...prizeIntro(x),shownPrice:shown[i]})),_prices:items.map(i=>i.price),itemIndex:0,shells:0,_ball:Math.floor(Math.random()*4),prompt:`${items[0].name}: higher or lower than ${money(shown[0])}?`,mode:"choice",options:["Higher","Lower"],stage:"prices"}; }
+function makeGrand(player,excluded=[]) { const available=fresh(GROCERIES,excluded), target=6, cheap=shuffle(available.filter(i=>i.price<target)).slice(0,4), pricey=shuffle(available.filter(i=>i.price>=target)).slice(0,2), items=shuffle([...cheap,...pricey]); return {...base("grandGame","GRAND GAME",player,"Pick the four products priced below the target. Each correct pick multiplies your money by ten.",items.map(prizeIntro)),target,items:items.map(i=>({...prizeIntro(i),selected:false})),_prices:items.map(i=>i.price),prompt:`Pick a product under ${money(target)}.`,mode:"choice",options:items.map((i,n)=>`${n+1}. ${i.name}`),correct:0,winnings:1}; }
+function makeShell(player,excluded=[]) { const items=shuffle(fresh(SMALL_ITEMS,excluded)).slice(0,3), shown=items.map((x,i)=>x.price+(i%2?-8:9)); return {...base("shellGame","SHELL GAME",player,"Win shells by deciding whether each small prize is higher or lower than its shown price, then find the hidden ball.",items.map(prizeIntro)),items:items.map((x,i)=>({...prizeIntro(x),shownPrice:shown[i]})),_prices:items.map(i=>i.price),itemIndex:0,shells:0,_ball:Math.floor(Math.random()*4),prompt:`${items[0].name}: higher or lower than ${money(shown[0])}?`,mode:"choice",options:["Higher","Lower"],stage:"prices"}; }
 
 const FACTORIES={plinko:makePlinko,cliffHangers:makeCliff,punchABunch:makePunch,diceGame:makeDice,groceryGame:makeGrocery,oneAway:makeOneAway,clockGame:makeClock,anyNumber:makeAnyNumber,grandGame:makeGrand,shellGame:makeShell};
 export const PRICING_GAME_TYPES=[...GAME_NAMES];
-export function createPricingGameForType(type,player){ if(!FACTORIES[type]) throw new Error(`Unknown pricing game: ${type}`); return FACTORIES[type](player); }
-export function createPricingGame(player,previous=[]){ const a=GAME_NAMES.filter(x=>!previous.includes(x)); return FACTORIES[pick(a.length?a:GAME_NAMES)](player); }
+export function createPricingGameForType(type,player,excluded=[]){ if(!FACTORIES[type]) throw new Error(`Unknown pricing game: ${type}`); return FACTORIES[type](player,excluded); }
+export function createPricingGame(player,previous=[],excluded=[]){ const a=GAME_NAMES.filter(x=>!previous.includes(x)); return FACTORIES[pick(a.length?a:GAME_NAMES)](player,excluded); }
+export function pricingPrizeNames(game){return [...(game?.qualifiers||[]),...(game?.items||[]),...(game?.introPrizes||[])].map(x=>x?.name).filter(Boolean);}
 
 export function playPricingGame(g,action={}) {
   if(!g||g.status!=="playing") throw new Error("Pricing game is not active"); const choice=String(action.choice??""); const value=Math.round(Number(action.value));

@@ -3,7 +3,7 @@ import {
   buildLineup, computeAIBid, computeWinners, makeAIContestant, STRATEGIES, shuffle,
 } from "./gameLogic.js";
 import { getPrizePool, pickRandomItem } from "./prizeSource.js";
-import { clearDeferredPrice, createPricingGame, createPricingGameForType, initialPrizeAnnouncements, playPricingGame, publicPricingGame, revealDeferredPrice, settlePricingAnimation } from "./pricingGames.js";
+import { clearDeferredPrice, createPricingGame, createPricingGameForType, initialPrizeAnnouncements, playPricingGame, pricingPrizeNames, publicPricingGame, revealDeferredPrice, settlePricingAnimation } from "./pricingGames.js";
 import { advanceShowcase, createFinalShowcase, createShowdown, publicFinalShowcase, publicShowdown, resolveShowcaseAI, resolveWheelAI, settleWheel, showcaseAction, wheelAction } from "./showFlow.js";
 
 const rooms = new Map();
@@ -56,6 +56,7 @@ export function createRoom() {
     usedPrizeFamilies: [],
     prizeCategoryCounts: {},
     playedPricingGames: [],
+    usedPricingPrizeNames: [],
     pricingGame: null,
     pricingAnnouncement: null,
     pricingAnnouncementQueue: [],
@@ -263,8 +264,9 @@ export function startPricingGame(room) {
   if (room.phase !== "reveal") throw new Error("Finish Contestants' Row first");
   const winner = room.winnerIndices.map(i => room.contestants[i]).find(c => c && !c.isAI);
   if (!winner) throw new Error("No human winner is available for a pricing game");
-  room.pricingGame = createPricingGame(winner, room.playedPricingGames);
+  room.pricingGame = createPricingGame(winner, room.playedPricingGames, room.usedPricingPrizeNames);
   room.playedPricingGames.push(room.pricingGame.type);
+  room.usedPricingPrizeNames.push(...pricingPrizeNames(room.pricingGame));
   preparePricingIntroduction(room,winner);
 }
 
@@ -403,6 +405,7 @@ export async function restart(room, mode) {
     room.usedPrizeFamilies = [];
     room.prizeCategoryCounts = {};
     room.playedPricingGames = [];
+    room.usedPricingPrizeNames = [];
     room.pricingGame = null;
     room.showcaseContestants = [];
     room.completedRounds = 0;
@@ -425,7 +428,11 @@ export async function restart(room, mode) {
     if (winner) {
       const gameValue=pricingGameValue(room.pricingGame);
       const oneBidValue=Number(room.item?.price||0)+(room.revealType==="exactBid"?500:0);
-      room.showcaseContestants.push({ ...winner, bid:null, oneBidValue, pricingWinnings:gameValue, totalWinnings:oneBidValue+gameValue, round:room.completedRounds+1 });
+      const round=room.completedRounds+1;
+      // Every win is a separate game-show appearance. The controllerPlayerId
+      // still points at the same phone, allowing a human to earn multiple
+      // independent spots in a Showcase Showdown (and even the Showcase).
+      room.showcaseContestants.push({ ...winner, id:`${winner.id}:round:${round}`, controllerPlayerId:winner.id, bid:null, oneBidValue, pricingWinnings:gameValue, totalWinnings:oneBidValue+gameValue, round });
       room.completedRounds+=1;
     }
     room.contestants = room.contestants.filter((_, index) => index !== winnerIndex).map((c) => ({
@@ -457,10 +464,9 @@ function pricingGameValue(game){
 
 async function prepareReplacement(room){
     if (room.contestants.length !== 3) throw new Error(`Contestants' Row must have three people before a replacement is called; found ${room.contestants.length}`);
-    const unavailable = new Set([
-      ...room.contestants.map(c => c.id),
-      ...room.showcaseContestants.map(c => c.id),
-    ]);
+    // A human winner may come right back after leaving the Row. Keep every
+    // human involved before creating an AI replacement.
+    const unavailable = new Set(room.contestants.map(c => c.id));
     const waitingHuman = room.players.find(player => !unavailable.has(player.id));
     const replacement = waitingHuman
       ? { id: waitingHuman.id, name: waitingHuman.name, isAI: false, strategy: null, bid: null, photo: waitingHuman.photo || null }

@@ -108,6 +108,14 @@ function playSuccess() {
   try { const ctx=new (window.AudioContext||window.webkitAudioContext)(); [523,659,784,1047].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.1;o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.25,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.28);o.start(t);o.stop(t+.3);}); } catch {}
 }
 
+function playCarFanfare() {
+  try { const ctx=new (window.AudioContext||window.webkitAudioContext)(); [392,523,659,784,1047].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.11;o.type="square";o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.2,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.42);o.start(t);o.stop(t+.44);}); } catch {}
+}
+
+function playShowcaseCelebration() {
+  try { const ctx=new (window.AudioContext||window.webkitAudioContext)(); [523,659,784,1047,1319,1568].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.13;o.type=i%2?"triangle":"square";o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.22,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.55);o.start(t);o.stop(t+.58);}); } catch {}
+}
+
 function playWomp() {
   try { const ctx=new (window.AudioContext||window.webkitAudioContext)(); [220,174,130].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.34;o.type="triangle";o.connect(g);g.connect(ctx.destination);o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(f*.65,t+.3);g.gain.setValueAtTime(.35,t);g.gain.exponentialRampToValueAtTime(.001,t+.32);o.start(t);o.stop(t+.34);}); } catch {}
 }
@@ -141,7 +149,7 @@ function HostViewInner({ code }) {
     const game=state?.pricingGame, drop=game?.lastDrop;
     if(game?.type!=="plinko"||game.stage!=="dropping"||!drop||drop.id===lastSettledDropRef.current)return;
     lastSettledDropRef.current=drop.id;
-    const timer=setTimeout(()=>settlePricingGame(code).catch(e=>setError(e.message)),2300);
+    const timer=setTimeout(()=>settlePricingGame(code).catch(e=>setError(e.message)),3400);
     return()=>clearTimeout(timer);
   },[state?.pricingGame?.lastDrop?.id,state?.pricingGame?.stage,code]);
 
@@ -250,6 +258,7 @@ function HostViewInner({ code }) {
       const hostIntro = `${text} ${game.instructions}`;
       playTTS(el, hostIntro, () => safely(() => beginPricingGame(code)), voice, "host");
     } else if (type === "pricingPrizeIntro") {
+      if (/new car/i.test(text)) playCarFanfare();
       setTimeout(() => current(() => playTTS(ann, text, () => safely(() => beginPricingGame(code)), config.announcerVoice || "onyx", "announcer")), 650);
     } else if (type === "pricingRevealCue") {
       playTTS(el, text, () => safely(() => revealPricingPrice(code)), voice, "host");
@@ -274,7 +283,7 @@ function HostViewInner({ code }) {
     } else if (type === "showcaseChoice" || type === "showcaseBid") {
       playTTS(el,text,()=>current(()=>{const f=state.finalShowcase;const id=f?.stage==="choice"?f.contestants[0].id:f?.assignments?.[f.stage==="firstBid"?0:1];if(f?.contestants?.find(c=>c.id===id)?.isAI)safely(()=>resolveShowcaseAI(code));}),voice);
     } else if (type === "showcaseResult") {
-      playTTS(el,text,()=>{},voice);
+      playTTS(el,text,()=>current(playShowcaseCelebration),voice);
     }
   }, [state, code, phase]);
 
@@ -366,7 +375,7 @@ function HostViewInner({ code }) {
       )}
 
       {phase !== "opening" && (
-        <div className="pir-root">
+        <div className="pir-root pir-host-root">
           {!state && (
             <div className="pir-loading">
               <div className="pir-title">Come On Down!</div>
@@ -398,7 +407,7 @@ function HostViewInner({ code }) {
                   onNewPlayers={action(() => restartGame(code, "newPlayers"))} />
               )}
               {(state.phase === "pricingIntro" || state.phase === "pricingPrizeIntro" || state.phase === "pricingGame" || state.phase === "pricingRevealCue" || state.phase === "pricingPriceShown") && (
-                <PricingGameView game={state.pricingGame} spotlight={state.phase === "pricingPrizeIntro" ? state.pricingAnnouncement : null} />
+                <PricingGameView game={state.pricingGame} spotlight={state.phase === "pricingPrizeIntro" ? state.pricingAnnouncement : null} rulesOnly={state.phase === "pricingIntro"} />
               )}
               {state.phase === "showcaseShowdown" && <WheelView showdown={state.showdown} />}
               {state.phase.startsWith("showcase") && state.finalShowcase && <FinalShowcaseView state={state} />}
@@ -413,9 +422,9 @@ function HostViewInner({ code }) {
 }
 
 const WHEEL_VALUES=[100,5,90,25,70,45,10,65,30,85,50,95,55,75,40,20,60,35,80,15];
-function WheelView({showdown}){if(!showdown)return null;const p=showdown.participants.find(x=>x.id===showdown.announcingPlayerId)||(showdown.participants[showdown.currentIndex]||showdown.participants.find(x=>x.id===showdown.winnerId));const spinning=["spinning","bonusSpinning"].includes(showdown.stage);const rotation=(showdown.spinTurns||5)*360-(showdown.pendingIndex??0)*18;return <div className="pir-wheel-stage"><div className="pir-pricing-kicker">SHOWCASE SHOWDOWN {showdown.half}</div><h2 className="pir-pricing-title">THE BIG WHEEL</h2><div className="pir-wheel-machine"><div className="pir-wheel-tower"><span>💡</span><b>$</b><span>💡</span></div><div className="pir-wheel-center"><div className="pir-wheel-pointer">▼</div><div key={showdown.spinSeq} className={`pir-big-wheel ${spinning?"spinning":""}`} style={{"--rotation":`${rotation}deg`,"--spin-duration":`${showdown.spinDuration||3400}ms`}}>{WHEEL_VALUES.map((v,i)=><span key={i} className={v===100?"dollar":""} style={{transform:`rotate(${i*18}deg) translateY(-165px) rotate(${-i*18}deg)`}}>{v===100?"100":String(v).padStart(2,"0")}</span>)}</div></div><div className="pir-wheel-tower"><span>💡</span><b>$</b><span>💡</span></div></div><h3>{p?.name}{showdown.isSpinoff?" — SPIN-OFF":""}</h3><div className="pir-wheel-scoreboard">{showdown.participants.map(x=><div key={x.id} className={x.id===p?.id?"active":""}><b>{x.name}</b><span>{x.spins?.map(v=>v===100?"$1.00":`.${String(v).padStart(2,"0")}`).join(" + ")||"—"}</span><strong>{x.score>100?"BUST":`${x.score}¢`}</strong><small>Wheel bonus: ${x.bonusCash?.toLocaleString("en-CA")||0}</small></div>)}</div><div className="pir-pricing-prompt">{spinning?`${p?.name}'s ${showdown.spinStrength||"medium"} spin is turning…`:showdown.stage==="announcing"?"Listen for the result…":showdown.result||`${p?.name}, spin the wheel!`}</div></div>}
+function WheelView({showdown}){if(!showdown)return null;const p=showdown.participants.find(x=>x.id===showdown.announcingPlayerId)||(showdown.participants[showdown.currentIndex]||showdown.participants.find(x=>x.id===showdown.winnerId));const spinning=["spinning","bonusSpinning"].includes(showdown.stage),finished=showdown.participants.filter(x=>x.status==="done"&&x.score<=100),leader=finished.sort((a,b)=>b.score-a.score)[0]||null,rotation=(showdown.spinTurns||5)*360-(showdown.pendingIndex??0)*18;return <div className="pir-wheel-stage"><div className="pir-pricing-kicker">SHOWCASE SHOWDOWN {showdown.half}</div><h2 className="pir-pricing-title">THE BIG WHEEL</h2>{leader&&<div className="pir-wheel-leader"><span>CURRENT LEADER</span><b>{leader.name}</b><strong>{leader.score===100?"$1.00":`.${String(leader.score).padStart(2,"0")}`}</strong></div>}<div className="pir-wheel-machine"><div className="pir-wheel-tower"><span>💡</span><b>$</b><span>💡</span></div><div className="pir-wheel-center"><div className="pir-wheel-pointer">▼</div><div key={showdown.spinSeq} className={`pir-big-wheel ${spinning?"spinning":""}`} style={{"--rotation":`${rotation}deg`,"--spin-duration":`${showdown.spinDuration||3400}ms`}}>{WHEEL_VALUES.map((v,i)=><span key={i} className={v===100?"dollar":""} style={{transform:`rotate(${i*18}deg) translateY(-165px) rotate(${-i*18}deg)`}}>{v===100?"100":String(v).padStart(2,"0")}</span>)}</div></div><div className="pir-wheel-tower"><span>💡</span><b>$</b><span>💡</span></div></div><h3>{p?.name}{showdown.isSpinoff?" — SPIN-OFF":""}</h3><div className="pir-wheel-scoreboard">{showdown.participants.map((x,i)=><div key={`${x.id}-${i}`} className={`${x.id===p?.id?"active":""} ${x.id===leader?.id?"leader":""}`}><b>{x.name}</b><span>{x.spins?.map(v=>v===100?"$1.00":`.${String(v).padStart(2,"0")}`).join(" + ")||"—"}</span><strong>{x.score>100?"BUST":`${x.score}¢`}</strong><small>Wheel bonus: ${x.bonusCash?.toLocaleString("en-CA")||0}</small></div>)}</div><div className="pir-pricing-prompt">{spinning?`${p?.name}'s ${showdown.spinStrength||"medium"} spin is turning…`:showdown.stage==="announcing"?"Listen for the result…":showdown.result||`${p?.name}, spin the wheel!`}</div></div>}
 
-function FinalShowcaseView({state}){const f=state.finalShowcase,s=f.showcases[f.showcaseIndex]||f.showcases[0];return <div className="pir-showcase-stage"><div className="pir-pricing-kicker">THE FINAL SHOWCASE</div><h2 className="pir-pricing-title">{s.title}</h2>{state.showcaseAnnouncement?<GameCards items={[state.showcaseAnnouncement]}/>:<div className="pir-showcase-prizes">{s.prizes.map((p,i)=><div key={i}><img src={p.image} alt=""/><b>{p.name}</b></div>)}</div>}<div className="pir-showcase-contestants">{f.contestants.map(c=><div key={c.id} className={c.id===f.winnerId?"winner":""}><b>{c.name}</b><span>Show winnings ${c.totalWinnings?.toLocaleString("en-CA")}</span><strong>{f.bids[c.id]?`BID $${f.bids[c.id].toLocaleString("en-CA")}`:"WAITING"}</strong></div>)}</div>{f.stage==="complete"&&<div className="pir-showcase-results">{f.results.map((r,i)=><div key={i}>Showcase {i+1}: ${r.actual.toLocaleString("en-CA")} · {r.over?"OVER":`Difference $${r.difference.toLocaleString("en-CA")}`}</div>)}</div>}<div className="pir-pricing-prompt">{f.result||state.hostLine.text}</div></div>}
+function FinalShowcaseView({state}){const f=state.finalShowcase,s=f.showcases[f.showcaseIndex]||f.showcases[0],winner=f.contestants.find(c=>c.id===f.winnerId);return <div className={`pir-showcase-stage ${f.stage==="complete"&&winner?"pir-showcase-won":""}`}>{f.stage==="complete"&&winner&&<><div className="pir-confetti" aria-hidden="true">{Array.from({length:70},(_,i)=><i key={i} style={{"--i":i}} />)}</div><div className="pir-winner-spectacular"><small>THE SHOWCASE WINNER IS</small><strong>{winner.name}!</strong><span>🎉 🏆 🎉</span><b>{f.doubleShowcase?"YOU WON BOTH SHOWCASES!":"YOU WON YOUR SHOWCASE!"}</b></div></>}<div className="pir-pricing-kicker">THE FINAL SHOWCASE</div><h2 className="pir-pricing-title">{s.title}</h2>{state.showcaseAnnouncement?<GameCards items={[state.showcaseAnnouncement]}/>:<div className="pir-showcase-prizes">{s.prizes.map((p,i)=><div key={i}><img src={p.image} alt=""/><b>{p.name}</b></div>)}</div>}<div className="pir-showcase-contestants">{f.contestants.map((c,i)=><div key={`${c.id}-${i}`} className={c.id===f.winnerId?"winner":""}><b>{c.name}</b><span>Show winnings ${c.totalWinnings?.toLocaleString("en-CA")}</span><strong>{f.bids[c.id]?`BID $${f.bids[c.id].toLocaleString("en-CA")}`:"WAITING"}</strong></div>)}</div>{f.stage==="complete"&&<div className="pir-showcase-results">{f.results.map((r,i)=><div key={i}>Showcase {i+1}: ${r.actual.toLocaleString("en-CA")} · {r.over?"OVER":`Difference $${r.difference.toLocaleString("en-CA")}`}</div>)}</div>}<div className="pir-pricing-prompt">{f.result||state.hostLine.text}</div></div>}
 
 function DemoLobby({ state, joinUrl }) {
   return <div className="pir-panel pir-center"><h2 className="pir-pricing-title">PRICING GAME TEST</h2><div className="pir-qr-box" style={{margin:"20px auto",width:"fit-content"}}><QRCodeSVG value={joinUrl} size={220} fgColor="#fff8e7" bgColor="transparent" /></div><p className="pir-helptext">Scan with a phone, enter the contestant's name, and the game will begin on this screen.</p><b>{state.players.length ? "Contestant connected — get ready!" : "Waiting for contestant…"}</b></div>;
@@ -597,9 +606,10 @@ function RevealView({ state, code, onStartPricing, onNextRound, onNewPlayers }) 
 // Pricing games — the contestant controls these from their phone. The host
 // screen is a read-only game board that mirrors every choice.
 // ---------------------------------------------------------------------------
-export function PricingGameView({ game, spotlight = null }) {
+export function PricingGameView({ game, spotlight = null, rulesOnly = false }) {
   if (!game) return <div className="pir-loading">Loading pricing game…</div>;
-  if (spotlight) return <div className={`pir-pricing-board pir-game-${game.type}`}><div className="pir-pricing-kicker">PRIZE INTRODUCTION</div><h2 className="pir-pricing-title">{game.title}</h2><GameCards items={[spotlight]} /><div className="pir-pricing-prompt">Listen to the announcer…</div></div>;
+  if (rulesOnly) return <div className={`pir-pricing-board pir-game-${game.type} pir-rules-only`}><div className="pir-pricing-kicker">HOW TO PLAY</div><h2 className="pir-pricing-title">{game.title}</h2><p className="pir-pricing-rules">{game.instructions}</p><div className="pir-pricing-prompt">Listen to the rules…</div></div>;
+  if (spotlight) { const isCar=/car/i.test(spotlight.name||"")||/new car/i.test(spotlight.announcerText||""); return <div className={`pir-pricing-board pir-game-${game.type} ${isCar?"pir-new-car-stage":""}`}><div className="pir-pricing-kicker">PRIZE INTRODUCTION</div>{isCar&&<div className="pir-new-car-flash">IT'S A NEW CAR!!!</div>}<h2 className="pir-pricing-title">{game.title}</h2><GameCards items={[spotlight]} /><div className="pir-pricing-prompt">Listen to the announcer…</div></div>; }
   if (game.priceReveal) return <div className={`pir-pricing-board pir-game-${game.type}`}><div className="pir-pricing-kicker">PRICE REVEAL</div><h2 className="pir-pricing-title">{game.title}</h2><GameCards items={[{...game.priceReveal,revealedPrice:game.priceReveal.actual}]} /><div className={`pir-pricing-prompt ${game.priceReveal.actual==null?"":"revealed"}`}>{game.priceReveal.actual==null?"SHOW ME THE PRICE!":game.priceReveal.correct?"THAT'S RIGHT!":"OH, SO CLOSE!"}</div></div>;
   return (
     <div className={`pir-pricing-board pir-game-${game.type}`}>
@@ -611,7 +621,7 @@ export function PricingGameView({ game, spotlight = null }) {
         <div className="pir-plinko-board">
           {game.stage === "qualify" && <GameCards items={[game.qualifiers[game.qualifierIndex]].filter(Boolean)} />}
           <div className="pir-plinko-drop-line">{Array.from({length:9},(_,i)=><span key={i}>{i+1}</span>)}</div>
-          <div className="pir-plinko-field"><div className="pir-plinko-pegs">{Array.from({ length: 63 }, (_, i) => <i key={i} />)}</div>{game.lastDrop && <div key={game.lastDrop.id} className="pir-plinko-chip" style={{"--start":game.lastDrop.start,"--land":game.lastDrop.landing}} />}</div>
+          <div className="pir-plinko-field"><div className="pir-plinko-pegs">{Array.from({ length: 108 }, (_, i) => <i key={i} />)}</div>{game.lastDrop && <PlinkoChip key={game.lastDrop.id} drop={game.lastDrop} />}</div>
           <div className="pir-plinko-slots">{game.slots.map((v,i) => <span key={i}>${v}</span>)}</div>
           {game.lastDrop?.value != null && <div className="pir-plinko-result">LANDED ON ${game.lastDrop.value.toLocaleString("en-CA")}</div>}
           <b>{game.stage === "qualify" ? `${game.chips} chip${game.chips === 1 ? "" : "s"} earned` : `${game.chipsLeft} chip${game.chipsLeft === 1 ? "" : "s"} left`}</b>
@@ -633,6 +643,12 @@ export function PricingGameView({ game, spotlight = null }) {
       {game.status !== "playing" && <div className="pir-helptext">The next item up for bids is loading…</div>}
     </div>
   );
+}
+
+function PlinkoChip({drop}) {
+  const ref=useRef(null);
+  useEffect(()=>{const chip=ref.current,field=chip?.parentElement;if(!chip||!field||!drop?.path?.length)return;const column=field.clientWidth/9,height=field.clientHeight-chip.offsetHeight,start=drop.path[0];const frames=drop.path.map((col,i)=>({transform:`translate(${(col-start)*column}px, ${i*height/(drop.path.length-1)}px) rotate(${i%2?18:-18}deg) scale(${i===drop.path.length-1?1.08:1})`,offset:i/(drop.path.length-1),easing:i===drop.path.length-1?"ease-out":"cubic-bezier(.2,.8,.35,1)"}));const animation=chip.animate(frames,{duration:3200,fill:"forwards"});return()=>animation.cancel();},[drop]);
+  return <div ref={ref} className="pir-plinko-chip" style={{left:`calc(${(drop.start+.5)*100/9}% - 13px)`}} />;
 }
 
 function GameCards({ items = [] }) {
