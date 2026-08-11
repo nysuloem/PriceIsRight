@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { acknowledgeWheelResult, beginPricingGame, createPricingGameDemo, createRoom, joinRoom, publicState, restart, revealReplacement, settleWheelGame, wheelGameAction } from "./rooms.js";
+import { acknowledgeWheelResult, advance, beginPricingGame, createPricingGameDemo, createRoom, joinRoom, publicState, restart, revealReplacement, settleWheelGame, wheelGameAction } from "./rooms.js";
 import { createShowdown } from "./showFlow.js";
 
 test("pricing game demos wait for a phone, introduce the game, then unlock controls", () => {
@@ -136,4 +136,23 @@ test("never-called humans precede winners and winners return in FIFO order",asyn
   assert.equal(await playRound("b"),"e");
   assert.equal(await playRound("a"),"f");
   assert.equal(await playRound("c"),"b");
+});
+
+test("an all-overbid reveal keeps the retail price secret",()=>{
+  const room=createRoom();room.phase="bidding";room.item={price:800};
+  room.contestants=[1,2,3,4].map((n,i)=>({id:String(n),name:`P${n}`,bid:900+i*10,isAI:false}));
+  advance(room,"reveal");
+  assert.equal(room.revealType,"overbid");
+  assert.doesNotMatch(room.hostLine.text,/800/);
+});
+
+test("an exact bid announces and awards a one-hundred-dollar bonus",async()=>{
+  const room=createRoom();room.phase="bidding";room.item={price:800};room.completedRounds=2;
+  room.contestants=[{id:"exact",name:"Exact",bid:800,isAI:false}];
+  room.showcaseContestants=[{id:"r1",name:"R1",round:1,totalWinnings:100},{id:"r2",name:"R2",round:2,totalWinnings:200}];
+  advance(room,"reveal");
+  assert.match(room.hostLine.text,/one hundred dollars/i);
+  await restart(room,"sameLineup");
+  const entry=room.showcaseContestants.find(c=>c.controllerPlayerId==="exact");
+  assert.equal(entry.oneBidValue,900);
 });
