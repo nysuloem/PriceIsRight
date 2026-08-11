@@ -395,21 +395,23 @@ function BiddingPhase({ state, playerId, bidDraft, setBidDraft, onSubmit }) {
 }
 
 function RevealPhase({ state, myIndex }) {
-  const { item, contestants, winnerIndices } = state;
+  const { item, contestants, winnerIndices, revealType } = state;
+  const allOverbid=revealType==="overbid";
   const me = contestants[myIndex];
   const isWinner = winnerIndices.includes(myIndex);
-  const over = me && me.bid > item.price;
+  const over = !allOverbid && me && me.bid > item.price;
   const diff = me ? (over ? me.bid - item.price : item.price - me.bid) : 0;
   return (
     <div className="pir-panel pir-center">
-      <div className="pir-price-reveal">
+      <div className={`pir-price-reveal ${allOverbid?"pir-price-hidden":""}`}>
         <div className="label">Actual Retail Price</div>
-        <div className="price">${item.price}</div>
+        <div className="price">{allOverbid?"????":`$${item.price}`}</div>
       </div>
       {me && (
         <p style={{ marginTop: 12 }}>
           You bid <b>${me.bid}</b> —{" "}
-          {isWinner
+          {allOverbid ? "everyone overbid—the price remains secret for the re-bid"
+            : isWinner
             ? <span style={{ color: "var(--led-green)" }}>
                 <Trophy size={16} style={{ verticalAlign: "middle" }} /> You win it!
               </span>
