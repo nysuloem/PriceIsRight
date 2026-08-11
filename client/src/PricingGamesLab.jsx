@@ -16,7 +16,7 @@ const GAMES = [
   ["moneyGame", "Money Game", "Find the first and last pairs in a new car's price."],
   ["luckySeven", "Lucky Seven", "Keep at least one dollar while completing a new car's price."],
   ["doublePrices", "Double Prices", "Choose the correct of two prices for a grand prize."],
-  ["comingOrGoing", "Coming or Going", "Decide which direction the prize-price digits should read."],
+  ["threeStrikes", "3 Strikes", "Place all five car-price digits before drawing three strikes."],
   ["switchGame", "Switch?", "Decide whether two prize prices should stay or switch."],
 ];
 
