@@ -364,6 +364,7 @@ function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError
       <p className="pir-helptext">{game.instructions}</p>
       <div className="pir-pricing-prompt">{game.prompt}</div>
       {game.mode === "number" && <>
+        {game.type==="tenChances"&&<div className="pir-ten-digits">{game.digitSets[game.prizeIndex]?.map((digit,i)=><span key={`${digit}-${i}`}>{digit}</span>)}</div>}
         <div className="pir-led pir-bid-input"><span>{game.type==="groceryGame"&&game.stage==="quantity"?"QTY":"$"}</span><input type="number" value={number} autoFocus min="0" onChange={e=>setNumber(e.target.value)} /></div>
         {game.type==="clockGame"&&<div className="pir-clock-mic"><button className={`pir-btn ${listening?"listening":"secondary"}`} disabled={busy&&!listening} onClick={listening?stopClockMic:startClockMic}>{listening?<><MicOff size={20}/> LISTENING — TAP TO STOP</>:<><Mic size={20}/> START MICROPHONE</>}</button>{heard&&<small>Heard: “{heard}”</small>}<small>Once started, it keeps listening for guesses. Typed entry remains available.</small></div>}
         <button className="pir-btn" disabled={busy || number === ""} onClick={()=>send({ value: number })}>Submit</button>
