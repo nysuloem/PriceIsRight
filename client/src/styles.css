@@ -37,6 +37,12 @@ body {
   padding: 22px;
   position: relative;
 }
+.pir-host-root { width:min(100vw,177.78vh); max-width:none; height:100dvh; overflow:hidden; padding:clamp(10px,1.8vh,22px); }
+@media (min-width:900px) and (max-height:850px) {
+  .pir-host-root .pir-title-row{margin-bottom:8px}.pir-host-root .pir-title{font-size:clamp(25px,4vh,38px)}
+  .pir-host-root .pir-caption{padding:8px 14px;min-height:42px;margin-bottom:8px}
+  .pir-host-root .pir-podium-row{margin:12px 0 8px}.pir-host-root .pir-pricing-board{padding:14px}.pir-host-root .pir-pricing-title{font-size:clamp(30px,6vh,50px)}
+}
 
 .pir-loading {
   text-align: center;
@@ -993,12 +999,12 @@ body {
 .pir-game-cards img{width:100%;height:105px;object-fit:contain;background:#fff;border-radius:6px}.pir-game-cards b small{display:block;color:#c53228;text-transform:uppercase;font-size:10px;letter-spacing:1px}.pir-game-cards p{font-size:11px;line-height:1.25;margin:0;opacity:.8}
 .pir-price-digits { display: flex; justify-content: center; gap: 7px; margin: 18px 0; }
 .pir-price-digits span { width: clamp(42px,8vw,64px); height: clamp(58px,11vw,82px); display: grid; place-items: center; background: #19120d; border: 5px solid #f3d64a; color: #fff4be; font: 700 clamp(30px,7vw,52px)/1 "Share Tech Mono",monospace; box-shadow: inset 0 0 12px #000; }
-.pir-plinko-board { max-width: 620px; margin: auto; background: #236bb0; border: 6px solid #f2d54c; padding: 16px; }
-.pir-plinko-field{position:relative;overflow:hidden}.pir-plinko-drop-line{display:grid;grid-template-columns:repeat(9,1fr);color:#fff;font-weight:900}.pir-plinko-pegs { display: grid; grid-template-columns: repeat(9,1fr); gap: 14px; padding: 8px 12px 25px; }
-.pir-plinko-pegs i { width: 9px; height: 9px; border-radius: 50%; background: white; box-shadow: 0 0 5px #fff; margin: auto; }
+.pir-plinko-board { max-width: 620px; margin: auto; background:linear-gradient(90deg,#e94662 0 10%,#f7e7d5 10% 90%,#2e91aa 90%); border: 6px solid #f2d54c; padding: 12px 28px; box-shadow:inset 0 0 0 5px #fff8; }
+.pir-plinko-field{position:relative;overflow:hidden;height:340px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent)}.pir-plinko-drop-line{display:grid;grid-template-columns:repeat(9,1fr);color:#17335c;font-weight:900;background:#fff9}.pir-plinko-pegs { height:100%;display:grid;grid-template-columns:repeat(9,1fr);grid-template-rows:repeat(12,1fr);padding:8px 12px 20px; }
+.pir-plinko-pegs i { width: 10px; height: 10px; border-radius: 50%; background: #f7d94a; border:2px solid #bd3c38; box-shadow: 0 2px 3px #0008; margin: auto; }
 .pir-plinko-slots { display: grid; grid-template-columns: repeat(9,1fr); gap: 2px; }
 .pir-plinko-slots span { background: #d8382f; color: #fff; padding: 9px 1px; font-size: clamp(8px,1.7vw,14px); font-weight: 900; }
-.pir-plinko-chip{position:absolute;top:0;left:calc((var(--start) + .5)*11.111% - 12px);width:24px;height:24px;border-radius:50%;background:#ffe04b;border:4px solid #d7352d;z-index:3;animation:plinko-fall 2.2s cubic-bezier(.45,.05,.55,.95) forwards}@keyframes plinko-fall{0%{top:0;left:calc((var(--start) + .5)*11.111% - 12px)}25%{transform:translateX(18px)}45%{transform:translateX(-16px)}65%{transform:translateX(14px)}82%{transform:translateX(-10px)}100%{top:calc(100% - 28px);left:calc((var(--land) + .5)*11.111% - 12px)}}
+.pir-plinko-chip{position:absolute;top:0;width:27px;height:27px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#ffe04b 35%,#e0352d 38% 58%,#ffeb58 61%);border:3px solid #a72722;box-shadow:0 3px 5px #0008;z-index:3;will-change:transform}
 .pir-plinko-result{margin-top:10px;padding:9px;background:#151515;color:#73ffae;border:4px solid #f2d54c;font:900 25px "Share Tech Mono",monospace}
 .pir-cliff { position: relative; max-width: 650px; margin: 30px auto; padding-top: 45px; }.pir-cliff-track { height: 35px; background: linear-gradient(8deg,#8b6334,#c99652); clip-path: polygon(0 85%,100% 0,100% 100%,0 100%); }.pir-climber { position:absolute; top:8px; font-size:32px; transition:left .6s; }
 .pir-punch-status{font:900 24px "Anton",sans-serif;color:#ffe970}.pir-punch-grid { display:grid; grid-template-columns:repeat(10,1fr); gap:6px; max-width:700px; margin:auto; }.pir-punch-grid span { aspect-ratio:1; display:grid; place-items:center; border-radius:50%; background:#f4da52; border:3px solid #d33d30; color:#17335c; font-size:14px; font-weight:900; }.pir-punch-grid span.punched{background:#111;color:#fff}
@@ -1012,6 +1018,10 @@ body {
 .pir-choice-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(95px,1fr)); gap:10px; margin:14px 0; }.pir-choice-grid .pir-btn { border-radius:10px; padding:12px; justify-content:center; }
 .pir-order-list { display:flex;flex-direction:column;gap:5px;text-align:left;background:rgba(255,255,255,.06);padding:12px;border-radius:10px; }
 .pir-pricing-phone { text-align:center; }.pir-pricing-phone .pir-pricing-title { font-size:36px; }.pir-pricing-result { color:var(--led-green);font-size:22px;font-weight:800; }
+.pir-rules-only{min-height:min(62vh,560px);display:flex;flex-direction:column;justify-content:center}.pir-rules-only .pir-pricing-rules{font-size:clamp(18px,2.2vw,28px);max-width:800px}
+.pir-new-car-stage{animation:car-stage-pulse .55s ease-in-out 4 alternate;background:radial-gradient(circle,#426fd0,#b21f2d 75%)}
+.pir-new-car-flash{font:900 clamp(38px,8vw,86px) "Anton",sans-serif;color:#fff642;text-shadow:5px 5px 0 #d82425,0 0 28px #fff;animation:new-car-flash .32s ease-in-out 8 alternate}
+@keyframes new-car-flash{to{transform:scale(1.08);filter:brightness(1.5)}}@keyframes car-stage-pulse{to{box-shadow:inset 0 0 60px #fff,0 0 45px #ffec58}}
 @media(max-width:600px){.pir-any-number{grid-template-columns:1fr}.pir-pricing-board{border-width:4px}.pir-plinko-board{padding:8px}.pir-plinko-pegs{gap:8px}.pir-shells{letter-spacing:1px}}
 
 /* ---- Pricing game test lab ---- */
@@ -1041,3 +1051,7 @@ body {
 .pir-strength-picker{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:8px 0 16px}
 .pir-strength-picker .selected{box-shadow:0 0 0 4px #67e889}
 @media(max-width:600px){.pir-wheel-tower{width:48px;height:300px}.pir-wheel-tower b{font-size:52px}.pir-wheel-machine .pir-big-wheel{width:170px;height:320px}.pir-wheel-machine .pir-big-wheel span{left:54px;top:126px}}
+.pir-wheel-stage{position:relative}
+.pir-wheel-leader{position:absolute;right:clamp(12px,3vw,42px);top:82px;z-index:6;display:flex;flex-direction:column;min-width:170px;padding:12px;background:#fff4c7;color:#17335c;border:6px solid #d74736;box-shadow:0 0 0 5px #f2d54c,0 10px 24px #0008}.pir-wheel-leader span{font-size:11px;letter-spacing:2px;color:#b42d29;font-weight:900}.pir-wheel-leader b{font:900 26px "Anton",sans-serif}.pir-wheel-leader strong{font:900 42px "Share Tech Mono",monospace;background:#111;color:#70ffaf;padding:4px}.pir-wheel-scoreboard>div.leader{background:#fff19b;box-shadow:0 0 0 5px #f1d43f}
+.pir-showcase-won{position:relative;animation:winner-stage 1s ease-in-out infinite alternate}.pir-winner-spectacular{position:relative;z-index:8;margin:0 auto 14px;padding:14px;background:linear-gradient(135deg,#d52f2f,#f2d43e,#2465b3);border:7px solid #fff;border-radius:18px;display:flex;flex-direction:column;align-items:center;box-shadow:0 0 45px #fff88}.pir-winner-spectacular small{font-weight:900;letter-spacing:4px}.pir-winner-spectacular strong{font:900 clamp(46px,9vw,92px) "Anton",sans-serif;color:#fff;text-shadow:5px 5px #c62d2d;line-height:1}.pir-winner-spectacular span{font-size:35px}.pir-winner-spectacular b{font-size:clamp(18px,3vw,30px);color:#172f70}.pir-confetti{position:absolute;inset:0;z-index:7;pointer-events:none;overflow:hidden}.pir-confetti i{position:absolute;left:calc(var(--i)*1.43%);top:-20px;width:10px;height:18px;background:hsl(calc(var(--i)*47deg) 90% 55%);animation:confetti-fall calc(2.2s + var(--i)*.01s) linear infinite;animation-delay:calc(var(--i)*-.03s)}@keyframes confetti-fall{to{transform:translate(55px,110vh) rotate(900deg)}}@keyframes winner-stage{to{box-shadow:inset 0 0 70px #fff8,0 0 55px #ffd93d}}
+@media(max-width:1050px){.pir-wheel-leader{position:static;max-width:260px;margin:4px auto}.pir-wheel-machine{transform:scale(.88);transform-origin:top center;margin-bottom:-35px}}
