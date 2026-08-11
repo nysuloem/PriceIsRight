@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { clearDeferredPrice, createPricingGameForType, playPricingGame, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
+import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, playPricingGame, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
 
 const player = { id: "human-1", name: "Test Player" };
 const types = ["plinko","cliffHangers","punchABunch","diceGame","groceryGame","oneAway","clockGame","anyNumber","grandGame","shellGame","moneyGame","luckySeven","doublePrices","threeStrikes","switchGame","tenChances"];
@@ -12,6 +12,13 @@ test("all twelve pricing games can be created without leaking answers", () => {
     assert.equal(game.status, "playing");
     assert.doesNotMatch(JSON.stringify(publicPricingGame(game)), /"_/);
   }
+});
+
+test("pricing-game selection respects a scheduled car or non-car category",()=>{
+  const car=createPricingGame(player,[],[],[],CAR_PRICING_GAME_TYPES);
+  const nonCar=createPricingGame(player,[],[],[],NON_CAR_PRICING_GAME_TYPES);
+  assert.ok(CAR_PRICING_GAME_TYPES.includes(car.type));
+  assert.ok(NON_CAR_PRICING_GAME_TYPES.includes(nonCar.type));
 });
 
 test("all twelve pricing game engines can reach a result", () => {

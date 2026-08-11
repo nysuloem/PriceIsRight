@@ -150,6 +150,8 @@ const SHELL_BONUS_PRIZES = [
 ];
 
 const GAME_NAMES = ["plinko", "cliffHangers", "punchABunch", "diceGame", "groceryGame", "oneAway", "clockGame", "anyNumber", "grandGame", "shellGame", "moneyGame", "luckySeven", "doublePrices", "threeStrikes", "switchGame", "tenChances"];
+export const CAR_PRICING_GAME_TYPES = ["diceGame", "oneAway", "anyNumber", "moneyGame", "luckySeven", "threeStrikes", "tenChances"];
+export const NON_CAR_PRICING_GAME_TYPES = GAME_NAMES.filter(type=>!CAR_PRICING_GAME_TYPES.includes(type));
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const shuffle = (a) => { const c = [...a]; for (let i=c.length-1;i>0;i-=1) { const j=Math.floor(Math.random()*(i+1)); [c[i],c[j]]=[c[j],c[i]]; } return c; };
 const fresh = (items, excluded=[]) => { const blocked=new Set(excluded); const unused=items.filter(x=>!blocked.has(x.name)); return unused.length ? unused : items; };
@@ -243,7 +245,7 @@ function makeTenChances(player,excluded=[],liveItems=[]){const two=diverseSmallI
 const FACTORIES={plinko:makePlinko,cliffHangers:makeCliff,punchABunch:makePunch,diceGame:makeDice,groceryGame:makeGrocery,oneAway:makeOneAway,clockGame:makeClock,anyNumber:makeAnyNumber,grandGame:makeGrand,shellGame:makeShell,moneyGame:makeMoneyGame,luckySeven:makeLuckySeven,doublePrices:makeDoublePrices,threeStrikes:makeThreeStrikes,switchGame:makeSwitch,tenChances:makeTenChances};
 export const PRICING_GAME_TYPES=[...GAME_NAMES];
 export function createPricingGameForType(type,player,excluded=[],liveItems=[]){ if(!FACTORIES[type]) throw new Error(`Unknown pricing game: ${type}`); return FACTORIES[type](player,excluded,liveItems); }
-export function createPricingGame(player,previous=[],excluded=[],liveItems=[]){ const a=GAME_NAMES.filter(x=>!previous.includes(x)); return FACTORIES[pick(a.length?a:GAME_NAMES)](player,excluded,liveItems); }
+export function createPricingGame(player,previous=[],excluded=[],liveItems=[],allowedTypes=GAME_NAMES){ const pool=allowedTypes.filter(type=>FACTORIES[type]),a=pool.filter(type=>!previous.includes(type)); return FACTORIES[pick(a.length?a:pool)](player,excluded,liveItems); }
 export function pricingPrizeNames(game){return [...(game?.qualifiers||[]),...(game?.items||[]),...(game?.introPrizes||[])].map(x=>x?.name).filter(Boolean);}
 
 export function playPricingGame(g,action={}) {

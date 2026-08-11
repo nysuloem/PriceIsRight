@@ -3,7 +3,7 @@ import {
   buildLineup, computeAIBid, computeWinners, makeAIContestant, STRATEGIES, shuffle,
 } from "./gameLogic.js";
 import { getPrizePool, pickRandomItem } from "./prizeSource.js";
-import { clearDeferredPrice, createPricingGame, createPricingGameForType, initialPrizeAnnouncements, playPricingGame, pricingPrizeNames, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
+import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, initialPrizeAnnouncements, playPricingGame, pricingPrizeNames, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
 import { advanceShowcase, createFinalShowcase, createShowdown, publicFinalShowcase, publicShowdown, resolveShowcaseAI, resolveWheelAI, settleWheel, showcaseAction, wheelAction } from "./showFlow.js";
 
 const rooms = new Map();
@@ -12,6 +12,7 @@ const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const MAX_PLAYERS = 8;   // how many humans can join
 const CAR_FIRST_GAMES = new Set(["diceGame", "oneAway", "anyNumber", "moneyGame", "luckySeven", "threeStrikes", "tenChances"]);
 const recentPricingPrizeNames=[];
+export function makePricingGameSchedule(random=Math.random){const schedule=Array(6).fill("nonCar");schedule[Math.floor(random()*3)]="car";schedule[3+Math.floor(random()*3)]="car";return schedule;}
 function rememberPricingPrizes(names){for(const name of names){const old=recentPricingPrizeNames.indexOf(name);if(old>=0)recentPricingPrizeNames.splice(old,1);recentPricingPrizeNames.push(name);}if(recentPricingPrizeNames.length>240)recentPricingPrizeNames.splice(0,recentPricingPrizeNames.length-240);}
 
 function preparePricingIntroduction(room, player) {
@@ -61,6 +62,7 @@ export function createRoom() {
     usedPrizeFamilies: [],
     prizeCategoryCounts: {},
     playedPricingGames: [],
+    pricingGameSchedule: makePricingGameSchedule(),
     usedPricingPrizeNames: [],
     pricingGame: null,
     pricingAnnouncement: null,
@@ -195,6 +197,7 @@ export async function startGame(room) {
   room.turn = 0;
   room.winnerIndices = [];
   room.completedRounds = 0;
+  room.pricingGameSchedule = makePricingGameSchedule();
   room.showcaseContestants = [];
   room.halfWinners = [];
   room.showdown = null;
@@ -274,7 +277,9 @@ export async function startPricingGame(room) {
   if (!winner) throw new Error("No human winner is available for a pricing game");
   const retailerPool=await getPrizePool();
   const livePricingItems=retailerPool.filter(item=>item.image&&Number(item.price)>=20&&Number(item.price)<=500).map(item=>({id:item.id,name:item.name,brand:item.brand||item.retailer,description:`Available from ${item.retailer}.`,price:Math.round(Number(item.price)),image:item.image,imageAlt:item.imageAlt||item.name,imageVerified:true,sourceUrl:item.url,category:item.bidCategory||item.category||"retail"}));
-  room.pricingGame = createPricingGame(winner, room.playedPricingGames, [...new Set([...room.usedPricingPrizeNames,...recentPricingPrizeNames])],livePricingItems);
+  const category=room.pricingGameSchedule[room.completedRounds]||"nonCar";
+  const allowedTypes=category==="car"?CAR_PRICING_GAME_TYPES:NON_CAR_PRICING_GAME_TYPES;
+  room.pricingGame = createPricingGame(winner, room.playedPricingGames, [...new Set([...room.usedPricingPrizeNames,...recentPricingPrizeNames])],livePricingItems,allowedTypes);
   room.playedPricingGames.push(room.pricingGame.type);
   room.usedPricingPrizeNames.push(...pricingPrizeNames(room.pricingGame));
   rememberPricingPrizes(pricingPrizeNames(room.pricingGame));
@@ -430,6 +435,7 @@ export async function restart(room, mode) {
     room.usedPrizeFamilies = [];
     room.prizeCategoryCounts = {};
     room.playedPricingGames = [];
+    room.pricingGameSchedule = makePricingGameSchedule();
     room.usedPricingPrizeNames = [];
     room.pricingGame = null;
     room.showcaseContestants = [];
