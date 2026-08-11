@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { clearDeferredPrice, createPricingGameForType, playPricingGame, publicPricingGame, revealDeferredPrice, settlePricingAnimation } from "./pricingGames.js";
+import { clearDeferredPrice, createPricingGameForType, playPricingGame, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
 
 const player = { id: "human-1", name: "Test Player" };
 const types = ["plinko","cliffHangers","punchABunch","diceGame","groceryGame","oneAway","clockGame","anyNumber","grandGame","shellGame","moneyGame","luckySeven"];
@@ -79,6 +79,12 @@ test("Clock Game accepts the exact integer between adjacent clues and allows 90 
   playPricingGame(g,{value:67});assert.equal(g.clue,"Lower!");
   playPricingGame(g,{value:66});assert.equal(g.itemIndex,1);
   assert.ok(g.secondsLeft>=89);
+});
+
+test("Clock Game countdown is deadline-driven and expires without another guess",()=>{
+  const g=createPricingGameForType("clockGame",player);g._clockStarted=true;g.clockEndsAt=10_000;
+  assert.equal(syncClockGame(g,9_001),false);assert.equal(g.secondsLeft,1);
+  assert.equal(syncClockGame(g,10_000),true);assert.equal(g.secondsLeft,0);assert.equal(g.status,"lost");assert.equal(g.result,"Time is up!");
 });
 
 test("Cliff Hangers hides the actual price until the climber stops",()=>{
