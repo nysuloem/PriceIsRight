@@ -22,3 +22,13 @@ test("last AI bids one dollar above the strongest plausible bid", () => {
   try { assert.equal(computeAIBid("confident", 1000, [600, 850, 950], 3, 4), 851); }
   finally { Math.random = original; }
 });
+
+test("AI category strength narrows the estimate without making it exact",()=>{
+  const oldRandom=Math.random;Math.random=()=>.1;
+  try{
+    const strong=computeAIBid("confident",1000,[],0,4,"Electronics",{strengths:["Electronics"]});
+    const weak=computeAIBid("confident",1000,[],0,4,"Electronics",{strengths:["Home & Kitchen"]});
+    assert.ok(Math.abs(1000-strong)<Math.abs(1000-weak));
+    assert.notEqual(strong,1000);
+  }finally{Math.random=oldRandom;}
+});
