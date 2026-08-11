@@ -1045,7 +1045,7 @@ body {
 .pir-wheel-tower span{font-size:22px}
 .pir-wheel-machine .pir-big-wheel{position:relative;width:220px;height:390px;border-radius:50%;margin:0;border:14px solid #111;background:conic-gradient(#e33b2e 0 18deg,#e8c53e 18deg 36deg,#218d4f 36deg 54deg,#1769ae 54deg 72deg,#e33b2e 72deg 90deg,#e8c53e 90deg 108deg,#218d4f 108deg 126deg,#1769ae 126deg 144deg,#e33b2e 144deg 162deg,#e8c53e 162deg 180deg,#218d4f 180deg 198deg,#1769ae 198deg 216deg,#e33b2e 216deg 234deg,#e8c53e 234deg 252deg,#218d4f 252deg 270deg,#1769ae 270deg 288deg,#e33b2e 288deg 306deg,#e8c53e 306deg 324deg,#218d4f 324deg 342deg,#1769ae 342deg 360deg);box-shadow:inset 0 0 0 8px #e7d154,0 0 0 5px #b6312a}
 .pir-wheel-machine .pir-big-wheel.spinning{animation:wheel-spin var(--spin-duration) cubic-bezier(.12,.68,.16,1) forwards}
-@keyframes wheel-spin{from{transform:rotate(0)}to{transform:rotate(var(--rotation))}}
+@keyframes wheel-spin{from{transform:rotate(var(--start-rotation))}to{transform:rotate(var(--rotation))}}
 .pir-wheel-machine .pir-big-wheel span{left:76px;top:161px;width:40px;height:40px;background:#111;border:3px solid #e7d154;border-radius:5px;color:#fff;font-size:17px}
 .pir-wheel-machine .pir-big-wheel span.dollar{background:#d92724;color:#ffe159;font-size:15px}
 .pir-strength-picker{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:8px 0 16px}
