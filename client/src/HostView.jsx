@@ -116,6 +116,8 @@ function playPlinkoFanfare() {
   try { const ctx=new (window.AudioContext||window.webkitAudioContext)();[392,523,659,784,1047,1319].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.13;o.type=i%2?"triangle":"square";o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.24,t+.025);g.gain.exponentialRampToValueAtTime(.001,t+.5);o.start(t);o.stop(t+.52);});}catch{}
 }
 
+function playCliffYodel(duration=2200){try{const ctx=new(window.AudioContext||window.webkitAudioContext)(),notes=[659,784,880,784,988,880,784,659];for(let i=0,t=ctx.currentTime;i<Math.max(4,Math.ceil(duration/230));i++,t+=.23){const o=ctx.createOscillator(),g=ctx.createGain();o.type="triangle";o.connect(g);g.connect(ctx.destination);o.frequency.setValueAtTime(notes[i%notes.length],t);o.frequency.linearRampToValueAtTime(notes[(i+1)%notes.length],t+.2);g.gain.setValueAtTime(.001,t);g.gain.linearRampToValueAtTime(.16,t+.025);g.gain.exponentialRampToValueAtTime(.001,t+.21);o.start(t);o.stop(t+.22);}}catch{}}
+
 function playShowcaseCelebration() {
   try { const ctx=new (window.AudioContext||window.webkitAudioContext)(); [523,659,784,1047,1319,1568].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.13;o.type=i%2?"triangle":"square";o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.22,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.55);o.start(t);o.stop(t+.58);}); } catch {}
 }
@@ -135,9 +137,12 @@ function HostViewInner({ code }) {
   const speechRunRef = useRef(0);
   const lastOutcomeRef = useRef(0);
   const lastSettledDropRef = useRef(0);
+  const lastSettledClimbRef = useRef(0);
+  const lastYodelClimbRef = useRef(0);
   const lastSettledWheelRef = useRef("");
   const lastAIWheelActionRef = useRef("");
   const finishPlinkoDrop=useCallback((dropId)=>{if(!dropId||dropId===lastSettledDropRef.current)return;lastSettledDropRef.current=dropId;settlePricingGame(code).catch(e=>{lastSettledDropRef.current=0;setError(e.message);});},[code]);
+  const finishCliffClimb=useCallback((climbId)=>{if(!climbId||climbId===lastSettledClimbRef.current)return;lastSettledClimbRef.current=climbId;settlePricingGame(code).catch(e=>{lastSettledClimbRef.current=0;setError(e.message);});},[code]);
 
   useEffect(() => { if (state?.isDemo && phase !== "game") setPhase("game"); }, [state?.isDemo]);
 
@@ -156,6 +161,10 @@ function HostViewInner({ code }) {
   // animation itself settles first; this watchdog prevents a room from ever
   // remaining stuck in "dropping" if the browser fails to send that event.
   useEffect(()=>{const game=state?.pricingGame,drop=game?.lastDrop;if(game?.type!=="plinko"||game.stage!=="dropping"||!drop)return;const timer=setTimeout(()=>finishPlinkoDrop(drop.id),(drop.duration||5600)+900);return()=>clearTimeout(timer);},[state?.pricingGame?.lastDrop?.id,state?.pricingGame?.stage,state?.pricingGame?.lastDrop?.duration,finishPlinkoDrop]);
+
+  useEffect(()=>{const game=state?.pricingGame,climb=game?.lastClimb;if(game?.type!=="cliffHangers"||game.stage!=="climbing"||!climb)return;const timer=setTimeout(()=>finishCliffClimb(climb.id),(climb.duration||1000)+700);return()=>clearTimeout(timer);},[state?.pricingGame?.lastClimb?.id,state?.pricingGame?.stage,state?.pricingGame?.lastClimb?.duration,finishCliffClimb]);
+
+  useEffect(()=>{const game=state?.pricingGame,climb=game?.lastClimb;if(game?.type!=="cliffHangers"||game.stage!=="climbing"||!climb||climb.id===lastYodelClimbRef.current)return;lastYodelClimbRef.current=climb.id;playCliffYodel(climb.duration);},[state?.pricingGame?.lastClimb?.id,state?.pricingGame?.stage]);
 
   // AI turns must not depend on speech audio reaching its `ended` event.
   useEffect(()=>{const s=state?.showdown,p=s?.participants?.[s.currentIndex];if(!s||!p?.isAI||!["turn","decision","bonusTurn"].includes(s.stage))return;const key=`${s.half}-${s.currentIndex}-${s.stage}-${p.spins?.length||0}-${s.spinSeq}`;if(key===lastAIWheelActionRef.current)return;lastAIWheelActionRef.current=key;let stopped=false;const timer=setTimeout(async()=>{try{await resolveWheelAI(code);}catch(e){if(!stopped){lastAIWheelActionRef.current="";setError(e.message);}}},1800);return()=>{stopped=true;clearTimeout(timer);};},[state?.showdown?.half,state?.showdown?.currentIndex,state?.showdown?.stage,state?.showdown?.spinSeq,code]);
@@ -647,7 +656,7 @@ export function PricingGameView({ game, spotlight = null, rulesOnly = false }) {
           <b>{game.stage === "qualify" ? `${game.chips} chip${game.chips === 1 ? "" : "s"} earned` : `${game.chipsLeft} chip${game.chipsLeft === 1 ? "" : "s"} left`}</b>
         </div>
       )}
-      {game.type === "cliffHangers" && <><GameCards items={[game.items[game.itemIndex]].filter(Boolean)} /><div className="pir-cliff"><div className="pir-climber" style={{ left: `${Math.min(100, game.climber * 4)}%` }}>🧗</div><div className="pir-cliff-track" /><b>Step {game.climber} / 25</b></div></>}
+      {game.type === "cliffHangers" && <><GameCards items={[game.items[game.itemIndex]].filter(Boolean)} /><div className="pir-cliff"><CliffClimber position={game.climber} climb={game.stage==="climbing"?game.lastClimb:null} onStopped={()=>finishCliffClimb(game.lastClimb?.id)} /><div className="pir-cliff-track" /><b>{game.stage==="climbing"?"WATCH HIM CLIMB...":`Step ${game.climber} / 25`}</b></div></>}
       {game.type === "punchABunch" && <><div className="pir-punch-status">PUNCHES EARNED: {game.punches}</div>{game.stage === "qualify" ? <GameCards items={[game.qualifiers[game.qualifierIndex]].filter(Boolean)} /> : <div className="pir-punch-grid">{Array.from({length:50},(_,i)=><span key={i} className={game.punched?.includes(i)?"punched":""}>{game.punched?.includes(i)?"💥":i+1}</span>)}</div>}</>}
       {game.type === "diceGame" && <><GameCards items={[game.car]} /><div className="pir-dice-board"><div className="pir-price-digits"><span>{game.firstDigit}</span>{game.revealed.map((n,i)=><span key={i} className={game.correct[i]===false?"wrong":game.correct[i]===true?"right":""}>{n ?? "?"}</span>)}</div><div className="pir-dice-columns">{game.rolls.map((roll,i)=><div key={i}><div className={`pir-die ${i===game.digitIndex&&game.stage==="roll"?"rolling":""}`}>{roll ?? "–"}</div><b>{game.choices[i] || "WAITING"}</b><small>{game.correct[i]===true?"✓ RIGHT":game.correct[i]===false?"✕ WRONG":"LOCKED"}</small></div>)}</div></div></>}
       {game.type === "groceryGame" && <><div className="pir-register">TOTAL ${game.total.toFixed(2)}</div><GameCards items={game.items} /></>}
@@ -672,6 +681,12 @@ function PlinkoChip({drop,onLanded}) {
   const landedRef=useRef(onLanded);useEffect(()=>{landedRef.current=onLanded;},[onLanded]);
   useEffect(()=>{const chip=ref.current,field=chip?.parentElement;if(!chip||!field||!drop?.path?.length)return;const width=field.clientWidth-chip.offsetWidth,height=field.clientHeight-chip.offsetHeight,startX=(drop.start+.5)*width/9;const frames=drop.path.map((point,i)=>({transform:`translate(${point.x*width/9-startX}px, ${point.y*height}px) rotate(${point.rotation||0}deg) scale(${i===drop.path.length-1?1.06:1})`,offset:i/(drop.path.length-1),easing:i===drop.path.length-1?"cubic-bezier(.2,.8,.2,1)":"cubic-bezier(.35,.05,.65,.95)"}));const animation=chip.animate(frames,{duration:drop.duration||5600,fill:"forwards"});animation.onfinish=()=>landedRef.current?.();if(animation.finished?.then)animation.finished.then(()=>landedRef.current?.()).catch(()=>{});return()=>animation.cancel();},[drop.id]);
   return <div ref={ref} className="pir-plinko-chip" style={{left:`calc(${(drop.start+.5)*100/9}% - 13px)`}} />;
+}
+
+function CliffClimber({position,climb,onStopped}){
+  const ref=useRef(null),stoppedRef=useRef(onStopped);useEffect(()=>{stoppedRef.current=onStopped;},[onStopped]);
+  useEffect(()=>{const el=ref.current;if(!el||!climb)return;const from=Math.min(104,climb.from*4),to=Math.min(104,climb.to*4),fell=climb.to>25;const animation=el.animate([{left:`${from}%`,transform:"translateX(-50%) rotate(0deg)"},{left:`${to}%`,transform:fell?"translateX(-20%) translateY(55px) rotate(105deg)":"translateX(-50%) rotate(0deg)"}],{duration:climb.duration||1000,easing:"linear",fill:"forwards"});animation.onfinish=()=>stoppedRef.current?.();if(animation.finished?.then)animation.finished.then(()=>stoppedRef.current?.()).catch(()=>{});return()=>animation.cancel();},[climb?.id]);
+  return <div ref={ref} className="pir-climber" style={{left:`${Math.min(104,position*4)}%`}}>🧗</div>;
 }
 
 function GameCards({ items = [] }) {
