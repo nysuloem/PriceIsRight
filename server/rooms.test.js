@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { acknowledgeWheelResult, advance, advanceShowcasePresentation, beginPricingGame, continuePricingPrice, createPricingGameDemo, createRoom, joinRoom, kissHost, makePricingGameSchedule, pricingGameAction, publicState, restart, revealPricingPrice, revealReplacement, settlePricingGame, settleWheelGame, wheelGameAction } from "./rooms.js";
+import { acknowledgeWheelResult, advance, advanceShowcasePresentation, beginPricingGame, continuePricingPrice, createPricingGameDemo, createRoom, joinRoom, kissHost, makePricingGameSchedule, nextTurn, pricingGameAction, publicState, restart, revealPricingPrice, revealReplacement, settlePricingGame, settleWheelGame, submitBid, wheelGameAction } from "./rooms.js";
 import { createShowdown } from "./showFlow.js";
 import { createPricingGameForType, playPricingGame } from "./pricingGames.js";
 
@@ -201,36 +201,52 @@ test("wheel controls remain locked until the spoken result is acknowledged",()=>
   assert.equal(room.showdown.stage,"decision");
 });
 
-test("a winner leaves once, replacement restores exactly four, and the newcomer bids first",async()=>{
+test("a waiting human fills only the winner's podium and bids first",async()=>{
   const room=createRoom();
   room.phase="reveal";room.item={id:"round-prize",price:900};room.winnerIndices=[2];
-  room.contestants=[
-    {id:"a",name:"Alice",isAI:true,bid:700},
-    {id:"b",name:"Bob",isAI:true,bid:800},
-    {id:"winner",name:"Winner",isAI:true,bid:850},
-    {id:"d",name:"Dina",isAI:true,bid:600},
-  ];
+  room.players=["a","b","winner","d","new"].map(id=>({id,name:id,photo:null}));
+  room.calledHumanIds=["a","b","winner","d"];
+  room.contestants=room.players.slice(0,4).map((p,index)=>({...p,isAI:false,bid:600+index*100}));
   await restart(room,"sameLineup");
   assert.equal(room.contestants.length,4);
   assert.equal(room.contestants.some(c=>c.id==="winner"),false);
-  assert.equal(room.contestants[0].id,room.replacementContestantId);
-  assert.equal(room.turn,0);
+  assert.deepEqual(room.contestants.map(c=>c.id),["a","b","new","d"]);
+  assert.equal(room.replacementContestantId,"new");
+  assert.equal(room.turn,2);
   const phaseAfterAdvance=room.phase;
   await restart(room,"sameLineup");
   assert.equal(room.phase,phaseAfterAdvance,"a duplicate restart is a harmless no-op");
   assert.equal(room.contestants.length,4);
 });
 
-test("a human winner can be recalled immediately instead of adding an AI",async()=>{
+test("with four humans the winner keeps the same podium and bids first next round",async()=>{
   const room=createRoom();
   room.phase="reveal";room.item={id:"family-prize",price:900};room.winnerIndices=[1];
   room.players=["a","b","c","d"].map(id=>({id,name:id.toUpperCase(),photo:null}));
+  room.calledHumanIds=["a","b","c","d"];
   room.contestants=room.players.map(p=>({...p,isAI:false,bid:800}));
   await restart(room,"sameLineup");
   assert.equal(room.contestants.length,4);
-  assert.equal(room.contestants[0].id,"b");
-  assert.equal(room.contestants[0].isAI,false);
+  assert.deepEqual(room.contestants.map(c=>c.id),["a","b","c","d"]);
+  assert.equal(room.firstBidderId,"b");
+  assert.equal(room.phase,"item");
   assert.equal(room.showcaseContestants[0].controllerPlayerId,"b");
+});
+
+test("bidding proceeds cyclically from the prior winner without moving podiums",()=>{
+  const room=createRoom();
+  room.phase="item";
+  room.contestants=["a","b","c","d"].map(id=>({id,name:id.toUpperCase(),bid:null,isAI:false}));
+  room.firstBidderId="c";
+  advance(room,"bidding");
+  const order=[];
+  for(const id of ["c","d","a","b"]){
+    order.push(room.contestants[room.turn].id);
+    submitBid(room,id,100+order.length);
+    if(id!=="b")nextTurn(room);
+  }
+  assert.deepEqual(order,["c","d","a","b"]);
+  assert.deepEqual(room.contestants.map(c=>c.id),["a","b","c","d"]);
 });
 
 test("never-called humans precede winners and winners return in FIFO order",async()=>{
@@ -243,7 +259,7 @@ test("never-called humans precede winners and winners return in FIFO order",asyn
     room.phase="reveal";room.item={id:`prize-${winnerId}`,price:900};
     room.winnerIndices=[room.contestants.findIndex(c=>c.id===winnerId)];
     await restart(room,"sameLineup");
-    return room.contestants[0].id;
+    return room.contestants[room.turn].id;
   };
   assert.equal(await playRound("b"),"e");
   assert.equal(await playRound("a"),"f");

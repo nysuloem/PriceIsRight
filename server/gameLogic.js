@@ -29,18 +29,12 @@ export function aiAvatarUrl(name) {
   return `https://api.dicebear.com/9.x/fun-emoji/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
 }
 
-// Build a lineup from however many humans joined (0–MAX_PLAYERS),
-// padding to at least MIN_SEATS with AI contestants.
+// Build Contestants' Row from human players only. Up to four people occupy
+// fixed podiums; additional players wait to be called into a vacated podium.
 const MIN_SEATS = 4;
 
 export function buildLineup(players) {
-  const namePool = shuffle(AI_NAMES);
-  const stratPool = shuffle(STRATEGIES);
-  const usedNames = new Set(players.map((p) => p.name));
-
-  // Contestants' Row always contains exactly four people. Extra humans remain
-  // in the room's waiting queue and are called after a winner leaves.
-  const lineup = players.slice(0, MIN_SEATS).map((p) => ({
+  return players.slice(0, MIN_SEATS).map((p) => ({
     id: p.id,
     name: p.name,
     isAI: false,
@@ -48,27 +42,6 @@ export function buildLineup(players) {
     bid: null,
     photo: p.photo || null,        // base64 data URL or null
   }));
-
-  const needed = Math.max(0, MIN_SEATS - lineup.length);
-  let aiCount = 0;
-  let nameIdx = 0;
-  while (aiCount < needed) {
-    // Skip AI names that clash with a human player's name
-    while (usedNames.has(namePool[nameIdx % namePool.length])) nameIdx++;
-    const name = namePool[nameIdx % namePool.length];
-    nameIdx++;
-    lineup.push({
-      id: `ai-${aiCount}`,
-      name,
-      isAI: true,
-      strategy: stratPool[aiCount % stratPool.length],
-      priceProfile: aiPriceProfile(name),
-      bid: null,
-      photo: aiAvatarUrl(name),
-    });
-    aiCount++;
-  }
-  return lineup;
 }
 
 export function makeAIContestant(existingContestants = [], sequence = 0) {
