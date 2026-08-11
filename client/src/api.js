@@ -38,7 +38,7 @@ export const submitBid = (code, playerId, amount) =>
     body: JSON.stringify({ playerId, amount }),
   });
 
-export const kissHost = (code, playerId) => request(`/rooms/${code}/kiss-host`, { method: "POST", body: JSON.stringify({ playerId }) });
+export const kissHost = (code, playerId) => submitBid(code, playerId, "__kiss_host__");
 
 export const resolveAITurn = (code) =>
   request(`/rooms/${code}/resolve-ai-turn`, { method: "POST" });
