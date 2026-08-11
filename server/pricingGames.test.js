@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { clearDeferredPrice, createPricingGameForType, playPricingGame, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
 
 const player = { id: "human-1", name: "Test Player" };
-const types = ["plinko","cliffHangers","punchABunch","diceGame","groceryGame","oneAway","clockGame","anyNumber","grandGame","shellGame","moneyGame","luckySeven"];
+const types = ["plinko","cliffHangers","punchABunch","diceGame","groceryGame","oneAway","clockGame","anyNumber","grandGame","shellGame","moneyGame","luckySeven","doublePrices","comingOrGoing","switchGame"];
 
 test("all twelve pricing games can be created without leaking answers", () => {
   for (const type of types) {
@@ -27,6 +27,9 @@ test("all twelve pricing game engines can reach a result", () => {
   g = createPricingGameForType("shellGame", player); while(g.stage === "prices") { const i=g.itemIndex; playPricingGame(g,{choice:g._prices[i]>g.items[i].shownPrice?"Higher":"Lower"}); } assert.equal(g.stage,"complete"); assert.equal(g.status,"won");
   g = createPricingGameForType("moneyGame", player); playPricingGame(g,{choice:g._front}); playPricingGame(g,{choice:g._back}); assert.equal(g.status,"won");
   g = createPricingGameForType("luckySeven", player); for(let i=1;i<5;i++)playPricingGame(g,{choice:String(g._digits[i])}); assert.equal(g.status,"won");
+  g=createPricingGameForType("doublePrices",player);playPricingGame(g,{choice:`$${g._actual}`});assert.equal(g.status,"won");
+  g=createPricingGameForType("comingOrGoing",player);playPricingGame(g,{choice:g.prices[0]===g._actual?"Coming":"Going"});assert.equal(g.status,"won");
+  g=createPricingGameForType("switchGame",player);playPricingGame(g,{choice:g.shownPrices[0]===g._prices[0]?"Leave them":"Switch them"});assert.equal(g.status,"won");
 });
 
 test("higher/lower prizes wait for an on-screen price reveal before the result", () => {
@@ -84,7 +87,7 @@ test("Clock Game accepts the exact integer between adjacent clues and allows 90 
 test("Clock Game countdown is deadline-driven and expires without another guess",()=>{
   const g=createPricingGameForType("clockGame",player);g._clockStarted=true;g.clockEndsAt=10_000;
   assert.equal(syncClockGame(g,9_001),false);assert.equal(g.secondsLeft,1);
-  assert.equal(syncClockGame(g,10_000),true);assert.equal(g.secondsLeft,0);assert.equal(g.status,"lost");assert.equal(g.result,"Time is up!");
+  assert.equal(syncClockGame(g,10_000),true);assert.equal(g.secondsLeft,0);assert.equal(g.status,"lost");assert.equal(g.result,"Time is up!");assert.equal(g.timeoutPrice,g._prices[g.itemIndex]);
 });
 
 test("Cliff Hangers hides the actual price until the climber stops",()=>{

@@ -11,6 +11,8 @@ const ROOM_TTL_MS = 4 * 60 * 60 * 1000;
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const MAX_PLAYERS = 8;   // how many humans can join
 const CAR_FIRST_GAMES = new Set(["diceGame", "oneAway", "anyNumber", "moneyGame", "luckySeven"]);
+const recentPricingPrizeNames=[];
+function rememberPricingPrizes(names){for(const name of names){const old=recentPricingPrizeNames.indexOf(name);if(old>=0)recentPricingPrizeNames.splice(old,1);recentPricingPrizeNames.push(name);}if(recentPricingPrizeNames.length>240)recentPricingPrizeNames.splice(0,recentPricingPrizeNames.length-240);}
 
 function preparePricingIntroduction(room, player) {
   const game=room.pricingGame;
@@ -96,7 +98,7 @@ export function createPricingGameDemo(type) {
 // Strip base64 photo from public state to keep polling payloads small;
 // the photo is sent once at join time and the client caches it locally.
 export function publicState(room) {
-  if(syncClockGame(room.pricingGame)&&room.phase==="pricingGame")setHostLine(room,"Time is up!","pricingResult");
+  if(syncClockGame(room.pricingGame)&&room.phase==="pricingGame")setHostLine(room,`Time is up! The actual retail price of the ${room.pricingGame.items[room.pricingGame.itemIndex]?.name||"prize"} was $${Number(room.pricingGame.timeoutPrice).toLocaleString("en-CA")}.`,"pricingResult");
   return {
     code: room.code,
     phase: room.phase,
@@ -272,9 +274,10 @@ export async function startPricingGame(room) {
   if (!winner) throw new Error("No human winner is available for a pricing game");
   const retailerPool=await getPrizePool();
   const livePricingItems=retailerPool.filter(item=>item.image&&Number(item.price)>=20&&Number(item.price)<=500).map(item=>({id:item.id,name:item.name,brand:item.brand||item.retailer,description:`Available from ${item.retailer}.`,price:Math.round(Number(item.price)),image:item.image,imageAlt:item.imageAlt||item.name,imageVerified:true,sourceUrl:item.url,category:item.bidCategory||item.category||"retail"}));
-  room.pricingGame = createPricingGame(winner, room.playedPricingGames, room.usedPricingPrizeNames,livePricingItems);
+  room.pricingGame = createPricingGame(winner, room.playedPricingGames, [...new Set([...room.usedPricingPrizeNames,...recentPricingPrizeNames])],livePricingItems);
   room.playedPricingGames.push(room.pricingGame.type);
   room.usedPricingPrizeNames.push(...pricingPrizeNames(room.pricingGame));
+  rememberPricingPrizes(pricingPrizeNames(room.pricingGame));
   preparePricingIntroduction(room,winner);
 }
 
