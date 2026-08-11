@@ -56,6 +56,14 @@ test("every car game uses the new-car announcement",()=>{
   }
 });
 
+test("Money Game always displays a complete five-digit car price",()=>{
+  const g=createPricingGameForType("moneyGame",player);
+  assert.equal(String(g._front).length,2);
+  assert.equal(String(g.middleDigit).length,1);
+  assert.equal(String(g._back).length,2);
+  assert.equal(`${g._front}${g.middleDigit}${g._back}`,g._digits.join(""));
+});
+
 test("One Away wins immediately when all five first choices are correct",()=>{
   const g=createPricingGameForType("oneAway",player);
   while(g.status==="playing"&&g.stage==="choose"){
