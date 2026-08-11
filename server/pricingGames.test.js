@@ -40,3 +40,9 @@ test("higher/lower prizes wait for an on-screen price reveal before the result",
   clearDeferredPrice(g);
   assert.equal(g.priceReveal,null);
 });
+
+test("car games avoid cars already used during the show",()=>{
+  const first=createPricingGameForType("oneAway",player);
+  const second=createPricingGameForType("oneAway",player,[first.car.name]);
+  assert.notEqual(second.car.name,first.car.name);
+});
