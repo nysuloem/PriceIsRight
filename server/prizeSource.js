@@ -1,4 +1,6 @@
 // prizeSource.js — builds a 500+ item prize pool from Canadian retailer feeds.
+import fs from "node:fs";
+import path from "node:path";
 import { expandedBiddingCatalog } from "./pricingGames.js";
 //
 // Prices are in CAD and deliberately use the REGULAR price. Temporary sale,
@@ -20,6 +22,7 @@ const TARGET_POOL_SIZE = 1200;
 const PER_RETAILER_TARGET = 200;
 const CACHE_TTL_MS = 30 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 15000;
+const PRIZE_BANK_STORAGE_NAME = "price-is-right-prize-bank.json";
 
 // These are first-party Canadian storefronts. Shopify's public product feed
 // supplies current CAD prices, product URLs, vendor names, and product images.
@@ -198,6 +201,49 @@ function stripMarkup(value) {
     .trim();
 }
 
+function hasFrenchCopy(value) {
+  return /\b(à|avec|sans|pour|modèle|modele|couleur|noir|blanc|rouge|bleu|gris|laveuse|sécheuse|secheuse|réfrigérateur|refrigerateur|congélateur|congelateur|cuisinière|cuisiniere|ensemble|meuble|fauteuil|chaise|bureau|tablette)\b/i.test(String(value || ""));
+}
+
+function hasProductCode(value) {
+  const text = String(value || "");
+  return (
+    /\b(?:model|modèle|modele|sku|item|article|part|web code|product code)\s*[:#]?\s*[A-Z0-9][A-Z0-9-]{3,}\b/i.test(text) ||
+    /\b(?=[A-Z0-9-]{6,}\b)(?=[A-Z0-9-]*[A-Z])(?=[A-Z0-9-]*\d)[A-Z0-9]+(?:-[A-Z0-9]+)*\b/.test(text)
+  );
+}
+
+function removeProductCodes(value) {
+  return stripMarkup(value)
+    .replace(/\s*\((?:model|modèle|modele|sku|item|article|part|web code|product code)?\s*#?\s*[A-Z0-9][A-Z0-9-]{3,}\)\s*/gi, " ")
+    .replace(/\b(?:model|modèle|modele|sku|item|article|part|web code|product code)\s*[:#]?\s*[A-Z0-9][A-Z0-9-]{3,}\b/gi, " ")
+    .replace(/\b(?=[A-Z0-9-]{6,}\b)(?=[A-Z0-9-]*[A-Z])(?=[A-Z0-9-]*\d)[A-Z0-9]+(?:-[A-Z0-9]+)*\b/g, " ")
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function preferEnglishCopy(value) {
+  const clean = removeProductCodes(value);
+  if (!clean) return "";
+  const parts = clean.split(/\s+(?:\/|\||•)\s+|\s{2,}/).map((part) => part.trim()).filter(Boolean);
+  const english = parts.find((part) => !hasFrenchCopy(part));
+  return english || (hasFrenchCopy(clean) ? "" : clean);
+}
+
+function cleanProductName(value) {
+  return preferEnglishCopy(value)
+    .replace(/\b(?:new|online only|web only|clearance|sale)\b/gi, " ")
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function cleanSellerName(value, fallback = "a Canadian retailer") {
+  const clean = cleanProductName(value);
+  return clean || fallback;
+}
+
 function clipSpeechLine(value, maxLength = 110) {
   const clean = stripMarkup(value);
   if (clean.length <= maxLength) return clean;
@@ -250,15 +296,35 @@ function fallbackImage(baseName, category) {
 }
 
 function displayDescription(item) {
-  const existing = stripMarkup(item.description || item.shortDescription || item.hostDescription);
-  if (existing && existing.length >= 35 && !/^from [^—]+—[^.!]+!?$/i.test(existing)) return clipSpeechLine(existing, 150);
-  const category = item.category || item.bidCategory || "retail";
-  const retailer = item.retailer || item.brand || "a Canadian retailer";
-  return clipSpeechLine(`A ${String(category).toLowerCase()} prize available from ${retailer}, selected with a regular Canadian retail price.`, 150);
+  const seller = cleanSellerName(item.retailer || item.brand);
+  const maker = cleanProductName(item.brand);
+  const category = cleanProductName(item.category || item.bidCategory || "retail prize").toLowerCase();
+  const existing = preferEnglishCopy(item.description || item.shortDescription || item.hostDescription)
+    .replace(/^from [^—]+—\s*/i, "")
+    .replace(/^from [^,]+,\s*/i, "");
+  const usefulExisting =
+    existing &&
+    existing.length >= 35 &&
+    !/^it'?s\s+/i.test(existing) &&
+    !/contestants?'? row|substantial|department|regular canadian retail price/i.test(existing);
+  const detail = usefulExisting
+    ? existing
+    : fallbackFeatureDetails(item.name || category, category);
+  const makerLine = maker && maker !== seller ? `${maker}, sold by ${seller}` : seller;
+  return clipSpeechLine(`From ${makerLine}, ${detail.replace(/^[Aa]n?\s+/, "")}.`, 155)
+    .replace(/\.\.+$/g, ".");
 }
 
 function isDisplayReadyPrize(item) {
-  return Boolean(item?.image) && displayDescription(item).length >= 35;
+  const visible = `${item?.name || ""} ${item?.brand || ""} ${item?.retailer || ""} ${item?.category || ""} ${item?.description || ""}`;
+  const description = displayDescription(item || {});
+  return (
+    Boolean(item?.image) &&
+    cleanProductName(item?.name).length >= 3 &&
+    description.length >= 35 &&
+    !hasFrenchCopy(visible) &&
+    !hasProductCode(visible)
+  );
 }
 
 function buildCanadianRetailerCatalog() {
@@ -325,8 +391,10 @@ function normalizeShopifyProduct(config, product) {
   if (!regularPrice || !product.handle || !product.title) return null;
 
   const image = product.images?.[0]?.src || product.image?.src || null;
-  const brand = stripMarkup(product.vendor) || config.retailer;
-  const name = stripMarkup(product.title);
+  const brand = cleanSellerName(product.vendor, config.retailer);
+  const name = cleanProductName(product.title);
+  const category = cleanProductName(product.product_type) || "General merchandise";
+  if (!name) return null;
   const url = `${config.baseUrl}/products/${product.handle}`;
 
   return {
@@ -342,9 +410,9 @@ function normalizeShopifyProduct(config, product) {
     url,
     image,
     imageAlt: name,
-    description: displayDescription({ description: product.body_html, category: product.product_type, retailer: config.retailer }),
-    category: stripMarkup(product.product_type) || "General merchandise",
-    hostDescription: makeHostDescription(config.retailer, name, product.body_html),
+    description: displayDescription({ description: product.body_html, category, brand, retailer: config.retailer, name }),
+    category,
+    hostDescription: makeHostDescription(config.retailer, name),
   };
 }
 
@@ -379,8 +447,10 @@ function isSuitableBestBuyProduct(product) {
 function normalizeBestBuyProduct(product) {
   if (!isSuitableBestBuyProduct(product)) return null;
   const regularPrice = asMoney(product.regularPrice);
-  const name = stripMarkup(product.name);
+  const name = cleanProductName(product.name);
+  if (!name) return null;
   const url = new URL(product.productUrl, "https://www.bestbuy.ca").href;
+  const category = cleanProductName(product.categoryName) || "Electronics";
 
   return {
     id: `best-buy-${product.sku}`,
@@ -395,12 +465,11 @@ function normalizeBestBuyProduct(product) {
     url,
     image: product.highResImage || product.thumbnailImage || null,
     imageAlt: name,
-    description: displayDescription({ description: product.shortDescription, category: product.categoryName, retailer: "Best Buy Canada" }),
-    category: stripMarkup(product.categoryName) || "Electronics",
+    description: displayDescription({ description: product.shortDescription, category, retailer: "Best Buy Canada", name }),
+    category,
     hostDescription: makeHostDescription(
       "Best Buy Canada",
       name,
-      product.shortDescription,
     ),
   };
 }
@@ -472,8 +541,8 @@ async function fetchCuratedFallback(candidate) {
 
   return {
     id: candidate.id,
-    name: candidate.name,
-    brand: candidate.brand,
+    name: cleanProductName(candidate.name),
+    brand: cleanSellerName(candidate.brand, candidate.retailer),
     retailer: candidate.retailer,
     exactPrice,
     price: Math.round(exactPrice),
@@ -482,9 +551,9 @@ async function fetchCuratedFallback(candidate) {
     currency: "CAD",
     url: candidate.url,
     image,
-    imageAlt: candidate.imageAlt,
+    imageAlt: cleanProductName(candidate.imageAlt) || cleanProductName(candidate.name),
     description: displayDescription(candidate),
-    category: candidate.category || "General merchandise",
+    category: cleanProductName(candidate.category) || "General merchandise",
     hostDescription: clipSpeechLine(`From ${candidate.retailer} — ${candidate.name}!`),
   };
 }
@@ -623,7 +692,75 @@ export async function fetchPrizePool() {
 // Always keep a usable local pool ready. Live retailer refreshes happen in the
 // background, so a round transition never waits on several slow shop sites.
 const retiredPrizeIds = new Set();
+const retiredPrizeFingerprints = new Set();
 const REFILL_THRESHOLD = 120;
+let prizeBankFileOverride;
+let retiredPrizeIdsLoaded = false;
+
+function prizeFingerprint(item) {
+  const seller = cleanSellerName(item?.retailer || item?.brand, "seller");
+  const name = cleanProductName(item?.name || "")
+    .replace(/\b(classic|deluxe|premium|compact|space-saving|upgraded|featured)\b/gi, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return slugify(`${seller}-${name || item?.id || "prize"}`);
+}
+
+function prizeBankStorageFile() {
+  if (prizeBankFileOverride !== undefined) return prizeBankFileOverride;
+  if (process.env.PRIZE_BANK_FILE) return process.env.PRIZE_BANK_FILE;
+  const storageDir = process.env.PRIZE_BANK_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH;
+  return storageDir ? path.join(storageDir, PRIZE_BANK_STORAGE_NAME) : null;
+}
+
+function loadRetiredPrizeIds() {
+  if (retiredPrizeIdsLoaded) return;
+  retiredPrizeIdsLoaded = true;
+  const storageFile = prizeBankStorageFile();
+  if (!storageFile) return;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(storageFile, "utf8"));
+    const ids = Array.isArray(parsed?.retiredPrizeIds) ? parsed.retiredPrizeIds : [];
+    const fingerprints = Array.isArray(parsed?.retiredPrizeFingerprints)
+      ? parsed.retiredPrizeFingerprints
+      : [];
+    for (const id of ids) {
+      if (typeof id === "string" && id) retiredPrizeIds.add(id);
+    }
+    for (const fingerprint of fingerprints) {
+      if (typeof fingerprint === "string" && fingerprint) retiredPrizeFingerprints.add(fingerprint);
+    }
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      console.warn(`[prizeSource] Could not read prize bank storage: ${error.message}`);
+    }
+  }
+}
+
+function saveRetiredPrizeIds() {
+  const storageFile = prizeBankStorageFile();
+  if (!storageFile) return;
+  try {
+    fs.mkdirSync(path.dirname(storageFile), { recursive: true });
+    const payload = {
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      retiredPrizeIds: [...retiredPrizeIds].sort(),
+      retiredPrizeFingerprints: [...retiredPrizeFingerprints].sort(),
+    };
+    const tmpFile = `${storageFile}.tmp`;
+    fs.writeFileSync(tmpFile, JSON.stringify(payload, null, 2));
+    fs.renameSync(tmpFile, storageFile);
+  } catch (error) {
+    console.warn(`[prizeSource] Could not write prize bank storage: ${error.message}`);
+  }
+}
+
+function availablePrizes(items) {
+  loadRetiredPrizeIds();
+  return items.filter((item) => !retiredPrizeIds.has(item.id) && !retiredPrizeFingerprints.has(prizeFingerprint(item)));
+}
+
 const buildLocalFallbackPool = () => reduceSimilarPrizes(
   [
     ...CURATED_FALLBACKS.map(enrichPrize),
@@ -631,14 +768,15 @@ const buildLocalFallbackPool = () => reduceSimilarPrizes(
     ...buildCanadianRetailerCatalog().map(enrichPrize),
   ].filter(isDisplayReadyPrize),
 );
-let cache = { items: buildLocalFallbackPool(), fetchedAt: 0 };
+loadRetiredPrizeIds();
+let cache = { items: availablePrizes(buildLocalFallbackPool()), fetchedAt: 0 };
 let refreshPromise = null;
 
 async function refreshPrizePool() {
   if (refreshPromise) return refreshPromise;
   refreshPromise = fetchPrizePool()
     .then((items) => {
-      const available = items.filter((item) => !retiredPrizeIds.has(item.id));
+      const available = availablePrizes(items);
       cache = { items: available, fetchedAt: Date.now() };
       return available;
     })
@@ -651,6 +789,7 @@ async function refreshPrizePool() {
 }
 
 export async function getPrizePool(forceRefresh = false) {
+  loadRetiredPrizeIds();
   const stale = Date.now() - cache.fetchedAt > CACHE_TTL_MS;
   if (forceRefresh) return refreshPrizePool();
   if (stale || cache.items.length < REFILL_THRESHOLD) void refreshPrizePool();
@@ -662,25 +801,49 @@ export async function getPrizePool(forceRefresh = false) {
 // only genuinely new verified product IDs can enter again.
 export function retirePrize(id) {
   if (!id) return false;
+  loadRetiredPrizeIds();
+  const usedPrize = cache.items.find((item) => item.id === id);
   const alreadyRetired = retiredPrizeIds.has(id);
   retiredPrizeIds.add(id);
+  if (usedPrize) retiredPrizeFingerprints.add(prizeFingerprint(usedPrize));
+  if (!alreadyRetired || usedPrize) saveRetiredPrizeIds();
   cache = { ...cache, items: cache.items.filter((item) => item.id !== id) };
+  if (usedPrize) cache = { ...cache, items: availablePrizes(cache.items) };
   if (cache.items.length < REFILL_THRESHOLD) void refreshPrizePool();
   return !alreadyRetired;
 }
 
 export function prizeBankStats() {
+  loadRetiredPrizeIds();
   return {
     available: cache.items.length,
     used: retiredPrizeIds.size,
+    usedFingerprints: retiredPrizeFingerprints.size,
     refilling: Boolean(refreshPromise),
     threshold: REFILL_THRESHOLD,
+    persistent: Boolean(prizeBankStorageFile()),
   };
 }
 
-export function resetPrizeBankForTests() {
+export function resetPrizeBankForTests(options = {}) {
   retiredPrizeIds.clear();
-  cache = { items: buildLocalFallbackPool(), fetchedAt: Date.now() };
+  retiredPrizeFingerprints.clear();
+  retiredPrizeIdsLoaded = true;
+  if (options.clearStorage) {
+    const storageFile = prizeBankStorageFile();
+    if (storageFile) fs.rmSync(storageFile, { force: true });
+  }
+  cache = { items: availablePrizes(buildLocalFallbackPool()), fetchedAt: Date.now() };
+  refreshPromise = null;
+}
+
+export function configurePrizeBankStorageForTests(storageFile) {
+  prizeBankFileOverride = storageFile || null;
+  retiredPrizeIds.clear();
+  retiredPrizeFingerprints.clear();
+  retiredPrizeIdsLoaded = false;
+  loadRetiredPrizeIds();
+  cache = { items: availablePrizes(buildLocalFallbackPool()), fetchedAt: Date.now() };
   refreshPromise = null;
 }
 

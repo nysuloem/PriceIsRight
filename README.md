@@ -71,29 +71,36 @@ Same pattern as the other family game projects:
    ends up.
 5. Add `OPENAI_API_KEY` (and optionally `HOST_VOICE`) under Variables if you
    want the host voice. The game works without it.
+6. Add a Railway Volume to the server service so used bidding prizes survive
+   redeploys and restarts. Mount it anywhere, for example `/data`; Railway
+   automatically exposes `RAILWAY_VOLUME_MOUNT_PATH`, and the app writes the
+   used-prize bank to `price-is-right-prize-bank.json` inside that volume.
+   If you want an explicit path instead, set:
+
+```bash
+PRIZE_BANK_FILE=/data/price-is-right-prize-bank.json
+```
 
 Once deployed, open the Railway URL on a laptop/TV for the host, and have
 players visit the same URL on their phones to join.
 
 ## How the live prize pool works
 
-`server/prizeSource.js` holds a small `CANDIDATES` list — specific product
-page URLs at Canadian Tire and Best Buy Canada, plus one static Roots item.
+`server/prizeSource.js` builds a large Contestants' Row prize pool from live
+Canadian retailer feeds, curated fallbacks, the family prize catalogue, and a
+generated Canadian brick-and-mortar catalogue.
 
 - On server startup (and again whenever the cache is older than 30 minutes),
-  `getPrizePool()` fetches each candidate's page fresh and extracts the
-  current price.
-- **Canadian Tire** pages render price as plain text, so this should work
-  reliably.
-- **Best Buy Canada** renders price client-side, so the price regex is
-  best-effort and will likely fall back to the last-known price — but the
-  product **image** comes from Best Buy's predictable media CDN and should
-  always work.
-- **Amazon.ca** is intentionally excluded — its robots.txt disallows
-  automated access.
-- Each item carries a `priceIsLive` flag, shown in the fine print on the
-  reveal screen, so you can see at a glance whether a given price came from
-  a fresh fetch or a fallback.
+  `getPrizePool()` refreshes the prize bank in the background.
+- Selected bidding prizes are retired immediately. With a Railway Volume
+  attached, retired prize IDs and same-seller prize fingerprints persist
+  across restarts so the same prize does not come back later.
+- Prize descriptions are normalized to short English copy that names the maker
+  or seller and gives enough detail to estimate price. Feed items with missing
+  photos, French copy, product numbers, or vague meta descriptions are filtered
+  out.
+- Each item carries a `priceIsLive` flag so you can see whether a price came
+  from a live retailer feed or a fallback catalogue item.
 
 ### Testing the scraper on its own
 
@@ -112,11 +119,5 @@ re-fetch and see the current pool as JSON.
 
 ## Known limitations / next steps
 
-- The curated product list is small (4 items) — easy to extend by adding
-  more entries to `CANDIDATES` in `prizeSource.js`. Canadian Tire product
-  pages are the most reliable source for live pricing.
-- Best Buy price extraction is unverified — likely needs a different
-  approach (e.g. their internal product API) once we see real results.
-- Roots is fully static (no live source identified yet).
 - Room codes are 4 letters, in-memory only — rooms are cleaned up after 4
   hours of inactivity. Restarting the server clears all rooms.

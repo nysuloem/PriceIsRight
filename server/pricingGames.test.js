@@ -169,6 +169,13 @@ test("Cliff Hangers hides the actual price until the climber stops",()=>{
   revealDeferredPrice(g);assert.equal(g.priceReveal.actual,actual);
 });
 
+test("Cliff Hangers only uses double-digit small prizes",()=>{
+  for(let i=0;i<25;i+=1){
+    const g=createPricingGameForType("cliffHangers",player);
+    assert.equal(g._prices.every(price=>price>=10&&price<=99),true);
+  }
+});
+
 test("a safe third Cliff Hangers climb wins all three prizes before the subtle price reveal",()=>{
   const g=createPricingGameForType("cliffHangers",player);g.itemIndex=2;g.climber=4;const actual=g._prices[2];
   playPricingGame(g,{value:actual});settlePricingAnimation(g);
