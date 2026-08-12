@@ -783,7 +783,16 @@ function PlinkoChip({drop,onLanded}) {
 function ClockDisplay({endsAt,fallback=90,running=true}){
   const remaining=()=>endsAt?Math.max(0,Math.ceil((endsAt-Date.now())/1000)):fallback,[seconds,setSeconds]=useState(remaining),previous=useRef(seconds);
   useEffect(()=>{setSeconds(remaining());if(!running||!endsAt)return;const timer=setInterval(()=>{const next=remaining();setSeconds(next);if(next>0&&next!==previous.current)playClockTick();previous.current=next;},100);return()=>clearInterval(timer);},[endsAt,running]);
-  return <div className="pir-clock">{seconds}</div>;
+  const duration=90,angle=Math.min(360,Math.max(0,(duration-seconds)/duration*360)),labels=[90,75,60,45,30,15];
+  return <div className="pir-clock-housing" role="timer" aria-label={`${seconds} seconds remaining`}>
+    <div className="pir-clock-face">
+      <div className="pir-clock-ticks" aria-hidden="true">{Array.from({length:60},(_,index)=><i key={index} className={index%10===0?"major":""} style={{transform:`rotate(${index*6}deg)`}} />)}</div>
+      <div className="pir-clock-labels" aria-hidden="true">{labels.map((label,index)=><b key={label} style={{transform:`rotate(${index*60}deg) translateY(calc(-1 * var(--clock-label-radius, 69px))) rotate(${-index*60}deg)`}}>{label}</b>)}</div>
+      <span className="pir-clock-hand" style={{transform:`translateX(-50%) rotate(${angle}deg)`}} aria-hidden="true" />
+      <span className="pir-clock-pin" aria-hidden="true" />
+    </div>
+    <strong>CLOCK<br/>GAME</strong>
+  </div>;
 }
 
 function CliffClimber({position,climb,onStopped}){

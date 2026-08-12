@@ -283,17 +283,18 @@ export default function PlayerView({ code, navigate }) {
       {state.phase === "pricingIntro" && (
         <SkipRulesPhone code={code} game={state.pricingGame} playerId={playerId} onError={setError} />
       )}
-      {state.phase === "pricingPrizeIntro" && (
+      {state.phase === "pricingPrizeIntro" && !(state.pricingGame?.type === "clockGame" && state.pricingGame?.clockEndsAt) && (
         <div className="pir-panel pir-center"><h2>Here comes the next prize!</h2><p>Watch the main screen while the announcer introduces it.</p></div>
       )}
       {(state.phase === "pricingRevealCue" || state.phase === "pricingPriceShown") && (
         <div className="pir-panel pir-center"><h2>Show us the price!</h2><p>Your choice is locked in. Watch the reveal on the main screen.</p></div>
       )}
 
-      {state.phase === "pricingGame" && (
+      {(state.phase === "pricingGame" || (state.phase === "pricingPrizeIntro" && state.pricingGame?.type === "clockGame" && state.pricingGame?.clockEndsAt)) && (
         <>
           <PricingGamePhone game={state.pricingGame} playerId={playerId} code={code}
             isDemo={state.isDemo} onBackToGames={() => navigate?.("/games")}
+            acceptGuesses={state.phase === "pricingGame"}
             onError={(message) => setError(message)} />
         </>
       )}
@@ -364,7 +365,7 @@ function audienceOptions(game){
   return [];
 }
 
-function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError }) {
+function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError, acceptGuesses = true }) {
   const [number, setNumber] = useState("");
   const [order, setOrder] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -372,7 +373,8 @@ function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError
   const [listening,setListening]=useState(false);
   const [heard,setHeard]=useState("");
   const recognitionRef=useRef(null);
-  const continuousMicRef=useRef(false),micSendingRef=useRef(false);
+  const continuousMicRef=useRef(false),micSendingRef=useRef(false),acceptGuessesRef=useRef(acceptGuesses);
+  useEffect(()=>{acceptGuessesRef.current=acceptGuesses;},[acceptGuesses]);
   useEffect(()=>()=>{continuousMicRef.current=false;recognitionRef.current?.abort();},[]);
   if (!game) return <div className="pir-panel">Loading pricing game…</div>;
   const isPlayer = game.playerId === playerId;
@@ -392,7 +394,7 @@ function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError
     recognition.onstart=()=>{setListening(true);setHeard("");onError("");};
     recognition.onend=()=>{if(!continuousMicRef.current){setListening(false);return;}setTimeout(()=>{try{recognition.start();}catch{}},180);};
     recognition.onerror=e=>{setListening(false);if(e.error!=="aborted"&&e.error!=="no-speech")onError(`Microphone error: ${e.error}. You can still type your guess.`);};
-    recognition.onresult=async e=>{const result=e.results?.[e.resultIndex],transcript=result?.[0]?.transcript||"",value=parseSpokenNumber(transcript);setHeard(transcript);if(value==null){onError(`I heard “${transcript},” but not a number. Please try again.`);return;}if(micSendingRef.current)return;micSendingRef.current=true;setNumber(String(value));await send({value});micSendingRef.current=false;};
+    recognition.onresult=async e=>{const result=e.results?.[e.resultIndex],transcript=result?.[0]?.transcript||"";if(!acceptGuessesRef.current)return;const value=parseSpokenNumber(transcript);setHeard(transcript);if(value==null){onError(`I heard “${transcript},” but not a number. Please try again.`);return;}if(micSendingRef.current)return;micSendingRef.current=true;setNumber(String(value));await send({value});micSendingRef.current=false;};
     recognition.start();
   };
   if (game.status !== "playing") return <div className="pir-panel pir-center"><h2>{game.title}</h2><p className="pir-pricing-result">{game.result}</p>{isDemo && <button className="pir-btn" onClick={onBackToGames}>Try Another Game</button>}</div>;
@@ -403,12 +405,13 @@ function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError
     <div className="pir-panel pir-pricing-phone">
       <h2 className="pir-pricing-title">{game.title}</h2>
       <p className="pir-helptext">{game.instructions}</p>
+      {!acceptGuesses&&game.type==="clockGame"&&<div className="pir-clock-mic-paused">{listening?"Microphone is still on — listening resumes after the prize announcement.":"Watch the main screen for the second prize. Guessing resumes automatically afterward."}</div>}
       <div className="pir-pricing-prompt">{game.prompt}</div>
       {game.mode === "number" && <>
         {game.type==="tenChances"&&<><div className="pir-ten-phone-prize">Pricing: <strong>{game.prizes[game.prizeIndex]?.name}</strong> · {game.chancesLeft} chances left</div><div className="pir-ten-digits">{game.digitSets[game.prizeIndex]?.map((digit,i)=><span key={`${digit}-${i}`}>{digit}</span>)}</div>{!!game.guesses?.length&&<div className="pir-ten-phone-history"><b>Previous guesses</b>{game.guesses.map(entry=><span key={entry.chance}>#{entry.chance} · ${Number(entry.guess).toLocaleString("en-CA")} {entry.correct?"✓":""}</span>)}</div>}</>}
-        <div className="pir-led pir-bid-input"><span>{game.type==="groceryGame"&&game.stage==="quantity"?"QTY":"$"}</span><input type="number" value={number} autoFocus min="0" onChange={e=>setNumber(e.target.value)} /></div>
-        {game.type==="clockGame"&&<div className="pir-clock-mic"><button className={`pir-btn ${listening?"listening":"secondary"}`} disabled={busy&&!listening} onClick={listening?stopClockMic:startClockMic}>{listening?<><MicOff size={20}/> LISTENING — TAP TO STOP</>:<><Mic size={20}/> START MICROPHONE</>}</button>{heard&&<small>Heard: “{heard}”</small>}<small>Once started, it keeps listening for guesses. Typed entry remains available.</small></div>}
-        <button className="pir-btn" disabled={busy || number === ""} onClick={()=>send({ value: number })}>Submit</button>
+        <div className="pir-led pir-bid-input"><span>{game.type==="groceryGame"&&game.stage==="quantity"?"QTY":"$"}</span><input type="number" value={number} autoFocus min="0" disabled={!acceptGuesses} onChange={e=>setNumber(e.target.value)} /></div>
+        {game.type==="clockGame"&&<div className="pir-clock-mic"><button className={`pir-btn ${listening?"listening":"secondary"}`} disabled={(!acceptGuesses||busy)&&!listening} onClick={listening?stopClockMic:startClockMic}>{listening?<><MicOff size={20}/> LISTENING — TAP TO STOP</>:<><Mic size={20}/> START MICROPHONE</>}</button>{heard&&<small>Heard: “{heard}”</small>}<small>Once started, it stays on for both prizes. Typed entry remains available.</small></div>}
+        <button className="pir-btn" disabled={!acceptGuesses || busy || number === ""} onClick={()=>send({ value: number })}>Submit</button>
       </>}
       {game.mode === "choice" && <div className="pir-choice-grid">{game.options.map(option=><button key={option} className="pir-btn secondary" disabled={busy} onClick={()=>send({ choice: option })}>{option}</button>)}</div>}
       {game.mode === "drop" && <><p className="pir-helptext">Tap where you want the chip released.</p><div className="pir-drop-picker">{Array.from({length:9},(_,i)=><button key={i} disabled={busy} onClick={()=>send({position:i+1})}>{i+1}</button>)}</div></>}
