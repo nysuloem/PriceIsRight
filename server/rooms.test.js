@@ -141,6 +141,31 @@ test("Grocery Game introduces its grand prize before explaining the rules",()=>{
   assert.equal(room.phase,"pricingGame");
 });
 
+test("Pick-a-Pair introduces its grand prize and accepts phone choices",()=>{
+  const {room}=createPricingGameDemo("pickAPair"),player=joinRoom(room,"Pair Player");
+  assert.equal(room.phase,"pricingPrizeIntro");
+  assert.equal(room.pricingAnnouncement.id,room.pricingGame.bonusPrize.id);
+  beginPricingGame(room);assert.equal(room.phase,"pricingIntro");
+  beginPricingGame(room);assert.equal(room.phase,"pricingGame");
+  pricingGameAction(room,player.id,{choice:room.pricingGame.options[0]});
+  assert.equal(room.pricingGame.stage,"second");
+  assert.equal(room.hostLine.type,"pricingPrompt");
+});
+
+test("Balance Game introduces its prize and accepts two money bags",()=>{
+  const {room}=createPricingGameDemo("balanceGame"),player=joinRoom(room,"Balance Player");
+  assert.equal(room.phase,"pricingPrizeIntro");
+  assert.equal(room.pricingAnnouncement.id,room.pricingGame.prize.id);
+  beginPricingGame(room);assert.equal(room.phase,"pricingIntro");
+  beginPricingGame(room);assert.equal(room.phase,"pricingGame");
+  const [first,second]=room.pricingGame._correctBagAmounts;
+  pricingGameAction(room,player.id,{choice:`$${first.toLocaleString("en-CA")}`});
+  assert.equal(room.pricingGame.status,"playing");
+  pricingGameAction(room,player.id,{choice:`$${second.toLocaleString("en-CA")}`});
+  assert.equal(room.pricingGame.status,"won");
+  assert.equal(room.hostLine.type,"pricingResult");
+});
+
 test("Switch introduces both large prizes before explaining the rules",()=>{
   const {room}=createPricingGameDemo("switchGame");
   joinRoom(room,"Switch Player");

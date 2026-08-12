@@ -149,7 +149,7 @@ const SHELL_BONUS_PRIZES = [
   { name:"Backyard spa retreat",brand:"Hydropool",description:"A self-cleaning hot tub with delivery, steps, cover, and patio furniture.",price:9750,image:"https://images.unsplash.com/photo-1572331165267-854da2b10ccc?auto=format&fit=crop&w=1200&q=85" },
 ];
 
-const GAME_NAMES = ["plinko", "cliffHangers", "punchABunch", "diceGame", "groceryGame", "oneAway", "clockGame", "anyNumber", "grandGame", "shellGame", "moneyGame", "luckySeven", "doublePrices", "threeStrikes", "switchGame", "tenChances"];
+const GAME_NAMES = ["plinko", "cliffHangers", "punchABunch", "diceGame", "groceryGame", "oneAway", "clockGame", "anyNumber", "grandGame", "shellGame", "moneyGame", "luckySeven", "doublePrices", "threeStrikes", "switchGame", "tenChances", "pickAPair", "balanceGame"];
 export const CAR_PRICING_GAME_TYPES = ["diceGame", "oneAway", "anyNumber", "moneyGame", "luckySeven", "threeStrikes", "tenChances"];
 export const NON_CAR_PRICING_GAME_TYPES = GAME_NAMES.filter(type=>!CAR_PRICING_GAME_TYPES.includes(type));
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
@@ -241,11 +241,35 @@ function makeLuckySeven(player,excluded=[]) { const car=pick(fresh(CARS,excluded
 function makeDoublePrices(player,excluded=[]){const raw=pick(fresh(SHELL_BONUS_PRIZES,excluded)),prize=prizeIntro(raw),wrong=raw.price+pick([650,800,950,1200]),options=shuffle([raw.price,wrong]);return {...base("doublePrices","DOUBLE PRICES",player,"The grand prize has two possible prices. Choose the correct price to win it.",[prize]),featuredIntroCount:1,prize,_actual:raw.price,prices:options,prompt:"Which is the correct price?",mode:"choice",options:options.map(money)};}
 function makeThreeStrikes(player,excluded=[]){const compatible=fresh(CARS.filter(car=>new Set(String(car.price)).size===5),excluded),raw=pick(compatible),digits=String(raw.price).split("").map(Number),car=prizeIntro(raw),bag=[...digits,"X1","X2","X3"];return {...base("threeStrikes","3 STRIKES",player,"Five numbered balls—one for each digit in the car price—and three strike balls are mixed in the hopper. Draw a ball. Place a number in its correct position to remove it; a wrong placement returns it to the hopper. Place all five digits before drawing three strikes to win the car.",[carIntro(raw)]),car,_digits:digits,_bag:shuffle(bag),revealed:[null,null,null,null,null],strikes:0,currentBall:null,drawSeq:0,stage:"draw",prompt:"Draw a ball from the hopper.",mode:"choice",options:["DRAW A BALL"]};}
 function makeSwitch(player,excluded=[]){const raw=shuffle(fresh(SHELL_BONUS_PRIZES,excluded)).slice(0,2),items=raw.map(prizeIntro),actual=raw.map(p=>p.price),shown=Math.random()<.5?actual:[actual[1],actual[0]];return {...base("switchGame","SWITCH?",player,"The two prize prices may already be correct, or they may be switched. Leave the prices where they are or switch them to win both prizes.",items),featuredIntroCount:2,items,_prices:actual,shownPrices:shown,prompt:"Should the prices stay, or should they switch?",mode:"choice",options:["Leave them","Switch them"]};}
+function pickPairOption(item,index,prefix=""){return `${prefix}${index+1}. ${item.brand} ${item.name}`;}
+function matchingGroceryPairs(excluded=[]){
+  const blocked=new Set(excluded),makeGroups=products=>{const groups=new Map();for(const product of products){const key=Number(product.price).toFixed(2);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(product);}return [...groups.entries()].filter(([,products])=>products.length>=2);};
+  let groups=makeGroups(GROCERIES.filter(product=>!blocked.has(product.name)));
+  if(groups.length<3)groups=makeGroups(GROCERIES);
+  return shuffle(groups).slice(0,3).flatMap(([price,products])=>shuffle(products).slice(0,2).map(product=>({product,price:Number(price)})));
+}
+function makePickAPair(player,excluded=[]){
+  const entries=shuffle(matchingGroceryPairs(excluded)),assignments=entries.map(entry=>entry.price);
+  const items=entries.map((entry,index)=>({...prizeIntro(entry.product),id:`pick-pair-${index}`,displayNumber:index+1,selected:false,used:false,revealedPrice:null}));
+  const rawBonus=pick(fresh(SHELL_BONUS_PRIZES,excluded)),bonusPrize={...prizeIntro(rawBonus),announcerText:`Match two grocery prices and you could win this fabulous prize: ${rawBonus.description}`};
+  return {...base("pickAPair","PICK-A-PAIR",player,"Six grocery products hide three matching pairs of prices. Pick two products. If their prices match, you win the grand prize. If they do not match, keep either product and choose one more for a second chance.",[bonusPrize]),featuredIntroCount:1,bonusPrize,_bonusPrice:rawBonus.price,items,_prices:assignments,selectedIndices:[],keptIndex:null,stage:"first",prompt:"Pick your first grocery product.",mode:"choice",options:items.map((item,index)=>pickPairOption(item,index))};
+}
+function balanceBagAmounts(price){
+  const target=Math.floor(price/1000),pairs=[];
+  for(let a=1;a<=7;a+=1)for(let b=a+1;b<=7;b+=1)if(a+b===target)pairs.push([a,b]);
+  const correct=pick(pairs.length?pairs:[[Math.max(1,target-2),2]]),blocked=new Set(correct);
+  const decoy=shuffle([1,2,3,4,5,6,7]).find(value=>!blocked.has(value)&&correct.every(other=>value+other!==target))||target;
+  return {bags:shuffle([...correct,decoy].map(value=>value*1000)),correct:correct.map(value=>value*1000)};
+}
+function makeBalanceGame(player,excluded=[]){
+  const raw=pick(fresh(SHELL_BONUS_PRIZES.filter(prize=>prize.price>=4000&&prize.price<10000),excluded)),prize=prizeIntro(raw),amounts=balanceBagAmounts(raw.price),smallBag=raw.price%1000;
+  return {...base("balanceGame","BALANCE GAME",player,"The small bag, showing the last three digits of the prize price, is yours automatically. Choose exactly two of the three larger bags. If your bags balance with the prize's actual retail price, you win it.",[prize]),featuredIntroCount:1,prize,_actual:raw.price,_correctBagAmounts:amounts.correct,smallBag,bags:amounts.bags.map((value,index)=>({id:`balance-bag-${index}`,value,selected:false})),chosenBagValues:[],balanceTotal:smallBag,balanceState:"waiting",stage:"choose",prompt:"Choose the first large money bag.",mode:"choice",options:amounts.bags.map(money)};
+}
 function tenChanceDigits(price,count){const digits=[...new Set(String(price).split(""))];for(const d of shuffle(["0","1","2","3","4","5","6","7","8","9"]))if(!digits.includes(d)){digits.push(d);if(digits.length===count)break;}return shuffle(digits);}
 function shuffledCarDigits(price){const answer=String(price).split(""),shuffled=shuffle(answer);return shuffled.join("")===answer.join("")?[...answer.slice(1),answer[0]]:shuffled;}
 function makeTenChances(player,excluded=[],liveItems=[]){const two=diverseSmallItems(1,excluded,p=>p.price>=10&&p.price<=99&&new Set(String(Math.round(p.price))).size===2,liveItems)[0],three=diverseSmallItems(1,[...excluded,two.name],p=>p.price>=100&&p.price<=999&&new Set(String(Math.round(p.price))).size===3,liveItems)[0],cars=fresh(CARS.filter(c=>new Set(String(c.price)).size===5),excluded),car=pick(cars),raw=[two,three,car],prizes=[prizeIntro(two),prizeIntro(three),carIntro(car)],prices=raw.map(p=>Math.round(p.price)),digitSets=[tenChanceDigits(prices[0],3),tenChanceDigits(prices[1],4),shuffledCarDigits(prices[2])];return {...base("tenChances","10 CHANCES",player,"You have ten chances total to price three prizes: first a two-digit prize, then a three-digit prize, and finally a new car. Build each price using only the digits shown, without repeating a digit. Correctly price a prize to move to the next one.",prizes),prizes,_prices:prices,digitSets,prizeIndex:0,chancesLeft:10,guesses:[],winnings:0,prompt:`Use two of the digits shown to price the ${two.name}.`,mode:"number"};}
 
-const FACTORIES={plinko:makePlinko,cliffHangers:makeCliff,punchABunch:makePunch,diceGame:makeDice,groceryGame:makeGrocery,oneAway:makeOneAway,clockGame:makeClock,anyNumber:makeAnyNumber,grandGame:makeGrand,shellGame:makeShell,moneyGame:makeMoneyGame,luckySeven:makeLuckySeven,doublePrices:makeDoublePrices,threeStrikes:makeThreeStrikes,switchGame:makeSwitch,tenChances:makeTenChances};
+const FACTORIES={plinko:makePlinko,cliffHangers:makeCliff,punchABunch:makePunch,diceGame:makeDice,groceryGame:makeGrocery,oneAway:makeOneAway,clockGame:makeClock,anyNumber:makeAnyNumber,grandGame:makeGrand,shellGame:makeShell,moneyGame:makeMoneyGame,luckySeven:makeLuckySeven,doublePrices:makeDoublePrices,threeStrikes:makeThreeStrikes,switchGame:makeSwitch,tenChances:makeTenChances,pickAPair:makePickAPair,balanceGame:makeBalanceGame};
 export const PRICING_GAME_TYPES=[...GAME_NAMES];
 export function createPricingGameForType(type,player,excluded=[],liveItems=[]){ if(!FACTORIES[type]) throw new Error(`Unknown pricing game: ${type}`); return FACTORIES[type](player,excluded,liveItems); }
 export function createPricingGame(player,previous=[],excluded=[],liveItems=[],allowedTypes=GAME_NAMES){ const pool=allowedTypes.filter(type=>FACTORIES[type]),a=pool.filter(type=>!previous.includes(type)); return FACTORIES[pick(a.length?a:pool)](player,excluded,liveItems); }
@@ -282,6 +306,36 @@ export function playPricingGame(g,action={}) {
   else if(g.type==="doublePrices"){const selected=Number(choice.replace(/[$,]/g,"")),won=selected===g._actual;g.revealedPrice=g._actual;finish(g,won,won?`That's the correct price! You won the ${g.prize.name}!`:`The actual retail price was ${money(g._actual)}.`,won?g._actual:0);}
   else if(g.type==="threeStrikes"){if(g.stage==="draw"){const index=Math.floor(Math.random()*g._bag.length),ball=g._bag.splice(index,1)[0];g.currentBall=String(ball).startsWith("X")?"X":Number(ball);g.drawSeq+=1;if(g.currentBall==="X"){g.strikes+=1;outcome(g,"failure",`Strike ${g.strikes}!`);if(g.strikes===3)return finish(g,false,`Strike three! The car's actual retail price was ${money(Number(g._digits.join("")))}.`);g.prompt="Draw another ball from the hopper.";g.options=["DRAW ANOTHER BALL"];}else{g.stage="place";g.prompt=`You drew the number ${g.currentBall}. Where does it belong in the car price?`;g.options=g.revealed.map((digit,i)=>digit==null?`Position ${i+1}`:null).filter(Boolean);}}else{const position=Number(choice.match(/\d+/)?.[0])-1,digit=g.currentBall;if(g._digits[position]===digit){g.revealed[position]=digit;outcome(g,"success",`${digit} belongs in position ${position+1}!`);if(g.revealed.every(x=>x!=null))return finish(g,true,`You completed the price and won the ${g.car.name}!`,Number(g._digits.join("")));}else{g._bag.push(digit);outcome(g,"failure",`${digit} does not belong in position ${position+1}. Back into the hopper!`);}g.currentBall=null;g.stage="draw";g.prompt="Draw another ball from the hopper.";g.options=["DRAW ANOTHER BALL"];}}
   else if(g.type==="switchGame"){const selected=choice==="Switch them"?[g.shownPrices[1],g.shownPrices[0]]:g.shownPrices,won=selected.every((price,i)=>price===g._prices[i]);g.finalPrices=g._prices;finish(g,won,won?"The prices are right! You won both prizes!":`The correct prices were ${money(g._prices[0])} and ${money(g._prices[1])}.`,won?g._prices.reduce((a,b)=>a+b,0):0);}
+  else if(g.type==="pickAPair"){
+    const selectedIndex=Number(choice.match(/\d+/)?.[0])-1;
+    if(g.stage==="keep"){
+      if(!g.selectedIndices.includes(selectedIndex))throw new Error("Keep one of the two products you already selected");
+      g.keptIndex=selectedIndex;g.items.forEach((item,index)=>{item.selected=index===selectedIndex;if(g.selectedIndices.includes(index)&&index!==selectedIndex)item.used=true;});
+      g.stage="third";g.selectedIndices=[selectedIndex];g.options=g.items.map((item,index)=>!item.used&&!item.selected?pickPairOption(item,index):null).filter(Boolean);g.prompt=`Keep the ${g.items[selectedIndex].name}. Pick one more product to match ${money(g._prices[selectedIndex])}.`;outcome(g,"neutral",`Keeping the ${g.items[selectedIndex].name} at ${money(g._prices[selectedIndex])}.`);
+    }else{
+      if(!g.items[selectedIndex]||g.items[selectedIndex].used||g.items[selectedIndex].selected)throw new Error("That product is not available");
+      g.items[selectedIndex].selected=true;g.items[selectedIndex].revealedPrice=g._prices[selectedIndex];g.selectedIndices.push(selectedIndex);
+      if(g.stage==="first"){
+        g.stage="second";g.options=g.items.map((item,index)=>!item.selected?pickPairOption(item,index):null).filter(Boolean);g.prompt=`${g.items[selectedIndex].name} is ${money(g._prices[selectedIndex])}. Pick a second product.`;outcome(g,"neutral",`The ${g.items[selectedIndex].name} is ${money(g._prices[selectedIndex])}.`);
+      }else{
+        const [first,second]=g.selectedIndices,matched=g._prices[first]===g._prices[second];
+        if(matched){g.matchPrice=g._prices[first];return finish(g,true,`It's a match at ${money(g.matchPrice)}! You won the ${g.bonusPrize.name}!`,g._bonusPrice);}
+        if(g.stage==="second"){
+          g.stage="keep";g.options=g.selectedIndices.map(index=>pickPairOption(g.items[index],index,"Keep "));g.prompt="Those prices do not match. Keep either product for one final pick.";outcome(g,"failure",`${money(g._prices[first])} and ${money(g._prices[second])} do not match.`);
+        }else{
+          g.items.forEach((item,index)=>{item.revealedPrice=g._prices[index];});
+          return finish(g,false,`${money(g._prices[first])} and ${money(g._prices[second])} do not match. The matching pairs are now revealed.`);
+        }
+      }
+    }
+  }
+  else if(g.type==="balanceGame"){
+    const selected=Number(choice.replace(/[$,]/g,"")),bag=g.bags.find(item=>item.value===selected);
+    if(!bag||bag.selected)throw new Error("That money bag is not available");
+    bag.selected=true;g.chosenBagValues.push(selected);g.balanceTotal=g.smallBag+g.chosenBagValues.reduce((sum,amount)=>sum+amount,0);g.options=g.bags.filter(item=>!item.selected).map(item=>money(item.value));
+    if(g.chosenBagValues.length===1){g.prompt=`Your bags total ${money(g.balanceTotal)}. Choose one more large bag.`;outcome(g,"neutral",`${money(selected)} is on the contestant's side of the scale.`);}
+    else{const won=g.balanceTotal===g._actual;g.revealedPrice=g._actual;g.balanceState=won?"balanced":g.balanceTotal>g._actual?"contestant-heavy":"prize-heavy";finish(g,won,won?`The scale balances at ${money(g._actual)}! You won the ${g.prize.name}!`:`The bags total ${money(g.balanceTotal)}, but the prize is ${money(g._actual)}.`,won?g._actual:0);}
+  }
   else if(g.type==="tenChances"){
     if(g.chancesLeft<=0)return finish(g,false,"All ten chances have been used.",g.winnings);
     const i=g.prizeIndex,guess=String(action.value??"").replace(/\D/g,""),needed=i===0?2:i===1?3:5,available=g.digitSets[i];
@@ -336,6 +390,8 @@ export function initialPrizeAnnouncements(game) {
   if (!game) return [];
   if (game.type === "plinko" || game.type === "punchABunch") return [game.qualifiers[0]];
   if (game.type === "groceryGame") return [game.bonusPrize];
+  if (game.type === "pickAPair") return [game.bonusPrize];
+  if (game.type === "balanceGame") return [game.prize];
   if (game.type === "shellGame") return [game.bonusPrize, game.items[0]];
   if (game.type === "tenChances") return [game.prizes[2], game.prizes[0]];
   if (game.type === "cliffHangers" || game.type === "clockGame") return [game.items[0]];

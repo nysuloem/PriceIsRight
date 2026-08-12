@@ -19,6 +19,8 @@ const GAMES = [
   ["threeStrikes", "3 Strikes", "Place all five car-price digits before drawing three strikes."],
   ["switchGame", "Switch?", "Decide whether two prize prices should stay or switch."],
   ["tenChances", "10 Chances", "Use ten total attempts to price two prizes and a new car."],
+  ["pickAPair", "Pick-a-Pair", "Find two grocery products with exactly the same price."],
+  ["balanceGame", "Balance Game", "Choose two money bags that balance with the grand prize."],
 ];
 
 export default function PricingGamesLab({ navigate }) {

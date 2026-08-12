@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, expandedBiddingCatalog, playPricingGame, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
 
 const player = { id: "human-1", name: "Test Player" };
-const types = ["plinko","cliffHangers","punchABunch","diceGame","groceryGame","oneAway","clockGame","anyNumber","grandGame","shellGame","moneyGame","luckySeven","doublePrices","threeStrikes","switchGame","tenChances"];
+const types = ["plinko","cliffHangers","punchABunch","diceGame","groceryGame","oneAway","clockGame","anyNumber","grandGame","shellGame","moneyGame","luckySeven","doublePrices","threeStrikes","switchGame","tenChances","pickAPair","balanceGame"];
 
-test("all twelve pricing games can be created without leaking answers", () => {
+test("all pricing games can be created without leaking answers", () => {
   for (const type of types) {
     const game = createPricingGameForType(type, player);
     assert.equal(game.type, type);
@@ -50,7 +50,7 @@ test("Grocery Game has a grand prize and awards its actual value",()=>{
   assert.equal(g.winnings,g._bonusPrice);
 });
 
-test("all twelve pricing game engines can reach a result", () => {
+test("all pricing game engines can reach a result", () => {
   let g = createPricingGameForType("plinko", player); while(g.stage === "qualify") { playPricingGame(g,{choice:g._qualifierCorrect[g.qualifierIndex]}); g.pendingPrizeAnnouncement=null; } while(g.status === "playing") { playPricingGame(g,{position:5}); settlePricingAnimation(g); } assert.notEqual(g.status,"playing");
   g = createPricingGameForType("cliffHangers", player); for (const price of [...g._prices]) { playPricingGame(g,{value:price}); settlePricingAnimation(g); clearDeferredPrice(g); } assert.equal(g.status,"won");
   g = createPricingGameForType("punchABunch", player); while(g.stage === "qualify") { const i=g.qualifierIndex; playPricingGame(g,{choice:g._qualifierPrices[i]>g.qualifiers[i].shownPrice?"Higher":"Lower"}); } playPricingGame(g,{choice:"1"}); if(g.stage === "decision") playPricingGame(g,{choice:"Keep it"}); assert.equal(g.status,"won");
@@ -67,6 +67,30 @@ test("all twelve pricing game engines can reach a result", () => {
   g=createPricingGameForType("threeStrikes",player);g._bag=[...g._digits];while(g.status==="playing"){playPricingGame(g,{choice:"DRAW A BALL"});if(g.stage==="place")playPricingGame(g,{choice:`Position ${g._digits.indexOf(g.currentBall)+1}`});}assert.equal(g.status,"won");
   g=createPricingGameForType("switchGame",player);playPricingGame(g,{choice:g.shownPrices[0]===g._prices[0]?"Leave them":"Switch them"});assert.equal(g.status,"won");
   g=createPricingGameForType("tenChances",player);for(const price of g._prices)playPricingGame(g,{value:price});assert.equal(g.status,"won");
+  g=createPricingGameForType("pickAPair",player);{const first=0,second=g._prices.findIndex((price,index)=>index!==first&&price===g._prices[first]);playPricingGame(g,{choice:g.options.find(option=>option.startsWith(`${first+1}.`))});playPricingGame(g,{choice:g.options.find(option=>option.startsWith(`${second+1}.`))});}assert.equal(g.status,"won");
+  g=createPricingGameForType("balanceGame",player);for(const amount of g._correctBagAmounts)playPricingGame(g,{choice:`$${amount.toLocaleString("en-CA")}`});assert.equal(g.status,"won");
+});
+
+test("Pick-a-Pair creates three pairs and offers one keep-and-repick chance",()=>{
+  const g=createPricingGameForType("pickAPair",player),counts=new Map();
+  g._prices.forEach(price=>counts.set(price,(counts.get(price)||0)+1));
+  assert.deepEqual([...counts.values()].sort(),[2,2,2]);
+  const first=0,wrong=g._prices.findIndex(price=>price!==g._prices[first]);
+  playPricingGame(g,{choice:g.options.find(option=>option.startsWith("1."))});
+  playPricingGame(g,{choice:g.options.find(option=>option.startsWith(`${wrong+1}.`))});
+  assert.equal(g.stage,"keep");assert.equal(g.options.length,2);
+  playPricingGame(g,{choice:g.options.find(option=>option.includes("1."))});
+  const match=g._prices.findIndex((price,index)=>index!==first&&price===g._prices[first]);
+  playPricingGame(g,{choice:g.options.find(option=>option.startsWith(`${match+1}.`))});
+  assert.equal(g.status,"won");assert.equal(g.winnings,g._bonusPrice);
+});
+
+test("Balance Game has exactly one winning pair and awards the grand prize",()=>{
+  const g=createPricingGameForType("balanceGame",player),pairs=[];
+  for(let i=0;i<g.bags.length;i+=1)for(let j=i+1;j<g.bags.length;j+=1)if(g.smallBag+g.bags[i].value+g.bags[j].value===g._actual)pairs.push([g.bags[i].value,g.bags[j].value]);
+  assert.equal(pairs.length,1);assert.equal(g.bags.length,3);
+  for(const amount of pairs[0])playPricingGame(g,{choice:`$${amount.toLocaleString("en-CA")}`});
+  assert.equal(g.status,"won");assert.equal(g.balanceState,"balanced");assert.equal(g.winnings,g._actual);
 });
 
 test("higher/lower prizes wait for an on-screen price reveal before the result", () => {
@@ -222,7 +246,7 @@ test("used middle-price prizes are replaced and categories are varied",()=>{
 });
 
 test("every pricing prize has a visible photo or matched fallback",()=>{
-  for(const type of types){const publicGame=publicPricingGame(createPricingGameForType(type,player)),prizes=[...(publicGame.qualifiers||[]),...(publicGame.items||[]),...(publicGame.introPrizes||[])];for(const prize of prizes)assert.ok(prize.image||prize.visual,"every prize remains visible");}
+  for(const type of types){const publicGame=publicPricingGame(createPricingGameForType(type,player)),prizes=[...(publicGame.qualifiers||[]),...(publicGame.items||[]),...(publicGame.introPrizes||[]),publicGame.prize,publicGame.bonusPrize].filter(Boolean);for(const prize of prizes)assert.ok(prize.image||prize.visual,"every prize remains visible");}
 });
 
 test("live retailer pricing prizes keep the photo from their own product record",()=>{

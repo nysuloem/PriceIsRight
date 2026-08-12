@@ -733,6 +733,16 @@ export function PricingGameView({ game, spotlight = null, rulesOnly = false, onS
       {game.type === "doublePrices" && <><GameCards items={[game.prize]} /><div className="pir-double-prices">{game.prices.map(price=><span key={price} className={game.revealedPrice===price?"right":""}>${Number(price).toLocaleString("en-CA")}</span>)}</div></>}
       {game.type === "threeStrikes" && <><GameCards items={[game.car]} /><div className="pir-three-strikes"><div className="pir-strike-price">{game.revealed.map((digit,i)=><span key={i}>{digit??"_"}</span>)}</div><div className="pir-strike-hopper"><div key={game.drawSeq} className={`pir-drawn-ball ${game.currentBall==="X"?"strike":""}`}>{game.currentBall??"?"}</div><small>{game.stage==="place"?"PLACE THIS DIGIT":"DRAW FROM THE HOPPER"}</small></div><div className="pir-strike-count">{[0,1,2].map(i=><b key={i} className={i<game.strikes?"lit":""}>X</b>)}</div></div></>}
       {game.type === "switchGame" && <><GameCards items={game.items.map((item,i)=>({...item,shownPrice:game.finalPrices?.[i]??game.shownPrices[i]}))}/><div className="pir-switch-sign">SWITCH?</div></>}
+      {game.type === "pickAPair" && <><div className="pir-grocery-grand"><b>PLAYING FOR</b><GameCards items={[game.bonusPrize].filter(Boolean)} /></div><div className="pir-pair-grid"><GameCards items={game.items} /></div></>}
+      {game.type === "balanceGame" && <div className={`pir-balance-stage ${game.balanceState}`}>
+        <GameCards items={[{...game.prize,revealedPrice:game.revealedPrice}]} />
+        <div className="pir-balance-scale">
+          <div className="pir-balance-beam"><span /></div>
+          <div className="pir-balance-pan contestant"><b>YOUR BAGS</b><div className="pir-balance-bags"><span className="small">${Number(game.smallBag).toLocaleString("en-CA")}</span>{game.bags.map(bag=><span key={bag.id} className={bag.selected?"selected":""}>${Number(bag.value).toLocaleString("en-CA")}</span>)}</div><strong>${Number(game.balanceTotal).toLocaleString("en-CA")}</strong></div>
+          <div className="pir-balance-pan prize"><b>ACTUAL PRICE</b><strong>{game.revealedPrice==null?"$????":`$${Number(game.revealedPrice).toLocaleString("en-CA")}`}</strong></div>
+          <div className="pir-balance-base">⚖</div>
+        </div>
+      </div>}
       {game.type === "tenChances" && <div className="pir-ten-stage">
         <div className="pir-ten-logo"><b>10</b><span>CHANCES</span></div>
         <div className="pir-ten-prizes">{game.prizes.map((prize,i)=><div key={prize.name} className={`${i===game.prizeIndex?"active":""} ${i<game.prizeIndex?"won":""}`}><small>{i===0?"2 DIGITS":i===1?"3 DIGITS":"NEW CAR"}</small><strong>{prize.name}</strong></div>)}</div>
@@ -784,7 +794,7 @@ function PrizePhoto({item}){
 }
 
 function GameCards({ items = [] }) {
-  return <div className="pir-game-cards">{items.map((item,i)=>{const identity=item.imageKey||item.id||`${item.brand||""}-${item.name}-${i}`,seller=prizeSellerLine(item),description=cleanPrizeDescription(item);return <div key={identity} className={item.used || item.selected ? "used" : ""}><div className="pir-prize-picture"><div className="pir-prize-visual" role="img" aria-label={item.name}>{item.visual||"🎁"}</div><PrizePhoto key={identity} item={item}/></div><b>{seller && <small>{seller}</small>}{item.name}</b>{description && <p>{description}</p>}{item.revealedPrice != null ? <span className="pir-revealed-price">${Number(item.revealedPrice).toLocaleString("en-CA")}</span> : item.shownPrice != null && <span>${item.shownPrice}</span>}</div>})}</div>;
+  return <div className="pir-game-cards">{items.map((item,i)=>{const identity=item.imageKey||item.id||`${item.brand||""}-${item.name}-${i}`,seller=prizeSellerLine(item),description=cleanPrizeDescription(item),classes=[item.used?"used":"",item.selected?"selected":""].filter(Boolean).join(" ");return <div key={identity} className={classes}>{item.displayNumber!=null&&<i className="pir-card-number">{item.displayNumber}</i>}<div className="pir-prize-picture"><div className="pir-prize-visual" role="img" aria-label={item.name}>{item.visual||"🎁"}</div><PrizePhoto key={identity} item={item}/></div><b>{seller && <small>{seller}</small>}{item.name}</b>{description && <p>{description}</p>}{item.revealedPrice != null ? <span className="pir-revealed-price">${Number(item.revealedPrice).toLocaleString("en-CA")}</span> : item.shownPrice != null && <span>${item.shownPrice}</span>}</div>})}</div>;
 }
 
 // Canadian $100 bill — SVG illustration
