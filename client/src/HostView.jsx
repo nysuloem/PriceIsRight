@@ -14,6 +14,8 @@ import {
 import OpeningSequence from "./OpeningSequence.jsx";
 const cliffYodelUrl="/media/cliff-hangers-yodel.mp3";
 const clockBellUrl="/media/clock-game-bell.mp3";
+const clockGotItUrl="/media/clock-game-got-it.mp3";
+const endCreditsMusicUrl="/media/end-credits.mp3";
 const prizeModelsUrl="/media/prize-models.webp";
 
 const POLL_MS = 500;
@@ -115,7 +117,7 @@ function playClockTick(){
 }
 
 function playClockBell(){
-  try{const audio=new Audio(clockBellUrl);audio.volume=.78;audio.play().catch(()=>playSuccess());}catch{playSuccess();}
+  try{const audio=new Audio(clockGotItUrl);audio.volume=.78;audio.play().catch(()=>{const fallback=new Audio(clockBellUrl);fallback.volume=.78;fallback.play().catch(()=>playSuccess());});}catch{playSuccess();}
 }
 
 function playCarFanfare() {
@@ -144,7 +146,7 @@ function HostViewInner({ code }) {
   const [state, setState] = useState(null);
   const [phase, setPhase] = useState("lobby"); // "lobby" | "opening" | "game"
   const [error, setError] = useState("");
-  const [config, setConfig] = useState({ hostName: "Robbie Archer", announcerVoice: "onyx", hostVoice: "coral" });
+  const [config, setConfig] = useState({ hostName: "Robbie Archer", announcerName: "Rod Roddy", announcerVoice: "onyx", hostVoice: "coral" });
   const [kissBurst,setKissBurst]=useState(null);
   const [audienceBurst,setAudienceBurst]=useState(null);
   const lastSeqRef = useRef(-1);
@@ -498,7 +500,26 @@ function FinalShowcaseView({state}) {
 
 function EndCredits({state,config}){
   const names=state.players?.map(player=>player.name).join(" · ")||"Our wonderful contestants";
-  return <div className="pir-end-credits"><div className="pir-credit-logo">THE PRICE IS RIGHT</div><div className="pir-credit-roll"><section><small>YOUR HOST</small><strong>{config.hostName||"Robbie Archer"}</strong></section><section><small>ANNOUNCER</small><strong>The Voice of The Price Is Right</strong></section><section><small>TODAY'S CONTESTANTS</small><strong>{names}</strong></section><section><small>PRICING GAMES · BIG WHEEL · SHOWCASES</small><strong>Made for Family Game Night</strong></section><section><small>SPECIAL THANKS</small><strong>To everyone shouting advice from the audience!</strong></section></div><div className="pir-credit-goodbye">{state.hostLine.text}</div></div>;
+  const standings=state.contestantStandings?.length?state.contestantStandings:state.players?.map(player=>({name:player.name,totalWinnings:0}))||[];
+  useEffect(()=>{const audio=new Audio(endCreditsMusicUrl);audio.volume=.72;audio.play().catch(()=>{});return()=>{audio.pause();audio.currentTime=0;};},[]);
+  return <div className="pir-end-credits"><div className="pir-credit-logo">THE PRICE IS RIGHT</div><div className="pir-credit-roll"><section><small>YOUR HOST</small><strong>{config.hostName||"Robbie Archer"}</strong></section><section><small>ANNOUNCER</small><strong>{config.announcerName||"Rod Roddy"}</strong></section><section><small>TODAY'S CONTESTANTS</small><strong>{names}</strong></section><section><small>PRICING GAMES · BIG WHEEL · SHOWCASES</small><strong>Made for Family Game Night</strong></section><section><small>SPECIAL THANKS</small><strong>To everyone shouting advice from the audience!</strong></section><section className="pir-credit-standings"><small>FINAL WINNINGS</small>{standings.map((player,index)=><div key={`${player.id||player.name}-${index}`}><b>{index+1}. {player.name}</b><span>${Number(player.totalWinnings||0).toLocaleString("en-CA")}</span></div>)}</section></div><div className="pir-credit-goodbye">{state.hostLine.text}</div></div>;
+}
+
+function prizeSellerLine(item){
+  const brand=(item?.brand||"").trim(),retailer=(item?.retailer||"").trim();
+  if(brand&&retailer&&brand.toLowerCase()!==retailer.toLowerCase())return `${brand} · ${retailer}`;
+  return brand||retailer||"";
+}
+
+function cleanPrizeDescription(item){
+  return String(item?.description||item?.hostDescription||"")
+    .replace(/^From\s+[^—]+—\s*/i,"")
+    .replace(/^From\s+[^,]+,\s*/i,"")
+    .replace(/^From\s+[^.]+?\.\s*/i,"")
+    .replace(new RegExp(`^${String(item?.name||"").replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}!?\\s*`,"i"),"")
+    .replace(/\bchosen as (?:a )?(?:substantial )?Contestants'? Row prize\b[,.]?/gi,"")
+    .replace(/\s{2,}/g," ")
+    .trim();
 }
 
 function DemoLobby({ state, joinUrl }) {
@@ -579,8 +600,8 @@ function ItemView({ state }) {
           <ItemImage item={item} />
           <div className="pir-item-info">
             <h3>{item.name}</h3>
-            <div className="pir-item-tag">{item.brand} · {item.retailer}</div>
-            <div className="pir-item-desc">{item.hostDescription}</div>
+            <div className="pir-item-tag">{prizeSellerLine(item)}</div>
+            <div className="pir-item-desc">{cleanPrizeDescription(item)}</div>
           </div>
         </div>
       </div>
@@ -597,7 +618,7 @@ function BiddingView({ state, code }) {
       <Caption icon={<Mic2 size={20} />} text={state.hostLine.text} />
       <div className="pir-bidding-prize">
         <ItemImage item={state.item} />
-        <div><span>ITEM UP FOR BID</span><h3>{state.item.name}</h3><p>{state.item.brand || state.item.retailer}</p>{state.item.description&&<p className="pir-bidding-description">{state.item.description}</p>}</div>
+        <div><span>ITEM UP FOR BID</span><h3>{state.item.name}</h3><p>{prizeSellerLine(state.item)}</p>{cleanPrizeDescription(state.item)&&<p className="pir-bidding-description">{cleanPrizeDescription(state.item)}</p>}</div>
       </div>
       <ContestantRow contestants={state.contestants}
         activeTurn={state.turn} code={code} showBids />
@@ -660,7 +681,7 @@ function RevealView({ state, code, onStartPricing, onNextRound, onNewPlayers }) 
       <ContestantRow contestants={contestants} winnerIndices={winnerIndices}
         showBids showDiff itemPrice={item.price} code={code} />
       <div className="pir-fineprint">
-        {item.name} · {item.retailer} · ${item.price}
+        {item.name} · {prizeSellerLine(item)} · ${item.price}
       </div>
       <div className="pir-actions">
         {winnerIndices.some(i => !contestants[i]?.isAI)
@@ -763,7 +784,7 @@ function PrizePhoto({item}){
 }
 
 function GameCards({ items = [] }) {
-  return <div className="pir-game-cards">{items.map((item,i)=>{const identity=item.imageKey||item.id||`${item.brand||""}-${item.name}-${i}`;return <div key={identity} className={item.used || item.selected ? "used" : ""}><div className="pir-prize-picture"><div className="pir-prize-visual" role="img" aria-label={item.name}>{item.visual||"🎁"}</div><PrizePhoto key={identity} item={item}/></div><b>{item.brand && <small>{item.brand}</small>}{item.name}</b>{item.description && <p>{item.description}</p>}{item.revealedPrice != null ? <span className="pir-revealed-price">${Number(item.revealedPrice).toLocaleString("en-CA")}</span> : item.shownPrice != null && <span>${item.shownPrice}</span>}</div>})}</div>;
+  return <div className="pir-game-cards">{items.map((item,i)=>{const identity=item.imageKey||item.id||`${item.brand||""}-${item.name}-${i}`,seller=prizeSellerLine(item),description=cleanPrizeDescription(item);return <div key={identity} className={item.used || item.selected ? "used" : ""}><div className="pir-prize-picture"><div className="pir-prize-visual" role="img" aria-label={item.name}>{item.visual||"🎁"}</div><PrizePhoto key={identity} item={item}/></div><b>{seller && <small>{seller}</small>}{item.name}</b>{description && <p>{description}</p>}{item.revealedPrice != null ? <span className="pir-revealed-price">${Number(item.revealedPrice).toLocaleString("en-CA")}</span> : item.shownPrice != null && <span>${item.shownPrice}</span>}</div>})}</div>;
 }
 
 // Canadian $100 bill — SVG illustration

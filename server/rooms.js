@@ -103,6 +103,38 @@ export function createPricingGameDemo(type) {
   return { room, player: null };
 }
 
+function contestantKey(contestant = {}) {
+  return contestant.controllerPlayerId || String(contestant.id || "").replace(/:round:\d+$/i, "");
+}
+
+function contestantStandings(room) {
+  const standings = new Map();
+  const ensure = (id, name, isAI = false) => {
+    const key = id || name || "contestant";
+    if (!standings.has(key)) standings.set(key, { id: key, name: name || "Contestant", isAI, totalWinnings: 0 });
+    return standings.get(key);
+  };
+  room.players.forEach(player => ensure(player.id, player.name, false));
+  room.showcaseContestants.forEach(contestant => {
+    const row = ensure(contestantKey(contestant), contestant.name, contestant.isAI);
+    row.totalWinnings += Number(contestant.oneBidValue || 0) + Number(contestant.pricingWinnings || 0);
+  });
+  room.halfWinners.forEach(contestant => {
+    const row = ensure(contestantKey(contestant), contestant.name, contestant.isAI);
+    row.totalWinnings += Number(contestant.bonusCash || 0);
+  });
+  const finalShowcase = room.finalShowcase;
+  if (finalShowcase?.stage === "complete" && finalShowcase.winnerId) {
+    const winner = finalShowcase.contestants.find(contestant => contestant.id === finalShowcase.winnerId);
+    const row = ensure(contestantKey(winner), winner?.name, winner?.isAI);
+    finalShowcase.showcases.forEach((showcase, index) => {
+      const assignedToWinner = finalShowcase.assignments?.[index] === finalShowcase.winnerId;
+      if (assignedToWinner || finalShowcase.doubleShowcase) row.totalWinnings += Number(showcase.actualPrice || 0);
+    });
+  }
+  return [...standings.values()].sort((a, b) => b.totalWinnings - a.totalWinnings || a.name.localeCompare(b.name));
+}
+
 // Strip base64 photo from public state to keep polling payloads small;
 // the photo is sent once at join time and the client caches it locally.
 export function publicState(room) {
@@ -131,6 +163,7 @@ export function publicState(room) {
     showdown: publicShowdown(room.showdown),
     finalShowcase: publicFinalShowcase(room.finalShowcase),
     showcaseAnnouncement: room.showcaseAnnouncement,
+    contestantStandings: contestantStandings(room),
     replacementContestantId: room.replacementContestantId,
     replacementVisible: room.replacementVisible,
     isDemo: room.isDemo,
@@ -155,7 +188,9 @@ async function selectFreshPrize(room) {
   // apparel even when retailer feeds contain many clothing products.
   const minimum = Math.min(...unused.map(item => room.prizeCategoryCounts[item.bidCategory] || 0));
   const balanced = unused.filter(item => (room.prizeCategoryCounts[item.bidCategory] || 0) === minimum);
-  const item = pickRandomItem(balanced.length ? balanced : unused);
+  const candidates = balanced.length ? balanced : unused;
+  const livePhotoCandidates = candidates.filter(item => item.priceIsLive && item.image && item.imageKind !== "representative");
+  const item = pickRandomItem(livePhotoCandidates.length >= 8 ? livePhotoCandidates : candidates);
   if (!item) throw new Error("No prizes are currently available");
   room.usedPrizeIds.push(item.id);
   retirePrize(item.id);
@@ -633,7 +668,7 @@ export function acknowledgeWheelResult(room){
 export function resolveWheelGameAI(room){const name=room.showdown.participants[room.showdown.currentIndex]?.name;resolveWheelAI(room.showdown);if(room.showdown.stage==="complete")setHostLine(room,room.showdown.result,"wheelResult");else if(["spinning","bonusSpinning"].includes(room.showdown.stage))setHostLine(room,`${name} spins the Big Wheel!`,"wheelSpin");else{const p=room.showdown.participants[room.showdown.currentIndex];setHostLine(room,`${p.name}, you're next!`,"wheelAdvance");}}
 export async function finishShowdown(room){if(room.showdown?.stage!=="complete")throw new Error("The Showcase Showdown is not complete");const winner=room.showdown.participants.find(p=>p.id===room.showdown.winnerId);room.halfWinners.push({...winner,totalWinnings:winner.totalWinnings+winner.bonusCash});if(room.showdown.half===1){room.showdown=null;await prepareReplacement(room);}else{room.finalShowcase=createFinalShowcase(room.halfWinners);room.showdown=null;room.phase="showcaseIntro";const cue=advanceShowcase(room.finalShowcase);room.showcaseAnnouncement=null;setHostLine(room,cue.text,"showcaseTheme");}}
 
-export function advanceShowcasePresentation(room){if(!room.finalShowcase)throw new Error("No Showcase is active");const f=room.finalShowcase;if(f.stage==="complete"){if(room.phase==="showcaseReveal"){room.phase="creditsHost";setHostLine(room,`${room.closingLine} Good bye!`,"endHost");}else if(room.phase==="creditsHost"){room.phase="creditsAnnouncer";setHostLine(room,"This is the announcer of The Price Is Right, wishing you a good day!","endAnnouncer");}return;}if(f.stage==="revealFirst"){f.revealCount=2;f.stage="revealSecond";room.phase="showcaseReveal";setHostLine(room,showcaseRevealLine(f,1),"showcaseRevealStep");return;}if(f.stage==="revealSecond"){f.stage="complete";room.phase="showcaseReveal";setHostLine(room,f.result,"showcaseResult");return;}const cue=advanceShowcase(f);if(cue.type==="theme"){room.phase="showcaseIntro";room.showcaseAnnouncement=null;setHostLine(room,cue.text,"showcaseTheme");}else if(cue.type==="prize"){room.phase="showcaseIntro";room.showcaseAnnouncement=cue.prize;setHostLine(room,cue.text,"showcasePrize");}else{room.showcaseAnnouncement=null;room.phase=f.stage==="choice"?"showcaseChoice":"showcaseBid";const id=f.stage==="choice"?f.contestants[0].id:f.assignments[1];const p=f.contestants.find(c=>c.id===id);setHostLine(room,f.stage==="choice"?`${p.name}, would you like to bid on this showcase, or pass it?`:`${p.name}, what is your bid on this showcase?`,f.stage==="choice"?"showcaseChoice":"showcaseBid");}}
+export function advanceShowcasePresentation(room){if(!room.finalShowcase)throw new Error("No Showcase is active");const f=room.finalShowcase;if(f.stage==="complete"){if(room.phase==="showcaseReveal"){room.phase="creditsHost";setHostLine(room,`${room.closingLine} Good bye!`,"endHost");}else if(room.phase==="creditsHost"){room.phase="creditsAnnouncer";setHostLine(room,"This is Rod Roddy speaking for The Price Is Right, wishing you a good day!","endAnnouncer");}return;}if(f.stage==="revealFirst"){f.revealCount=2;f.stage="revealSecond";room.phase="showcaseReveal";setHostLine(room,showcaseRevealLine(f,1),"showcaseRevealStep");return;}if(f.stage==="revealSecond"){f.stage="complete";room.phase="showcaseReveal";setHostLine(room,f.result,"showcaseResult");return;}const cue=advanceShowcase(f);if(cue.type==="theme"){room.phase="showcaseIntro";room.showcaseAnnouncement=null;setHostLine(room,cue.text,"showcaseTheme");}else if(cue.type==="prize"){room.phase="showcaseIntro";room.showcaseAnnouncement=cue.prize;setHostLine(room,cue.text,"showcasePrize");}else{room.showcaseAnnouncement=null;room.phase=f.stage==="choice"?"showcaseChoice":"showcaseBid";const id=f.stage==="choice"?f.contestants[0].id:f.assignments[1];const p=f.contestants.find(c=>c.id===id);setHostLine(room,f.stage==="choice"?`${p.name}, would you like to bid on this showcase, or pass it?`:`${p.name}, what is your bid on this showcase?`,f.stage==="choice"?"showcaseChoice":"showcaseBid");}}
 function showcaseRevealLine(f,index){const r=f.results[index],p=f.contestants.find(c=>c.id===r.playerId);return `${p.name} bid $${r.bid.toLocaleString("en-CA")}. The actual retail price of Showcase ${index+1} is $${r.actual.toLocaleString("en-CA")}. ${r.over?"That is an overbid.":`That is a difference of $${r.difference.toLocaleString("en-CA")}.`}`;}
 function beginShowcaseReveal(room,f){room.phase="showcaseReveal";setHostLine(room,showcaseRevealLine(f,0),"showcaseRevealStep");}
 export function finalShowcaseAction(room,playerId,action){showcaseAction(room.finalShowcase,playerId,action);const f=room.finalShowcase;if(f.stage==="firstBid"){room.phase="showcaseBid";const p=f.contestants.find(c=>c.id===f.assignments[0]);setHostLine(room,`${p.name}, what is your bid on the first showcase?`,"showcaseBid");}else if(f.stage==="secondTheme"){room.phase="showcaseIntro";const cue=advanceShowcase(f);setHostLine(room,cue.text,"showcaseTheme");}else if(f.stage==="revealFirst")beginShowcaseReveal(room,f);}

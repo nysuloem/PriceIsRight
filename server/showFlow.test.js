@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { advanceShowcase, createFinalShowcase, createShowdown, publicFinalShowcase, settleWheel, showcaseAction, wheelAction } from "./showFlow.js";
+import { resetTripBankForTests, tripBankStats } from "./showcasePrizes.js";
 
 const players=[
   {id:"a",name:"Alice",totalWinnings:1200,isAI:false},
@@ -70,6 +71,7 @@ test("the wheel begins each spin at its previous resting angle",()=>{
 });
 
 test("Final Showcase supports bid or pass, two bids, reveal and double-showcase rule",()=>{
+  resetTripBankForTests();
   const f=createFinalShowcase([players[0],players[2]]);
   assert.equal(publicFinalShowcase(f).showcases[0].actualPrice,undefined);
   advanceShowcase(f); while(f.stage==="firstPrizes") advanceShowcase(f);
@@ -90,4 +92,16 @@ test("Final Showcase supports bid or pass, two bids, reveal and double-showcase 
   assert.equal(publicGame.winnerId,null);
   f.stage="complete";
   assert.equal(publicFinalShowcase(f).winnerId,"a");
+});
+
+test("Final Showcase trip prizes rotate out after use",()=>{
+  resetTripBankForTests();
+  const first=createFinalShowcase([players[0],players[1]]);
+  const firstTrips=first.showcases.flatMap(showcase=>showcase.prizes.filter(prize=>prize.isTripPrize).map(prize=>prize.id));
+  const second=createFinalShowcase([players[0],players[1]]);
+  const secondTrips=second.showcases.flatMap(showcase=>showcase.prizes.filter(prize=>prize.isTripPrize).map(prize=>prize.id));
+  assert.ok(firstTrips.length);
+  assert.ok(secondTrips.length);
+  assert.equal(firstTrips.some(id=>secondTrips.includes(id)),false);
+  assert.ok(tripBankStats().used>=firstTrips.length+secondTrips.length);
 });

@@ -146,6 +146,11 @@ const CANADIAN_RETAILER_PRIZE_BLUEPRINTS = [
 ];
 
 const CATALOG_IMAGE_RULES = [
+  [/chest freezer/i, "https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?auto=format&fit=crop&w=900&q=80"],
+  [/upright freezer|refrigerator/i, "https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?auto=format&fit=crop&w=900&q=80"],
+  [/front-load washer|electric dryer/i, "https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&w=900&q=80"],
+  [/dishwasher/i, "https://images.unsplash.com/photo-1604709177225-055f99402ea3?auto=format&fit=crop&w=900&q=80"],
+  [/range hood|stainless-steel range|microwave/i, "https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=900&q=80"],
   [/desk|office/i, "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=900&q=80"],
   [/sofa|sectional/i, "https://images.unsplash.com/photo-1555041469-a586c61ea9bcf?auto=format&fit=crop&w=900&q=80"],
   [/recliner|accent chair/i, "https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?auto=format&fit=crop&w=900&q=80"],
@@ -351,6 +356,7 @@ function buildCanadianRetailerCatalog() {
             currency: "CAD",
             url: `catalogue:${slugify(retailer)}/${slugify(name)}`,
             image: fallbackImage(baseName, section.category),
+            imageKind: "representative",
             imageAlt: name,
             description,
             category: section.category,
@@ -409,6 +415,7 @@ function normalizeShopifyProduct(config, product) {
     currency: "CAD",
     url,
     image,
+    imageKind: "product",
     imageAlt: name,
     description: displayDescription({ description: product.body_html, category, brand, retailer: config.retailer, name }),
     category,
@@ -464,6 +471,7 @@ function normalizeBestBuyProduct(product) {
     currency: "CAD",
     url,
     image: product.highResImage || product.thumbnailImage || null,
+    imageKind: "product",
     imageAlt: name,
     description: displayDescription({ description: product.shortDescription, category, retailer: "Best Buy Canada", name }),
     category,
@@ -551,6 +559,7 @@ async function fetchCuratedFallback(candidate) {
     currency: "CAD",
     url: candidate.url,
     image,
+    imageKind: priceIsLive ? "product" : "representative",
     imageAlt: cleanProductName(candidate.imageAlt) || cleanProductName(candidate.name),
     description: displayDescription(candidate),
     category: cleanProductName(candidate.category) || "General merchandise",

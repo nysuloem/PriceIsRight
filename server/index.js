@@ -266,6 +266,7 @@ app.get(
 app.get("/api/config", (req, res) => {
   res.json({
     hostName: process.env.HOST_NAME || "Robbie Archer",
+    announcerName: process.env.ANNOUNCER_NAME || "Rod Roddy",
     announcerVoice: process.env.ANNOUNCER_VOICE || "onyx",
     hostVoice: process.env.HOST_VOICE || "coral",
   });

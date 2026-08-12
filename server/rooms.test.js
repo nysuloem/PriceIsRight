@@ -176,7 +176,19 @@ test("the completed Showcase advances through host and announcer credits",()=>{
   advanceShowcasePresentation(room);
   assert.equal(room.phase,"creditsHost");assert.equal(room.hostLine.type,"endHost");assert.match(room.hostLine.text,/Good bye/i);
   advanceShowcasePresentation(room);
-  assert.equal(room.phase,"creditsAnnouncer");assert.equal(room.hostLine.type,"endAnnouncer");assert.match(room.hostLine.text,/wishing you a good day/i);
+  assert.equal(room.phase,"creditsAnnouncer");assert.equal(room.hostLine.type,"endAnnouncer");assert.match(room.hostLine.text,/Rod Roddy.+wishing you a good day/i);
+});
+
+test("public state includes final contestant standings sorted by winnings",()=>{
+  const room=createRoom();
+  room.players=[{id:"alice",name:"Alice"},{id:"bob",name:"Bob"}];
+  room.showcaseContestants=[
+    {id:"alice:round:1",controllerPlayerId:"alice",name:"Alice",isAI:false,oneBidValue:1200,pricingWinnings:5000},
+    {id:"bob:round:2",controllerPlayerId:"bob",name:"Bob",isAI:false,oneBidValue:900,pricingWinnings:0},
+  ];
+  room.halfWinners=[{id:"alice:round:1",controllerPlayerId:"alice",name:"Alice",bonusCash:1000}];
+  room.finalShowcase={stage:"complete",winnerId:"bob:round:2",doubleShowcase:false,contestants:[{id:"bob:round:2",controllerPlayerId:"bob",name:"Bob"}],assignments:["bob:round:2"],showcases:[{actualPrice:32000,prizes:[]}]};
+  assert.deepEqual(publicState(room).contestantStandings.map(player=>[player.name,player.totalWinnings]),[["Bob",32900],["Alice",7200]]);
 });
 
 test("replacement contestant stays off the row until the name call begins", () => {
