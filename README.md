@@ -4,10 +4,9 @@ A "Price is Right"-style Item Up For Bid game. One screen acts as the host
 (TV/laptop); up to 4 players join from their phones. Empty seats are filled
 by AI contestants with their own bidding personalities.
 
-Prizes come from a small **curated list** of real Canadian product pages
-(Canadian Tire, Best Buy Canada, Roots) — but every time the prize pool is
-loaded, the server re-fetches each page so the **price is current**, not
-hardcoded. See `server/prizeSource.js` for details and caveats.
+Prizes come from Canadian retailer feeds plus curated Canadian fallback banks.
+Regular CAD prices are refreshed from the feeds, while a unified persistent
+ledger prevents used prizes—or cosmetic variants of them—from returning.
 
 ## Project structure
 
@@ -17,7 +16,9 @@ price-is-right/
 │   ├── index.js        routes, serves built client in production
 │   ├── rooms.js         room store + lobby→calling→item→bidding→reveal
 │   ├── gameLogic.js      AI names/strategies, winner calculation
-│   ├── prizeSource.js    live prize pool (CT/BBY/Roots)
+│   ├── prizeSource.js    Canadian Contestants' Row pool
+│   ├── smallPrizeSource.js live Canadian $1–$10 pool
+│   ├── prizeBank.js      unified persistent retirement ledger
 │   └── tts.js             OpenAI host-voice TTS (optional)
 └── client/        React (Vite) frontend
     └── src/
@@ -71,14 +72,14 @@ Same pattern as the other family game projects:
    ends up.
 5. Add `OPENAI_API_KEY` (and optionally `HOST_VOICE`) under Variables if you
    want the host voice. The game works without it.
-6. Add a Railway Volume to the server service so used bidding prizes survive
+6. Add a Railway Volume to the server service so all used prizes survive
    redeploys and restarts. Mount it anywhere, for example `/data`; Railway
    automatically exposes `RAILWAY_VOLUME_MOUNT_PATH`, and the app writes the
-   used-prize bank to `price-is-right-prize-bank.json` inside that volume.
+   unified bank to `price-is-right-unified-prize-bank.json` inside that volume.
    If you want an explicit path instead, set:
 
 ```bash
-PRIZE_BANK_FILE=/data/price-is-right-prize-bank.json
+UNIFIED_PRIZE_BANK_FILE=/data/price-is-right-unified-prize-bank.json
 ```
 
 Once deployed, open the Railway URL on a laptop/TV for the host, and have
@@ -86,15 +87,19 @@ players visit the same URL on their phones to join.
 
 ## How the live prize pool works
 
-`server/prizeSource.js` builds a large Contestants' Row prize pool from live
-Canadian retailer feeds, curated fallbacks, the family prize catalogue, and a
-generated Canadian brick-and-mortar catalogue.
+`server/prizeSource.js` builds Contestants' Row prizes, while
+`server/smallPrizeSource.js` builds a live $1–$10 pool from ten Canadian
+storefronts for grocery-style pricing games. Cars, grand prizes, trips and
+showcase replacements are Canadian-specific curated banks.
 
 - On server startup (and again whenever the cache is older than 30 minutes),
   `getPrizePool()` refreshes the prize bank in the background.
-- Selected bidding prizes are retired immediately. With a Railway Volume
-  attached, retired prize IDs and same-seller prize fingerprints persist
-  across restarts so the same prize does not come back later.
+- Every displayed prize is retired immediately in one shared ledger. Exact
+  identities and semantic families are both recorded, so changing a colour,
+  seller, year or words such as “deluxe” cannot make an old prize look new.
+- The current generation is `canadian-reset-2026-08-12-v2`. A generation
+  change intentionally starts from an empty ledger; the three legacy bank
+  files are ignored. Pools never silently clear or recycle when exhausted.
 - Prize descriptions are normalized to short English copy that names the maker
   or seller and gives enough detail to estimate price. Feed items with missing
   photos, French copy, product numbers, or vague meta descriptions are filtered
@@ -116,6 +121,9 @@ environment). If you run this and the Canadian Tire `priceIsLive` values are
 
 You can also hit `/api/prizes?refresh=1` on a running server to force a
 re-fetch and see the current pool as JSON.
+
+`/api/prize-banks/status` reports the active generation, whether persistent
+volume storage was detected, and the available/retired totals for each pool.
 
 ## Known limitations / next steps
 

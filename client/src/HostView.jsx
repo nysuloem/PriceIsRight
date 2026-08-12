@@ -697,6 +697,15 @@ function RevealView({ state, code, onStartPricing, onNextRound, onNewPlayers }) 
 // Pricing games — the contestant controls these from their phone. The host
 // screen is a read-only game board that mirrors every choice.
 // ---------------------------------------------------------------------------
+function MoneyBag({ value, selected = false, automatic = false, onScale = false }) {
+  return <div className={`pir-money-bag ${selected ? "selected" : ""} ${automatic ? "automatic" : ""} ${onScale ? "on-scale" : ""}`} aria-label={`${Number(value).toLocaleString("en-CA")} dollar bag`}>
+    <span className="pir-money-bag-neck" />
+    <span className="pir-money-bag-tie" />
+    <strong>${Number(value).toLocaleString("en-CA")}</strong>
+    <small>{automatic ? "YOURS" : "MONEY BAG"}</small>
+  </div>;
+}
+
 export function PricingGameView({ game, spotlight = null, rulesOnly = false, onSkipRules = null }) {
   if (!game) return <div className="pir-loading">Loading pricing game…</div>;
   if (rulesOnly) return <div className={`pir-pricing-board pir-game-${game.type} pir-rules-only ${game.type==="plinko"?"pir-plinko-intro":""}`}>{game.type==="plinko"&&<><div className="pir-plinko-logo">PLINKO!</div><div className="pir-plinko-jackpot">A CHANCE TO WIN<br/><strong>$50,000!!!</strong></div></>}<div className="pir-pricing-kicker">HOW TO PLAY</div>{game.type!=="plinko"&&<h2 className="pir-pricing-title">{game.title}</h2>}<p className="pir-pricing-rules">{game.instructions}</p>{game.type==="cliffHangers"&&<CliffBoard game={game} /> }<div className="pir-pricing-prompt">Listen to the rules…</div>{onSkipRules&&<button className="pir-btn pir-skip-rules" onClick={onSkipRules}>SKIP RULES — LET'S PLAY!</button>}</div>;
@@ -736,9 +745,12 @@ export function PricingGameView({ game, spotlight = null, rulesOnly = false, onS
       {game.type === "pickAPair" && <><div className="pir-grocery-grand"><b>PLAYING FOR</b><GameCards items={[game.bonusPrize].filter(Boolean)} /></div><div className="pir-pair-grid"><GameCards items={game.items} /></div></>}
       {game.type === "balanceGame" && <div className={`pir-balance-stage ${game.balanceState}`}>
         <GameCards items={[{...game.prize,revealedPrice:game.revealedPrice}]} />
+        <div className="pir-balance-bag-rack">
+          {game.bags.map(bag=><MoneyBag key={bag.id} value={bag.value} selected={bag.selected} />)}
+        </div>
         <div className="pir-balance-scale">
           <div className="pir-balance-beam"><span /></div>
-          <div className="pir-balance-pan contestant"><b>YOUR BAGS</b><div className="pir-balance-bags"><span className="small">${Number(game.smallBag).toLocaleString("en-CA")}</span>{game.bags.map(bag=><span key={bag.id} className={bag.selected?"selected":""}>${Number(bag.value).toLocaleString("en-CA")}</span>)}</div><strong>${Number(game.balanceTotal).toLocaleString("en-CA")}</strong></div>
+          <div className="pir-balance-pan contestant"><b>YOUR BAGS</b><div className="pir-balance-bags"><MoneyBag value={game.smallBag} automatic onScale />{game.bags.filter(bag=>bag.selected).map(bag=><MoneyBag key={bag.id} value={bag.value} selected onScale />)}</div><strong>${Number(game.balanceTotal).toLocaleString("en-CA")}</strong></div>
           <div className="pir-balance-pan prize"><b>ACTUAL PRICE</b><strong>{game.revealedPrice==null?"$????":`$${Number(game.revealedPrice).toLocaleString("en-CA")}`}</strong></div>
           <div className="pir-balance-base">⚖</div>
         </div>

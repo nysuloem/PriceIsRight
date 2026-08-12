@@ -34,7 +34,11 @@ import {
   resolveFinalShowcaseAI,
 } from "./rooms.js";
 import { getTTS } from "./tts.js";
-import { getPrizePool } from "./prizeSource.js";
+import { getPrizePool, prizeBankStats } from "./prizeSource.js";
+import { getSmallPrizePool, smallPrizePoolStats } from "./smallPrizeSource.js";
+import { pricingPrizeBankStats } from "./pricingPrizeBank.js";
+import { tripBankStats } from "./showcasePrizes.js";
+import { unifiedPrizeBankStats } from "./prizeBank.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -281,6 +285,18 @@ app.get(
   })
 );
 
+// Operational proof that every prize category is attached to the same
+// generation-controlled Railway-volume ledger.
+app.get("/api/prize-banks/status", (req, res) => {
+  res.json({
+    ledger: unifiedPrizeBankStats(),
+    bidding: prizeBankStats(),
+    pricing: pricingPrizeBankStats(),
+    smallItems: smallPrizePoolStats(),
+    trips: tripBankStats(),
+  });
+});
+
 // Serve the built client (production). In dev, run the Vite dev server
 // separately (see README) — it proxies /api to this server.
 const clientDist = path.join(__dirname, "..", "client", "dist");
@@ -295,10 +311,12 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Price is Right server listening on :${PORT}`);
   // Warm the prize pool cache at startup so the first game doesn't wait.
-  getPrizePool()
-    .then((items) => {
+  Promise.all([getPrizePool(),getSmallPrizePool()])
+    .then(([items,smallItems]) => {
       const live = items.filter((i) => i.priceIsLive).length;
-      console.log(`Loaded ${items.length} prizes (${live} with live prices)`);
+      const bank=unifiedPrizeBankStats();
+      console.log(`Loaded ${items.length} bidding prizes (${live} live) and ${smallItems.length} Canadian small items`);
+      console.log(`Unified prize bank ${bank.generation}: ${bank.persistent?"persistent volume enabled":"ephemeral; attach a Railway volume"}`);
     })
     .catch((err) => console.error("[prizeSource] startup fetch failed:", err.message));
 });

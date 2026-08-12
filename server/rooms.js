@@ -3,8 +3,9 @@ import {
   buildLineup, computeAIBid, computeWinners, shuffle,
 } from "./gameLogic.js";
 import { getPrizePool, pickRandomItem, retirePrize } from "./prizeSource.js";
-import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, initialPrizeAnnouncements, playPricingGame, pricingPrizeNames, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
+import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, initialPrizeAnnouncements, playPricingGame, pricingPrizeNames, pricingPrizes, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
 import { retirePricingPrizes, retiredPricingPrizeNamesList } from "./pricingPrizeBank.js";
+import { getSmallPrizePool } from "./smallPrizeSource.js";
 import { advanceShowcase, createFinalShowcase, createShowdown, publicFinalShowcase, publicShowdown, resolveShowcaseAI, resolveWheelAI, settleWheel, showcaseAction, wheelAction } from "./showFlow.js";
 import { generateClosingLine } from "./tts.js";
 
@@ -179,9 +180,7 @@ async function selectFreshPrize(room) {
   if (!unused.length) {
     pool = await getPrizePool(true);
     unused = pool.filter(item => !room.usedPrizeIds.includes(item.id));
-    // A retailer refresh may return the same catalogue. Only recycle after
-    // every available prize has genuinely been used in this room.
-    if (!unused.length) { room.usedPrizeIds = []; unused = pool; }
+    if (!unused.length) throw new Error("The Canadian bidding bank is empty. It will not recycle used prizes; refill the retailer feed first.");
   }
   const newFamilies = unused.filter(item => !room.usedPrizeFamilies.includes(item.prizeFamily));
   if (newFamilies.length) unused = newFamilies;
@@ -324,17 +323,18 @@ export async function startPricingGame(room) {
   if (room.phase !== "reveal") throw new Error("Finish Contestants' Row first");
   const winner = room.winnerIndices.map(i => room.contestants[i]).find(c => c && !c.isAI);
   if (!winner) throw new Error("No human winner is available for a pricing game");
-  const retailerPool=await getPrizePool();
-  const livePricingItems=retailerPool.filter(item=>item.image&&Number(item.price)>=20&&Number(item.price)<=500).map(item=>({id:item.id,name:item.name,brand:item.brand||item.retailer,description:`Available from ${item.retailer}.`,price:Math.round(Number(item.price)),image:item.image,imageAlt:item.imageAlt||item.name,imageVerified:true,sourceUrl:item.url,category:item.bidCategory||item.category||"retail"}));
+  const [retailerPool,smallItemPool]=await Promise.all([getPrizePool(),getSmallPrizePool()]);
+  const livePricingItems=[...retailerPool,...smallItemPool].filter(item=>item.image&&Number(item.price)>=1&&Number(item.price)<=25000).map(item=>({id:item.id,name:item.name,brand:item.brand||item.retailer,retailer:item.retailer,description:item.description||`Available from ${item.retailer}.`,price:Number(item.price)>=20?Math.round(Number(item.price)):Number(item.price),image:item.image,imageAlt:item.imageAlt||item.name,imageVerified:true,sourceUrl:item.url,category:item.bidCategory||item.category||"retail"}));
   const category=room.pricingGameSchedule[room.completedRounds]||"nonCar";
   const allowedTypes=category==="car"?CAR_PRICING_GAME_TYPES:NON_CAR_PRICING_GAME_TYPES;
   const retiredPricingNames = retiredPricingPrizeNamesList();
   room.pricingGame = createPricingGame(winner, room.playedPricingGames, [...new Set([...room.usedPricingPrizeNames,...recentPricingPrizeNames,...retiredPricingNames])],livePricingItems,allowedTypes);
   room.playedPricingGames.push(room.pricingGame.type);
   const selectedPricingPrizeNames = pricingPrizeNames(room.pricingGame);
+  const selectedPricingPrizes = pricingPrizes(room.pricingGame);
   room.usedPricingPrizeNames.push(...selectedPricingPrizeNames);
   rememberPricingPrizes(selectedPricingPrizeNames);
-  retirePricingPrizes(selectedPricingPrizeNames);
+  retirePricingPrizes(selectedPricingPrizes);
   preparePricingIntroduction(room,winner);
 }
 

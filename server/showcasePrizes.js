@@ -1,10 +1,5 @@
-import fs from "node:fs";
-import path from "node:path";
-
-const TRIP_BANK_STORAGE_NAME = "price-is-right-trip-bank.json";
-let tripBankFileOverride = null;
-let usedTripIdsLoaded = false;
-const usedTripIds = new Set();
+import { exactPrizeKey, prizeFamilyKey } from "./prizeIdentity.js";
+import { configureUnifiedPrizeBankForTests, resetUnifiedPrizeBankForTests, retiredKeys, retireKeys, unifiedPrizeBankStats } from "./prizeBank.js";
 
 const TRIP_SLOT = { tripSlot: true };
 
@@ -107,54 +102,50 @@ const THEMES = [
   },
 ];
 
+// These are replacements, not variants of the theme prizes. Once any prize is
+// shown, its exact identity and broader family are retired across the whole app.
+const SHOWCASE_REPLACEMENTS = [
+  ["Canadian-made bedroom suite", "EQ3", "A Canadian-made king bed, two nightstands, dresser, mattress and organic bedding.", 9140, "https://images.unsplash.com/photo-1617325247661-675ab4b64ae2?auto=format&fit=crop&w=1000&q=85"],
+  ["Professional kitchen appliance suite", "Canadian Appliance Source", "A French-door refrigerator, induction range, dishwasher and over-the-range microwave.", 11760, "https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=1000&q=85"],
+  ["Home recording studio", "Long & McQuade", "A digital piano, guitars, microphones, monitors and a Canadian-made studio desk.", 7845, "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=1000&q=85"],
+  ["Four-season camping collection", "MEC", "A premium tent, sleeping systems, camp kitchen, packs and all-season outdoor clothing for two.", 6935, "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=1000&q=85"],
+  ["Luxury home office", "Herman Miller Canada", "Two ergonomic chairs, sit-stand desks, ultrawide monitors and Canadian oak storage.", 10390, "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1000&q=85"],
+  ["Complete photography kit", "Henry's", "A mirrorless camera, three lenses, lighting, tripod, cases and editing workstation.", 12840, "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1000&q=85"],
+  ["Backyard sauna retreat", "Canadian Timber", "A Canadian-made cedar sauna, cold plunge, robes and landscaped privacy screen.", 14350, "https://images.unsplash.com/photo-1583416750470-965b2707b355?auto=format&fit=crop&w=1000&q=85"],
+  ["Premium cycling package", "Bicycle Sports Pacific", "Two Canadian-designed performance bicycles, trainers, helmets, racks and cycling computers.", 11275, "https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=1000&q=85"],
+  ["Designer dining collection", "Mobilia", "A solid-wood dining table, eight chairs, sideboard, dinnerware and Canadian glassware.", 8240, "https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=1000&q=85"],
+  ["Ultimate hockey collection", "Sport Chek", "Top-tier equipment for a full line, a skate sharpener and season tickets to a Canadian junior club.", 7375, "https://images.unsplash.com/photo-1580748141549-71748dbe0bdc?auto=format&fit=crop&w=1000&q=85"],
+  ["Home fitness studio", "Northern Fitness", "A Canadian treadmill, smart rower, power rack, weights, flooring and recovery equipment.", 15680, "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1000&q=85"],
+  ["Electric cargo bikes", "VeloFix Canada", "Two long-range electric cargo bikes with helmets, panniers and mobile service for a year.", 13990, "https://images.unsplash.com/photo-1571068316344-75bc76f77890?auto=format&fit=crop&w=1000&q=85"],
+  ["Canadian art collection", "Art Gallery of Ontario", "Original works by contemporary Canadian artists plus museum memberships and professional installation.", 12500, "https://images.unsplash.com/photo-1577083552431-6e5fd01aa342?auto=format&fit=crop&w=1000&q=85"],
+  ["Premium canoe adventure kit", "Nova Craft Canoe", "A Canadian-made canoe, paddles, portage packs, safety equipment and backcountry gear.", 8750, "https://images.unsplash.com/photo-1441829266145-6d4bfbd38eb4?auto=format&fit=crop&w=1000&q=85"],
+  ["Whole-home smart lighting", "Best Buy Canada", "Smart lighting, thermostats, security cameras, mesh Wi-Fi and professional installation.", 6840, "https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=1000&q=85"],
+  ["Chef's barbecue island", "Napoleon", "A Canadian-built grill island with refrigerator, sink, smoker, cookware and patio shelter.", 16725, "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1000&q=85"],
+  ["Family board-game library", "Snakes & Lattes", "Two hundred modern games, custom shelving, a gaming table and a year of café memberships.", 5980, "https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?auto=format&fit=crop&w=1000&q=85"],
+  ["Canadian fashion wardrobe", "Simons", "A year-round wardrobe for two featuring Canadian designers, footwear and personal styling.", 9650, "https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=1000&q=85"],
+].map(([name, brand, description, price, image], index) => ({ id: `showcase-replacement-${index + 1}`, name, brand, retailer: brand, description, price, image, imageAlt: name }));
+
 const shuffle=(a)=>{const c=[...a];for(let i=c.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[c[i],c[j]]=[c[j],c[i]];}return c;};
 
-function tripBankStorageFile(){
-  if(tripBankFileOverride!==null)return tripBankFileOverride;
-  if(process.env.TRIP_BANK_FILE)return process.env.TRIP_BANK_FILE;
-  const directory=process.env.PRIZE_BANK_DIR||process.env.RAILWAY_VOLUME_MOUNT_PATH;
-  return directory?path.join(directory,TRIP_BANK_STORAGE_NAME):null;
-}
-
-function loadUsedTrips(){
-  if(usedTripIdsLoaded)return;
-  usedTripIdsLoaded=true;
-  const file=tripBankStorageFile();
-  if(!file)return;
-  try{
-    const parsed=JSON.parse(fs.readFileSync(file,"utf8"));
-    if(Array.isArray(parsed.usedTripIds))parsed.usedTripIds.forEach(id=>usedTripIds.add(id));
-  }catch(error){
-    if(error.code!=="ENOENT")console.warn(`[showcasePrizes] Could not load trip bank: ${error.message}`);
-  }
-}
-
-function saveUsedTrips(){
-  const file=tripBankStorageFile();
-  if(!file)return;
-  try{
-    fs.mkdirSync(path.dirname(file),{recursive:true});
-    fs.writeFileSync(file,JSON.stringify({usedTripIds:[...usedTripIds].sort(),updatedAt:new Date().toISOString()},null,2));
-  }catch(error){
-    console.warn(`[showcasePrizes] Could not save trip bank: ${error.message}`);
-  }
-}
-
 function takeFreshTrip(){
-  loadUsedTrips();
-  let available=TRIP_PRIZES.filter(trip=>!usedTripIds.has(trip.id));
-  if(!available.length){
-    usedTripIds.clear();
-    available=TRIP_PRIZES;
-  }
+  const retired=retiredKeys("trips");
+  const available=TRIP_PRIZES.filter(trip=>!retired.exact.has(exactPrizeKey(trip))&&!retired.families.has(prizeFamilyKey(trip)));
+  if(!available.length)throw new Error("The Canadian trip pool is exhausted; add genuinely new destinations before continuing.");
   const trip=shuffle(available)[0];
-  usedTripIds.add(trip.id);
-  saveUsedTrips();
+  retireKeys("trips",{exact:[exactPrizeKey(trip)],families:[prizeFamilyKey(trip)]});
   return {...trip};
 }
 
 function fillShowcasePrize(prize){
-  const filled=prize.tripSlot?takeFreshTrip():{...prize};
+  if(prize.tripSlot){
+    const filled=takeFreshTrip();
+    return {...filled,announcerText:`It's ${filled.name}, from ${filled.brand}! ${filled.description}`};
+  }
+  const retired=retiredKeys("showcase");
+  const candidates=[prize,...shuffle(SHOWCASE_REPLACEMENTS)];
+  const filled=candidates.find(item=>!retired.exact.has(exactPrizeKey(item))&&!retired.families.has(prizeFamilyKey(item)));
+  if(!filled)throw new Error("The Canadian showcase pool is exhausted; add a genuinely new prize family before continuing.");
+  retireKeys("showcase",{exact:[exactPrizeKey(filled)],families:[prizeFamilyKey(filled)]});
   return {...filled,announcerText:`It's ${filled.name}, from ${filled.brand}! ${filled.description}`};
 }
 
@@ -166,22 +157,15 @@ export function createShowcases(){
 }
 
 export function tripBankStats(){
-  loadUsedTrips();
-  return {total:TRIP_PRIZES.length,used:usedTripIds.size,persistent:Boolean(tripBankStorageFile())};
+  const retired=retiredKeys("trips");
+  const used=TRIP_PRIZES.filter(trip=>retired.exact.has(exactPrizeKey(trip))||retired.families.has(prizeFamilyKey(trip))).length;
+  return {total:TRIP_PRIZES.length,used,persistent:unifiedPrizeBankStats().persistent};
 }
 
 export function resetTripBankForTests(options={}){
-  usedTripIds.clear();
-  usedTripIdsLoaded=true;
-  if(options.clearStorage){
-    const file=tripBankStorageFile();
-    if(file)fs.rmSync(file,{force:true});
-  }
+  resetUnifiedPrizeBankForTests(options);
 }
 
 export function configureTripBankStorageForTests(storageFile){
-  tripBankFileOverride=storageFile||null;
-  usedTripIds.clear();
-  usedTripIdsLoaded=false;
-  loadUsedTrips();
+  configureUnifiedPrizeBankForTests(storageFile);
 }

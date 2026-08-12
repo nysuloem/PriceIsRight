@@ -1,7 +1,7 @@
 // prizeSource.js — builds a 500+ item prize pool from Canadian retailer feeds.
-import fs from "node:fs";
-import path from "node:path";
 import { expandedBiddingCatalog } from "./pricingGames.js";
+import { exactPrizeKey, prizeFamilyKey } from "./prizeIdentity.js";
+import { configureUnifiedPrizeBankForTests, resetUnifiedPrizeBankForTests, retireKeys, retiredKeys, unifiedPrizeBankStats } from "./prizeBank.js";
 //
 // Prices are in CAD and deliberately use the REGULAR price. Temporary sale,
 // coupon, loyalty, financing, marketplace, open-box, and refurbished prices
@@ -22,7 +22,6 @@ const TARGET_POOL_SIZE = 1200;
 const PER_RETAILER_TARGET = 200;
 const CACHE_TTL_MS = 30 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 15000;
-const PRIZE_BANK_STORAGE_NAME = "price-is-right-prize-bank.json";
 
 // These are first-party Canadian storefronts. Shopify's public product feed
 // supplies current CAD prices, product URLs, vendor names, and product images.
@@ -595,25 +594,7 @@ export function prizeCategory(item) {
 // is not considered a fresh experience merely because its colour or logo is
 // different.
 export function prizeFamily(item) {
-  const text = `${item.category || ""} ${item.name || ""}`.toLowerCase();
-  const families = [
-    ["t-shirt", /\b(t-?shirt|tee)\b/], ["hoodie", /\b(hoodie|sweatshirt)\b/],
-    ["sweater", /\b(sweater|cardigan|crewneck)\b/], ["pants", /\b(sweatpant|jogger|legging|trouser|pants?)\b/],
-    ["underwear", /\b(bra|underwear|brief|boxer)\b/], ["socks", /\bsocks?\b/],
-    ["outerwear", /\b(jacket|coat|parka|vest)\b/], ["backpack", /\b(backpack|rucksack)\b/],
-    ["luggage", /\b(luggage|suitcase|duffel)\b/], ["stroller", /\bstroller\b/],
-    ["car-seat", /\bcar seat\b/], ["headphones", /\b(headphone|earbud|headset)\b/],
-    ["speaker", /\bspeaker\b/], ["television", /\b(tv|television)\b/], ["computer", /\b(laptop|computer|chromebook)\b/],
-    ["game-console", /\b(console|nintendo switch|playstation|xbox)\b/], ["coffee-maker", /\b(coffee maker|espresso|keurig)\b/],
-    ["skincare", /\b(serum|face cream|moisturizer|cleanser|skincare)\b/], ["diffuser", /\bdiffuser\b/],
-    ["board-game", /\b(board game|puzzle|card game)\b/], ["building-toy", /\b(lego|building set|blocks)\b/],
-  ];
-  const matched = families.find(([, regex]) => regex.test(text));
-  if (matched) return matched[0];
-  const normalized = (item.name || "prize").toLowerCase()
-    .replace(/\b(men'?s|women'?s|kids?'?|black|white|blue|red|green|pink|grey|gray|small|medium|large|new|classic|original)\b/g, " ")
-    .replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).slice(0, 4).join("-");
-  return normalized || item.id;
+  return prizeFamilyKey(item);
 }
 
 function enrichPrize(item) {
@@ -622,16 +603,11 @@ function enrichPrize(item) {
 }
 
 function reduceSimilarPrizes(items) {
-  const familyCounts = new Map();
-  const apparelLimit = 36;
-  let apparelCount = 0;
+  const families = new Set();
   return items.filter(item => {
-    const family = item.prizeFamily;
-    const count = familyCounts.get(family) || 0;
-    if (count >= 3) return false;
-    if (item.bidCategory === "Apparel" && apparelCount >= apparelLimit) return false;
-    familyCounts.set(family, count + 1);
-    if (item.bidCategory === "Apparel") apparelCount += 1;
+    const family = prizeFamilyKey(item);
+    if (families.has(family)) return false;
+    families.add(family);
     return true;
   });
 }
@@ -707,67 +683,27 @@ let prizeBankFileOverride;
 let retiredPrizeIdsLoaded = false;
 
 function prizeFingerprint(item) {
-  const seller = cleanSellerName(item?.retailer || item?.brand, "seller");
-  const name = cleanProductName(item?.name || "")
-    .replace(/\b(classic|deluxe|premium|compact|space-saving|upgraded|featured)\b/gi, " ")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-  return slugify(`${seller}-${name || item?.id || "prize"}`);
-}
-
-function prizeBankStorageFile() {
-  if (prizeBankFileOverride !== undefined) return prizeBankFileOverride;
-  if (process.env.PRIZE_BANK_FILE) return process.env.PRIZE_BANK_FILE;
-  const storageDir = process.env.PRIZE_BANK_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH;
-  return storageDir ? path.join(storageDir, PRIZE_BANK_STORAGE_NAME) : null;
+  return prizeFamilyKey(item);
 }
 
 function loadRetiredPrizeIds() {
   if (retiredPrizeIdsLoaded) return;
   retiredPrizeIdsLoaded = true;
-  const storageFile = prizeBankStorageFile();
-  if (!storageFile) return;
-  try {
-    const parsed = JSON.parse(fs.readFileSync(storageFile, "utf8"));
-    const ids = Array.isArray(parsed?.retiredPrizeIds) ? parsed.retiredPrizeIds : [];
-    const fingerprints = Array.isArray(parsed?.retiredPrizeFingerprints)
-      ? parsed.retiredPrizeFingerprints
-      : [];
-    for (const id of ids) {
-      if (typeof id === "string" && id) retiredPrizeIds.add(id);
-    }
-    for (const fingerprint of fingerprints) {
-      if (typeof fingerprint === "string" && fingerprint) retiredPrizeFingerprints.add(fingerprint);
-    }
-  } catch (error) {
-    if (error.code !== "ENOENT") {
-      console.warn(`[prizeSource] Could not read prize bank storage: ${error.message}`);
-    }
-  }
+  const stored = retiredKeys("bidding");
+  stored.exact.forEach(key => retiredPrizeIds.add(key));
+  stored.families.forEach(key => retiredPrizeFingerprints.add(key));
 }
 
 function saveRetiredPrizeIds() {
-  const storageFile = prizeBankStorageFile();
-  if (!storageFile) return;
-  try {
-    fs.mkdirSync(path.dirname(storageFile), { recursive: true });
-    const payload = {
-      version: 1,
-      updatedAt: new Date().toISOString(),
-      retiredPrizeIds: [...retiredPrizeIds].sort(),
-      retiredPrizeFingerprints: [...retiredPrizeFingerprints].sort(),
-    };
-    const tmpFile = `${storageFile}.tmp`;
-    fs.writeFileSync(tmpFile, JSON.stringify(payload, null, 2));
-    fs.renameSync(tmpFile, storageFile);
-  } catch (error) {
-    console.warn(`[prizeSource] Could not write prize bank storage: ${error.message}`);
-  }
+  retireKeys("bidding", { exact: [...retiredPrizeIds], families: [...retiredPrizeFingerprints] });
 }
 
 function availablePrizes(items) {
   loadRetiredPrizeIds();
-  return items.filter((item) => !retiredPrizeIds.has(item.id) && !retiredPrizeFingerprints.has(prizeFingerprint(item)));
+  const stored = retiredKeys("bidding");
+  stored.exact.forEach(key => retiredPrizeIds.add(key));
+  stored.families.forEach(key => retiredPrizeFingerprints.add(key));
+  return items.filter((item) => !retiredPrizeIds.has(exactPrizeKey(item)) && !retiredPrizeFingerprints.has(prizeFingerprint(item)));
 }
 
 const buildLocalFallbackPool = () => reduceSimilarPrizes(
@@ -812,8 +748,8 @@ export function retirePrize(id) {
   if (!id) return false;
   loadRetiredPrizeIds();
   const usedPrize = cache.items.find((item) => item.id === id);
-  const alreadyRetired = retiredPrizeIds.has(id);
-  retiredPrizeIds.add(id);
+  const exact = exactPrizeKey(usedPrize || id), alreadyRetired = retiredPrizeIds.has(exact);
+  retiredPrizeIds.add(exact);
   if (usedPrize) retiredPrizeFingerprints.add(prizeFingerprint(usedPrize));
   if (!alreadyRetired || usedPrize) saveRetiredPrizeIds();
   cache = { ...cache, items: cache.items.filter((item) => item.id !== id) };
@@ -830,24 +766,22 @@ export function prizeBankStats() {
     usedFingerprints: retiredPrizeFingerprints.size,
     refilling: Boolean(refreshPromise),
     threshold: REFILL_THRESHOLD,
-    persistent: Boolean(prizeBankStorageFile()),
+    persistent: unifiedPrizeBankStats().persistent,
   };
 }
 
 export function resetPrizeBankForTests(options = {}) {
+  resetUnifiedPrizeBankForTests(options);
   retiredPrizeIds.clear();
   retiredPrizeFingerprints.clear();
   retiredPrizeIdsLoaded = true;
-  if (options.clearStorage) {
-    const storageFile = prizeBankStorageFile();
-    if (storageFile) fs.rmSync(storageFile, { force: true });
-  }
   cache = { items: availablePrizes(buildLocalFallbackPool()), fetchedAt: Date.now() };
   refreshPromise = null;
 }
 
 export function configurePrizeBankStorageForTests(storageFile) {
   prizeBankFileOverride = storageFile || null;
+  configureUnifiedPrizeBankForTests(storageFile);
   retiredPrizeIds.clear();
   retiredPrizeFingerprints.clear();
   retiredPrizeIdsLoaded = false;

@@ -19,7 +19,7 @@ test("pricing game prize retirements persist to the configured bank file", () =>
     resetPricingPrizeBankForTests({ clearStorage: true });
     assert.equal(retirePricingPrizes(["Electric Kettle", "Desk Lamp"]), true);
     configurePricingPrizeBankStorageForTests(file);
-    assert.deepEqual(retiredPricingPrizeNamesList().sort(), ["Desk Lamp", "Electric Kettle"]);
+    assert.deepEqual(retiredPricingPrizeNamesList().sort(), ["desk-lamp", "electric-kettle", "lamp-prize-desk-lamp"]);
     assert.equal(pricingPrizeBankStats().persistent, true);
     assert.equal(pricingPrizeBankStats().used, 2);
   } finally {

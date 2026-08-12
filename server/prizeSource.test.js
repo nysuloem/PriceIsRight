@@ -21,11 +21,12 @@ test("similar shirts collapse into the same bidding family", () => {
   assert.equal(prizeCategory(a), "Apparel");
 });
 
-test("the fallback bidding bank is broad and Canadian-retailer weighted", async () => {
+test("the fallback bidding bank has 200+ genuinely distinct Canadian families", async () => {
   resetPrizeBankForTests();
   const pool = await getPrizePool();
   const retailers = new Set(pool.map((item) => item.retailer));
-  assert.ok(pool.length >= 500);
+  assert.ok(pool.length >= 200);
+  assert.equal(new Set(pool.map(prizeFamily)).size, pool.length);
   assert.ok(retailers.has("The Brick"));
   assert.ok(retailers.has("Leon's"));
   assert.ok(retailers.has("RONA"));
@@ -55,14 +56,15 @@ test("a used bidding prize leaves the available bank permanently", async () => {
   assert.equal(prizeBankStats().used, statsBefore.used + 1);
 });
 
-test("retiring a generated prize also removes same-seller variants", async () => {
+test("retiring a generated prize removes its whole semantic family", async () => {
   resetPrizeBankForTests();
   const before = await getPrizePool();
   const used = before.find((item) => item.retailer === "The Brick" && /home office desk/i.test(item.name));
   assert.ok(used);
+  const family = prizeFamily(used);
   assert.equal(retirePrize(used.id), true);
   const after = await getPrizePool();
-  assert.equal(after.some((item) => item.retailer === used.retailer && /home office desk/i.test(item.name)), false);
+  assert.equal(after.some((item) => prizeFamily(item) === family), false);
   assert.equal(prizeBankStats().usedFingerprints, 1);
 });
 
