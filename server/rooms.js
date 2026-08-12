@@ -4,6 +4,7 @@ import {
 } from "./gameLogic.js";
 import { getPrizePool, pickRandomItem, retirePrize } from "./prizeSource.js";
 import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, initialPrizeAnnouncements, playPricingGame, pricingPrizeNames, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
+import { retirePricingPrizes, retiredPricingPrizeNamesList } from "./pricingPrizeBank.js";
 import { advanceShowcase, createFinalShowcase, createShowdown, publicFinalShowcase, publicShowdown, resolveShowcaseAI, resolveWheelAI, settleWheel, showcaseAction, wheelAction } from "./showFlow.js";
 import { generateClosingLine } from "./tts.js";
 
@@ -327,10 +328,13 @@ export async function startPricingGame(room) {
   const livePricingItems=retailerPool.filter(item=>item.image&&Number(item.price)>=20&&Number(item.price)<=500).map(item=>({id:item.id,name:item.name,brand:item.brand||item.retailer,description:`Available from ${item.retailer}.`,price:Math.round(Number(item.price)),image:item.image,imageAlt:item.imageAlt||item.name,imageVerified:true,sourceUrl:item.url,category:item.bidCategory||item.category||"retail"}));
   const category=room.pricingGameSchedule[room.completedRounds]||"nonCar";
   const allowedTypes=category==="car"?CAR_PRICING_GAME_TYPES:NON_CAR_PRICING_GAME_TYPES;
-  room.pricingGame = createPricingGame(winner, room.playedPricingGames, [...new Set([...room.usedPricingPrizeNames,...recentPricingPrizeNames])],livePricingItems,allowedTypes);
+  const retiredPricingNames = retiredPricingPrizeNamesList();
+  room.pricingGame = createPricingGame(winner, room.playedPricingGames, [...new Set([...room.usedPricingPrizeNames,...recentPricingPrizeNames,...retiredPricingNames])],livePricingItems,allowedTypes);
   room.playedPricingGames.push(room.pricingGame.type);
-  room.usedPricingPrizeNames.push(...pricingPrizeNames(room.pricingGame));
-  rememberPricingPrizes(pricingPrizeNames(room.pricingGame));
+  const selectedPricingPrizeNames = pricingPrizeNames(room.pricingGame);
+  room.usedPricingPrizeNames.push(...selectedPricingPrizeNames);
+  rememberPricingPrizes(selectedPricingPrizeNames);
+  retirePricingPrizes(selectedPricingPrizeNames);
   preparePricingIntroduction(room,winner);
 }
 
