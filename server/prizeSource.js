@@ -327,6 +327,9 @@ export function essentialProductName(value, category = "", brand = "") {
     [/\brecliner\b/, "Recliner"],
     [/\bdining.*\bset\b/, "Dining room set"],
     [/\bmattress\b/, "Mattress set"],
+    [/\b(boxer briefs?|boxers?|briefs?|underwear|panties?|lingerie)\b/, "Underwear collection"],
+    [/\b(bras?|brassieres?)\b/, "Bra collection"],
+    [/\bsocks?\b/, "Sock collection"],
     [/\b(short|long)[ -]?sleeve.*\b(shirt|top)\b|\b(shirt|top)\b/, "Shirt"],
     [/\bhoodie\b/, "Hoodie"],
     [/\bjacket\b/, "Jacket"],
@@ -436,7 +439,17 @@ function fallbackBrand(baseName) {
   return rules.find(([pattern]) => pattern.test(text))?.[1] || "Canadian Living";
 }
 
+function apparelDescription(item) {
+  const text=`${item.name||""} ${item.category||item.bidCategory||""}`.toLowerCase();
+  if (/\b(bras?|brassieres?)\b/.test(text)) return "Soft fabric, adjustable details, and a supportive fit for lasting comfort.";
+  if (/\b(boxer briefs?|boxers?|briefs?|underwear|panties?|lingerie)\b/.test(text)) return "Soft, breathable fabric, comfortable stretch, and smooth seams for all-day comfort.";
+  if (/\bsocks?\b/.test(text)) return "Soft, breathable fabric with cushioned comfort in a selection of colours and styles.";
+  return "";
+}
+
 function displayDescription(item) {
+  const apparelCopy=apparelDescription(item);
+  if(apparelCopy)return apparelCopy;
   const category = cleanProductName(item.category || item.bidCategory || "retail prize").toLowerCase();
   const existing = preferEnglishCopy(item.description || item.shortDescription || item.hostDescription)
     .replace(/^(?:(?:sold by|available (?:from|at)|from)\s+[^,.;—]+[,.;—]\s*)+/i, "")

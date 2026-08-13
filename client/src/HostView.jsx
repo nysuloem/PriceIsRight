@@ -146,7 +146,7 @@ function HostViewInner({ code }) {
   const [state, setState] = useState(null);
   const [phase, setPhase] = useState("lobby"); // "lobby" | "opening" | "game"
   const [error, setError] = useState("");
-  const [config, setConfig] = useState({ hostName: "Robbie Archer", announcerName: "Rod Roddy", announcerVoice: "cedar", hostVoice: "coral" });
+  const [config, setConfig] = useState({ hostName: "Bob Barker", announcerName: "Rod Roddy", announcerVoice: "cedar", hostVoice: "coral" });
   const [kissBurst,setKissBurst]=useState(null);
   const [shirtBurst,setShirtBurst]=useState(null);
   const [audienceBurst,setAudienceBurst]=useState(null);
@@ -180,8 +180,8 @@ function HostViewInner({ code }) {
     else if (event.kind === "failure") playBuzzer();
   }, [state?.pricingGame?.lastOutcome]);
 
-  useEffect(()=>{const event=state?.kissEvent;if(!event||event.seq===lastKissRef.current)return;lastKissRef.current=event.seq;setKissBurst(event);const timer=setTimeout(()=>setKissBurst(null),2600);return()=>clearTimeout(timer);},[state?.kissEvent]);
-  useEffect(()=>{const event=state?.shirtEvent;if(!event||event.seq===lastShirtRef.current)return;lastShirtRef.current=event.seq;setShirtBurst(event);const timer=setTimeout(()=>setShirtBurst(null),3000);return()=>clearTimeout(timer);},[state?.shirtEvent]);
+  useEffect(()=>{const event=state?.kissEvent;if(!event||event.seq===lastKissRef.current)return;lastKissRef.current=event.seq;setKissBurst(event);const timer=setTimeout(()=>setKissBurst(current=>current?.seq===event.seq?null:current),2600);return()=>clearTimeout(timer);},[state?.kissEvent?.seq]);
+  useEffect(()=>{const event=state?.shirtEvent;if(!event||event.seq===lastShirtRef.current)return;lastShirtRef.current=event.seq;setShirtBurst(event);const timer=setTimeout(()=>setShirtBurst(current=>current?.seq===event.seq?null:current),3000);return()=>clearTimeout(timer);},[state?.shirtEvent?.seq]);
   useEffect(()=>{const suggestions=state?.pricingGame?.audienceSuggestions;if(!suggestions?.latest||suggestions.seq===lastAudienceRef.current)return;lastAudienceRef.current=suggestions.seq;setAudienceBurst({...suggestions.latest,count:suggestions.counts?.[suggestions.latest.choice]||1});const timer=setTimeout(()=>setAudienceBurst(null),2200);return()=>clearTimeout(timer);},[state?.pricingGame?.audienceSuggestions?.seq]);
 
   useEffect(()=>{const s=state?.showdown;if(!s||!["spinning","bonusSpinning","automaticSpinning"].includes(s.stage))return;const key=`${s.half}-${s.spinSeq}`;if(key===lastSettledWheelRef.current)return;lastSettledWheelRef.current=key;let stopped=false;const attempt=async(retries=0)=>{try{await settleWheel(code);}catch(e){if(!stopped&&retries<2)setTimeout(()=>attempt(retries+1),1200);else if(!stopped){lastSettledWheelRef.current="";setError(e.message);}}};const timer=setTimeout(()=>attempt(),(s.spinDuration||3400)+150);return()=>{stopped=true;clearTimeout(timer);};},[state?.showdown?.half,state?.showdown?.spinSeq,state?.showdown?.stage,state?.showdown?.spinDuration,code]);
@@ -422,8 +422,8 @@ function HostViewInner({ code }) {
       <audio ref={audioRef} style={{ display: "none" }} />
       <audio ref={announcerRef} style={{ display: "none" }} />
       <audio ref={cliffYodelRef} src={cliffYodelUrl} preload="none" style={{ display: "none" }} />
-      {kissBurst&&<div className="pir-kiss-burst" aria-live="polite"><span>💋</span><span>😘</span><span>💖</span><b>{kissBurst.playerName} kissed the host!</b><span>💋</span><span>💕</span></div>}
-      {shirtBurst&&<div className="pir-shirt-burst" aria-live="polite"><span>✨</span><div><small>{shirtBurst.playerName}'s T-shirt</small><div className="pir-shirt"><div className="pir-shirt-copy">{shirtBurst.message}</div></div></div><span>🎉</span><span>👏</span></div>}
+      {kissBurst&&<div key={`kiss-${kissBurst.seq}`} className="pir-kiss-burst" aria-live="polite"><span>💋</span><span>😘</span><span>💖</span><b>{kissBurst.playerName} kissed the host!</b><span>💋</span><span>💕</span></div>}
+      {shirtBurst&&<div key={`shirt-${shirtBurst.seq}`} className="pir-shirt-burst" aria-live="polite"><span>✨</span><div><small>{shirtBurst.playerName}'s T-shirt</small><div className="pir-shirt"><div className="pir-shirt-copy">{shirtBurst.message}</div></div></div><span>🎉</span><span>👏</span></div>}
       {audienceBurst&&<div className="pir-audience-burst" aria-live="polite"><small>{audienceBurst.playerName} shouts</small><strong>{audienceBurst.choice}!</strong>{audienceBurst.count>1&&<b>{audienceBurst.count} audience votes</b>}</div>}
 
       {phase === "opening" && state && (
@@ -521,7 +521,7 @@ function EndCredits({state,config}){
     return()=>{clearTimeout(fallback);audio.pause();audio.currentTime=0;audio.onended=null;};
   },[state.phase]);
   if(state.phase==="creditsHost")return <div className="pir-end-credits pir-credits-host"><div className="pir-credit-logo">THE PRICE IS RIGHT</div><div className="pir-credits-host-goodbye"><small>A WORD FROM YOUR HOST</small><strong>{state.hostLine.text}</strong></div></div>;
-  return <div className={`pir-end-credits ${trackEnded?"finished":"playing"}`}><div className="pir-credit-logo">THE PRICE IS RIGHT</div>{trackEnded?<div className="pir-final-winnings"><small>FINAL WINNINGS</small>{standings.map((player,index)=><div key={`${player.id||player.name}-${index}`}><b>{index+1}. {player.name}</b><span>${Number(player.totalWinnings||0).toLocaleString("en-CA")}</span></div>)}</div>:<div className="pir-credit-roll"><section><small>YOUR HOST</small><strong>{config.hostName||"Robbie Archer"}</strong></section><section><small>ANNOUNCER</small><strong>{config.announcerName||"Rod Roddy"}</strong></section><section><small>TODAY'S CONTESTANTS</small><strong>{names}</strong></section><section><small>PRICING GAMES · BIG WHEEL · SHOWCASES</small><strong>Made for Family Game Night</strong></section><section><small>THANK YOU FOR WATCHING</small><strong>See you next time on The Price Is Right!</strong></section></div>}</div>;
+  return <div className={`pir-end-credits ${trackEnded?"finished":"playing"}`}><div className="pir-credit-logo">THE PRICE IS RIGHT</div>{trackEnded?<div className="pir-final-winnings"><small>FINAL WINNINGS</small>{standings.map((player,index)=><div key={`${player.id||player.name}-${index}`}><b>{index+1}. {player.name}</b><span>${Number(player.totalWinnings||0).toLocaleString("en-CA")}</span></div>)}</div>:<div className="pir-credit-roll"><section><small>YOUR HOST</small><strong>Bob Barker</strong></section><section><small>ANNOUNCER</small><strong>{config.announcerName||"Rod Roddy"}</strong></section><section><small>TODAY'S CONTESTANTS</small><strong>{names}</strong></section><section><small>PRICING GAMES · BIG WHEEL · SHOWCASES</small><strong>Made for Family Game Night</strong></section><section><small>THANK YOU FOR WATCHING</small><strong>See you next time on The Price Is Right!</strong></section></div>}</div>;
 }
 
 function prizeSellerLine(item){

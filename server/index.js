@@ -269,7 +269,7 @@ app.get(
 // Config — exposes host name and voice to the client.
 app.get("/api/config", (req, res) => {
   res.json({
-    hostName: process.env.HOST_NAME || "Robbie Archer",
+    hostName: process.env.HOST_NAME || "Bob Barker",
     announcerName: process.env.ANNOUNCER_NAME || "Rod Roddy",
     announcerVoice: process.env.ANNOUNCER_VOICE || "cedar",
     hostVoice: process.env.HOST_VOICE || "coral",

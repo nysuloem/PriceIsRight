@@ -28,6 +28,7 @@ export default function OpeningSequence({
   onDone,
 }) {
   const [revealed, setRevealed] = useState([]);
+  const [showBob, setShowBob] = useState(false);
   const clipRef = useRef(null);
   const announcerRef = useRef(null);
   const startedRef = useRef(false);
@@ -58,7 +59,7 @@ export default function OpeningSequence({
 
   const announce = (text) => speakAs(text, announcerVoice, "announcer");
 
-  function playClip(src) {
+  function playClip(src, revealBobAtEnd = false) {
     return new Promise((resolve) => {
       const el = clipRef.current;
       if (!el) { resolve(); return; }
@@ -66,6 +67,9 @@ export default function OpeningSequence({
       const fire = () => { if (fired) return; fired = true; resolve(); };
       el.src = src;
       el.volume = 1;
+      el.ontimeupdate = revealBobAtEnd ? () => {
+        if (Number.isFinite(el.duration) && el.duration > 0 && el.currentTime >= el.duration - 9) setShowBob(true);
+      } : null;
       el.onended = fire;
       el.onerror = fire;
       el.play().catch(fire);
@@ -94,7 +98,7 @@ export default function OpeningSequence({
     }
 
     await wait(350);
-    await playClip("/media/opening-show-handoff.mp3");
+    await playClip("/media/opening-show-handoff.mp3", true);
     await wait(300);
     finish();
   }
@@ -113,7 +117,9 @@ export default function OpeningSequence({
         <div className="pir-opening-sub">The Price is Right</div>
       </div>
 
-      {contestants.length === 0 ? (
+      {showBob && <div className="pir-bob-intro"><img src="/media/bob-barker-cutout.png" alt="Bob Barker waving"/><div><small>HERE'S THE STAR OF THE PRICE IS RIGHT</small><strong>BOB BARKER!</strong></div></div>}
+
+      {!showBob && (contestants.length === 0 ? (
         <p style={{ color: "var(--muted)", textAlign: "center" }}>
           Building the lineup…
         </p>
@@ -124,7 +130,7 @@ export default function OpeningSequence({
               revealed={revealed.includes(i)} active={i === revealed.at(-1)} src={photoSrc(c)} />
           ))}
         </div>
-      )}
+      ))}
     </div>
   );
 }

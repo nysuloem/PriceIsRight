@@ -83,6 +83,15 @@ test("prize presentation keeps only brand, clean name and concise copy", () => {
   assert.doesNotMatch(`${item.name} ${item.description}`, /Snuggle Bugz|SKU|JEL12345|Amuseables/i);
 });
 
+test("underwear prizes use specific apparel descriptions instead of generic design copy",()=>{
+  const underwear=normalizePrizePresentation({name:"Ultra-soft boxer briefs model SXBB30",brand:"SAXX",retailer:"Sport Chek",category:"Men's underwear",description:"Practical features, everyday usefulness, and a polished home-ready design."});
+  assert.equal(underwear.name,"Ultra-soft boxer briefs");
+  assert.equal(underwear.description,"Soft, breathable fabric, comfortable stretch, and smooth seams for all-day comfort.");
+  assert.doesNotMatch(underwear.description,/practical|home-ready|everyday design/i);
+  const bra=normalizePrizePresentation({name:"Wireless comfort bra style 12345",brand:"Knix",retailer:"Knix",category:"Bras",description:"Everyday design with practical features."});
+  assert.equal(bra.description,"Soft fabric, adjustable details, and a supportive fit for lasting comfort.");
+});
+
 test("fallback bidding prizes are display-ready with photos and useful copy", async () => {
   resetPrizeBankForTests();
   const pool = await getPrizePool();
