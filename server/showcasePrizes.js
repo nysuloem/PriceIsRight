@@ -278,6 +278,62 @@ const SHOWCASE_REPLACEMENTS = [
 const shuffle=(a)=>{const c=[...a];for(let i=c.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[c[i],c[j]]=[c[j],c[i]];}return c;};
 const showcaseThemeKey=showcase=>`showcase-theme-${showcase.id}`;
 
+const GENERATED_REGIONS=["Atlantic","Laurentian","Muskoka","Prairie","Rocky Mountain","Pacific Coast","Great Lakes","Northern Lights","Fundy","Niagara","Thousand Islands","Okanagan","Cape Breton","Charlevoix","Georgian Bay","Kootenay","Yukon","Algonquin","Gaspé","Vancouver Island","Red River","Avalon","Rideau","Saguenay"];
+const GENERATED_FOCUSES=[
+  ["ESCAPE","adventure collection","Canadian Geographic Adventures","A complete guided Canadian experience with premium equipment, accommodations and transportation."],
+  ["ENTERTAINING","celebration collection","The Bay","Furniture, serving pieces, lighting and Canadian-made accessories for memorable gatherings."],
+  ["EXPLORER","outdoor expedition collection","MEC","Premium all-weather equipment, clothing and transportation for two Canadian explorers."],
+  ["RETREAT","wellness collection","Spa Nordic Station","A restorative package of home wellness equipment, treatments and a luxury Canadian stay."],
+  ["FLAVOURS","culinary collection","Paderno","Canadian cookware, appliances, ingredients and private instruction from a professional chef."],
+  ["STUDIO","creative studio collection","DeSerres","Professional art, photography and design equipment in a fully furnished home studio."],
+  ["SOUND","music collection","Long & McQuade","Instruments, recording equipment, concert tickets and expert lessons for two."],
+  ["FITNESS","active living collection","Sport Chek","Premium fitness equipment, sportswear, coaching and Canadian event entries."],
+  ["GARDEN","four-season garden collection","RONA","A greenhouse, garden equipment, outdoor furniture and professional landscaping."],
+  ["TECHNOLOGY","connected-home collection","Best Buy Canada","Computers, entertainment equipment, smart-home devices and professional installation."],
+  ["STYLE","Canadian fashion collection","Simons","A year-round wardrobe, footwear, accessories and personal styling for two."],
+  ["LAKE LIFE","waterfront collection","Canadian Tire","Paddling equipment, dockside furniture, outdoor cooking gear and water-safety equipment."],
+];
+const GENERATED_SPACES=["living room","chef's kitchen","backyard pavilion","games room","home cinema","library","music room","garden room","fitness studio","home office","craft workshop","four-season sunroom"];
+const GENERATED_MOBILITY=["electric bicycles","touring kayaks","camping trailer","snowmobile pair","all-terrain vehicles","sailboat package","canoe expedition","rail journey","motorcycle pair","ski holiday","road-trip package","island-hopping holiday"];
+const GENERATED_IMAGES=[
+  "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1555041469-a586c61ea9bcf?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1000&q=85",
+];
+const GENERATED_SIGNATURE_WORDS=["Golden","Maple","Aurora","Cedar","Granite","Harbour","Summit","Wildflower","Starlight","Evergreen","Copper","Silver","Crystal","Horizon","Heritage","Discovery","Jubilee","Northern","Coastal","Prairie","Alpine","Lakeside","Grand","Royal"];
+
+function generationSignature(serial){
+  const words=[];let value=Math.max(1,serial);
+  while(value>0){value-=1;words.unshift(GENERATED_SIGNATURE_WORDS[value%GENERATED_SIGNATURE_WORDS.length]);value=Math.floor(value/GENERATED_SIGNATURE_WORDS.length);}
+  return words.join(" ");
+}
+
+function generatedShowcase(serial){
+  const index=Math.max(0,serial-1),region=GENERATED_REGIONS[index%GENERATED_REGIONS.length],focus=GENERATED_FOCUSES[Math.floor(index/GENERATED_REGIONS.length)%GENERATED_FOCUSES.length];
+  const signature=generationSignature(serial),space=GENERATED_SPACES[(index*5+3)%GENERATED_SPACES.length],mobility=GENERATED_MOBILITY[(index*7+2)%GENERATED_MOBILITY.length];
+  const basePrice=5200+(index%17)*430;
+  return {
+    id:`generated-${serial}`,
+    title:`${region.toUpperCase()} ${signature.toUpperCase()} ${focus[0]}`,
+    intro:`This entirely new Showcase celebrates ${region} style with three prizes created just for today's show!`,
+    generated:true,
+    prizes:[
+      {id:`generated-${serial}-signature`,name:`${region} ${signature} ${focus[1]}`,brand:focus[2],description:focus[3],price:basePrice+1450,image:GENERATED_IMAGES[index%GENERATED_IMAGES.length]},
+      {id:`generated-${serial}-home`,name:`${region} ${signature} ${space} transformation`,brand:"Canadian Living",description:`A complete ${space} redesign with Canadian furniture, décor, delivery and professional installation.`,price:basePrice+3180,image:GENERATED_IMAGES[(index+2)%GENERATED_IMAGES.length]},
+      {id:`generated-${serial}-adventure`,name:`${region} ${signature} ${mobility}`,brand:"Explore Canada",description:`A premium ${mobility} package for two with equipment, training, transportation and accommodations.`,price:basePrice+6890,image:GENERATED_IMAGES[(index+4)%GENERATED_IMAGES.length]},
+    ],
+  };
+}
+
+function nextGeneratedShowcase(retiredThemes,offset=0){
+  let serial=1+offset;
+  while(retiredThemes.exact.has(showcaseThemeKey({id:`generated-${serial}`})))serial+=1;
+  return generatedShowcase(serial);
+}
+
 function takeFreshTrip(){
   const retired=retiredKeys("trips");
   const available=TRIP_PRIZES.filter(trip=>!retired.exact.has(exactPrizeKey(trip))&&!retired.families.has(prizeFamilyKey(trip)));
@@ -303,8 +359,12 @@ function fillShowcasePrize(prize){
 export function createShowcases(){
   const retiredThemes=retiredKeys("showcaseThemes");
   const availableThemes=THEMES.filter(showcase=>!retiredThemes.exact.has(showcaseThemeKey(showcase)));
-  if(availableThemes.length<2)throw new Error("The complete Showcase bank is exhausted; add two entirely new Showcase packages before continuing.");
   const selected=shuffle(availableThemes).slice(0,2);
+  while(selected.length<2){
+    const generated=nextGeneratedShowcase(retiredThemes,selected.filter(showcase=>showcase.generated).length);
+    retiredThemes.exact.add(showcaseThemeKey(generated));
+    selected.push(generated);
+  }
   const filled=selected.map(showcase=>{
     const prizes=showcase.prizes.map(fillShowcasePrize);
     return {...showcase,prizes,actualPrice:prizes.reduce((total,prize)=>total+prize.price,0)};
@@ -321,8 +381,9 @@ export function tripBankStats(){
 
 export function showcaseBankStats(){
   const retired=retiredKeys("showcaseThemes");
-  const used=THEMES.filter(showcase=>retired.exact.has(showcaseThemeKey(showcase))).length;
-  return {total:THEMES.length,used,available:THEMES.length-used,persistent:unifiedPrizeBankStats().persistent};
+  const preparedUsed=THEMES.filter(showcase=>retired.exact.has(showcaseThemeKey(showcase))).length;
+  const generatedUsed=[...retired.exact].filter(key=>/^showcase-theme-generated-\d+$/.test(key)).length;
+  return {preparedTotal:THEMES.length,preparedUsed,preparedAvailable:THEMES.length-preparedUsed,generatedUsed,generationEnabled:true,persistent:unifiedPrizeBankStats().persistent};
 }
 
 export function resetTripBankForTests(options={}){

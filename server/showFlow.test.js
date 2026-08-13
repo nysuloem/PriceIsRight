@@ -128,10 +128,10 @@ test("a used complete Showcase is permanently replaced",()=>{
   const second=createFinalShowcase([players[0],players[1]]);
   const secondIds=second.showcases.map(showcase=>showcase.id);
   assert.equal(firstIds.some(id=>secondIds.includes(id)),false);
-  assert.equal(showcaseBankStats().used,4);
+  assert.equal(showcaseBankStats().preparedUsed,4);
 });
 
-test("the complete Showcase bank never recycles an exhausted package",()=>{
+test("the complete Showcase bank generates new packages instead of recycling",()=>{
   resetTripBankForTests();
   const ids=[];
   for(let game=0;game<12;game+=1){
@@ -139,8 +139,15 @@ test("the complete Showcase bank never recycles an exhausted package",()=>{
   }
   assert.equal(ids.length,24);
   assert.equal(new Set(ids).size,24);
-  assert.deepEqual(showcaseBankStats(),{total:24,used:24,available:0,persistent:false});
-  assert.throws(()=>createFinalShowcase([players[0],players[1]]),/complete Showcase bank is exhausted/i);
+  assert.equal(showcaseBankStats().preparedAvailable,0);
+  const generated=[];
+  for(let game=0;game<8;game+=1)generated.push(...createFinalShowcase([players[0],players[1]]).showcases);
+  assert.equal(generated.every(showcase=>showcase.generated&&showcase.id.startsWith("generated-")),true);
+  assert.equal(generated.every(showcase=>showcase.prizes.length===3),true);
+  assert.equal(generated.some(showcase=>ids.includes(showcase.id)),false);
+  assert.equal(new Set(generated.map(showcase=>showcase.id)).size,generated.length);
+  assert.equal(new Set(generated.map(showcase=>showcase.title)).size,generated.length);
+  assert.equal(showcaseBankStats().generatedUsed,16);
 });
 
 test("complete Showcase retirement persists after a server reload",()=>{
@@ -148,11 +155,14 @@ test("complete Showcase retirement persists after a server reload",()=>{
   try{
     configureTripBankStorageForTests(file);
     resetTripBankForTests({clearStorage:true});
+    for(let game=0;game<12;game+=1)createFinalShowcase([players[0],players[1]]);
     const firstIds=createFinalShowcase([players[0],players[1]]).showcases.map(showcase=>showcase.id);
     configureTripBankStorageForTests(file);
     const secondIds=createFinalShowcase([players[0],players[1]]).showcases.map(showcase=>showcase.id);
     assert.equal(firstIds.some(id=>secondIds.includes(id)),false);
-    assert.equal(showcaseBankStats().used,4);
+    assert.equal(firstIds.every(id=>id.startsWith("generated-")),true);
+    assert.equal(secondIds.every(id=>id.startsWith("generated-")),true);
+    assert.equal(showcaseBankStats().generatedUsed,4);
     assert.equal(showcaseBankStats().persistent,true);
   }finally{
     configureTripBankStorageForTests(null);

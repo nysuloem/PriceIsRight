@@ -332,8 +332,9 @@ function HostViewInner({ code }) {
       playTTS(el,text,()=>current(()=>{playShowcaseCelebration();setTimeout(()=>safely(()=>advanceShowcase(code)),2600);}),voice);
     } else if(type==="endHost"){
       playTTS(el,text,()=>safely(()=>advanceShowcase(code)),voice,"host");
-    } else if(type==="endAnnouncer"){
-      playTTS(ann,text,()=>{},config.announcerVoice||"onyx","announcer");
+    } else if(type==="endCreditsTrack"){
+      // The supplied recording owns this sequence, including Rod Roddy's
+      // sign-off. No synthesized announcer voice should overlap it.
     }
   }, [state, code, phase]);
 
@@ -501,8 +502,18 @@ function FinalShowcaseView({state}) {
 function EndCredits({state,config}){
   const names=state.players?.map(player=>player.name).join(" · ")||"Our wonderful contestants";
   const standings=state.contestantStandings?.length?state.contestantStandings:state.players?.map(player=>({name:player.name,totalWinnings:0}))||[];
-  useEffect(()=>{const audio=new Audio(endCreditsMusicUrl);audio.volume=.72;audio.play().catch(()=>{});return()=>{audio.pause();audio.currentTime=0;};},[]);
-  return <div className="pir-end-credits"><div className="pir-credit-logo">THE PRICE IS RIGHT</div><div className="pir-credit-roll"><section><small>YOUR HOST</small><strong>{config.hostName||"Robbie Archer"}</strong></section><section><small>ANNOUNCER</small><strong>{config.announcerName||"Rod Roddy"}</strong></section><section><small>TODAY'S CONTESTANTS</small><strong>{names}</strong></section><section><small>PRICING GAMES · BIG WHEEL · SHOWCASES</small><strong>Made for Family Game Night</strong></section><section><small>SPECIAL THANKS</small><strong>To everyone shouting advice from the audience!</strong></section><section className="pir-credit-standings"><small>FINAL WINNINGS</small>{standings.map((player,index)=><div key={`${player.id||player.name}-${index}`}><b>{index+1}. {player.name}</b><span>${Number(player.totalWinnings||0).toLocaleString("en-CA")}</span></div>)}</section></div><div className="pir-credit-goodbye">{state.hostLine.text}</div></div>;
+  const [trackEnded,setTrackEnded]=useState(false);
+  useEffect(()=>{
+    if(state.phase!=="creditsMusic")return;
+    setTrackEnded(false);
+    const audio=new Audio(endCreditsMusicUrl);audio.volume=.72;
+    let fallback=null;
+    audio.onended=()=>setTrackEnded(true);
+    audio.play().catch(()=>{fallback=setTimeout(()=>setTrackEnded(true),9400);});
+    return()=>{clearTimeout(fallback);audio.pause();audio.currentTime=0;audio.onended=null;};
+  },[state.phase]);
+  if(state.phase==="creditsHost")return <div className="pir-end-credits pir-credits-host"><div className="pir-credit-logo">THE PRICE IS RIGHT</div><div className="pir-credits-host-goodbye"><small>A WORD FROM YOUR HOST</small><strong>{state.hostLine.text}</strong></div></div>;
+  return <div className={`pir-end-credits ${trackEnded?"finished":"playing"}`}><div className="pir-credit-logo">THE PRICE IS RIGHT</div>{trackEnded?<div className="pir-final-winnings"><small>FINAL WINNINGS</small>{standings.map((player,index)=><div key={`${player.id||player.name}-${index}`}><b>{index+1}. {player.name}</b><span>${Number(player.totalWinnings||0).toLocaleString("en-CA")}</span></div>)}</div>:<div className="pir-credit-program"><section><small>YOUR HOST</small><strong>{config.hostName||"Robbie Archer"}</strong></section><section><small>ANNOUNCER</small><strong>{config.announcerName||"Rod Roddy"}</strong></section><section><small>TODAY'S CONTESTANTS</small><strong>{names}</strong></section><section><small>PRICING GAMES · BIG WHEEL · SHOWCASES</small><strong>Made for Family Game Night</strong></section></div>}</div>;
 }
 
 function prizeSellerLine(item){

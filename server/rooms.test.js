@@ -202,12 +202,13 @@ test("non-playing humans can shout pricing suggestions without changing the game
   assert.throws(()=>pricingGameAction(room,"player",{audienceChoice:"Lower"}),/non-playing/i);
 });
 
-test("the completed Showcase advances through host and announcer credits",()=>{
+test("the completed Showcase plays the host goodbye before the recorded credits",()=>{
   const room=createRoom();room.finalShowcase={stage:"complete"};room.phase="showcaseReveal";room.closingLine="Be kind and share the snacks!";
   advanceShowcasePresentation(room);
   assert.equal(room.phase,"creditsHost");assert.equal(room.hostLine.type,"endHost");assert.match(room.hostLine.text,/Good bye/i);
   advanceShowcasePresentation(room);
-  assert.equal(room.phase,"creditsAnnouncer");assert.equal(room.hostLine.type,"endAnnouncer");assert.match(room.hostLine.text,/Rod Roddy.+wishing you a good day/i);
+  assert.equal(room.phase,"creditsMusic");assert.equal(room.hostLine.type,"endCreditsTrack");assert.equal(room.hostLine.text,"");
+  assert.doesNotMatch(JSON.stringify(room.hostLine),/Rod Roddy|wishing you a good day/i);
 });
 
 test("public state includes final contestant standings sorted by winnings",()=>{
