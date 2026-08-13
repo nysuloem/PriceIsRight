@@ -6,14 +6,37 @@ import path from "node:path";
 import {
   configurePrizeBankStorageForTests,
   chooseShopifyRegularPrice,
+  essentialProductName,
   getPrizePool,
   normalizePrizePresentation,
+  normalizeBestBuyProduct,
   prizeBankStats,
   prizeCategory,
   prizeFamily,
   resetPrizeBankForTests,
   retirePrize,
 } from "./prizeSource.js";
+
+test("live product titles become a one-line identity plus a useful specification line", () => {
+  assert.equal(essentialProductName('ASUS Vivobook 15.6" Laptop - 32GB RAM - 1TB SSD', "Laptops", "ASUS"), "Laptop computer");
+  const laptop = normalizeBestBuyProduct({
+    sku: "12345",
+    name: 'ASUS Vivobook 15.6" Laptop - 32GB RAM - 1TB SSD',
+    manufacturer: "ASUS",
+    categoryName: "Laptops",
+    shortDescription: "Power through daily work and entertainment with a portable design.",
+    regularPrice: 1899.99,
+    salePrice: 1899.99,
+    isMarketplace: false,
+    isVisible: true,
+    productUrl: "/en-ca/product/12345",
+    highResImage: "https://example.com/asus.jpg",
+  });
+  assert.equal(laptop.brand, "ASUS");
+  assert.equal(laptop.name, "Laptop computer");
+  assert.equal(laptop.description, "A laptop with a 15.6-inch display, 32 GB of RAM and a 1 TB solid-state drive.");
+  assert.match(laptop.hostDescription, /ASUS Laptop computer.*15\.6-inch.*32 GB.*1 TB/i);
+});
 
 test("live bidding feeds reject Last Call, clearance, and discounted variants", () => {
   const regular = { title: "Modal Rib Shirt", handle: "modal-rib-shirt", variants: [{ available: true, price: "79.00", compare_at_price: null }] };

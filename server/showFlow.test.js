@@ -53,6 +53,31 @@ test("a second dollar on the bonus spin adds another $1,000",()=>{
   assert.match(s.result,/another \$1,000/);
 });
 
+test("the third contestant automatically wins after two busts and receives a bonus-opportunity spin", () => {
+  const s = createShowdown(1, players);
+  spinTo(s, 4); spinTo(s, 9); // Alice: 70 + 85, bust
+  spinTo(s, 2); spinTo(s, 11); // Bob: 90 + 95, bust
+  assert.equal(s.currentIndex, 2);
+  assert.equal(s.stage, "automaticTurn");
+  assert.equal(s.winnerId, "c");
+  assert.match(s.result, /automatically/i);
+  spinTo(s, 1); // 5 cents, no extra prize
+  assert.equal(s.stage, "complete");
+  assert.equal(s.participants[2].bonusCash, 0);
+});
+
+test("an automatic winner landing on one dollar earns $1,000 and the normal bonus spin", () => {
+  const s = createShowdown(1, players);
+  spinTo(s, 4); spinTo(s, 9);
+  spinTo(s, 2); spinTo(s, 11);
+  spinTo(s, 0);
+  assert.equal(s.stage, "bonusTurn");
+  assert.equal(s.participants[2].bonusCash, 1000);
+  spinTo(s, 1);
+  assert.equal(s.stage, "complete");
+  assert.equal(s.participants[2].bonusCash, 1100);
+});
+
 test("one phone can control multiple independently keyed appearances",()=>{
   const repeat=[
     {id:"jason:r1",controllerPlayerId:"jason",name:"Jason",totalWinnings:1000,isAI:false},

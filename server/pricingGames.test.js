@@ -51,6 +51,15 @@ test("pricing-game selection respects a scheduled car or non-car category",()=>{
   assert.ok(NON_CAR_PRICING_GAME_TYPES.includes(nonCar.type));
 });
 
+test("Double Prices alternatives and Switch prizes differ by at least $1,500", () => {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const doublePrices = createPricingGameForType("doublePrices", player);
+    assert.ok(Math.abs(doublePrices.prices[0] - doublePrices.prices[1]) >= 1500);
+    const switchGame = createPricingGameForType("switchGame", player);
+    assert.ok(Math.abs(switchGame._prices[0] - switchGame._prices[1]) >= 1500);
+  }
+});
+
 test("Grocery Game has a grand prize and awards its actual value",()=>{
   const g=createPricingGameForType("groceryGame",player);
   assert.ok(g.bonusPrize?.name);

@@ -181,8 +181,8 @@ function HostViewInner({ code }) {
   useEffect(()=>{const event=state?.kissEvent;if(!event||event.seq===lastKissRef.current)return;lastKissRef.current=event.seq;setKissBurst(event);const timer=setTimeout(()=>setKissBurst(null),2600);return()=>clearTimeout(timer);},[state?.kissEvent]);
   useEffect(()=>{const suggestions=state?.pricingGame?.audienceSuggestions;if(!suggestions?.latest||suggestions.seq===lastAudienceRef.current)return;lastAudienceRef.current=suggestions.seq;setAudienceBurst({...suggestions.latest,count:suggestions.counts?.[suggestions.latest.choice]||1});const timer=setTimeout(()=>setAudienceBurst(null),2200);return()=>clearTimeout(timer);},[state?.pricingGame?.audienceSuggestions?.seq]);
 
-  useEffect(()=>{const s=state?.showdown;if(!s||!["spinning","bonusSpinning"].includes(s.stage))return;const key=`${s.half}-${s.spinSeq}`;if(key===lastSettledWheelRef.current)return;lastSettledWheelRef.current=key;let stopped=false;const attempt=async(retries=0)=>{try{await settleWheel(code);}catch(e){if(!stopped&&retries<2)setTimeout(()=>attempt(retries+1),1200);else if(!stopped){lastSettledWheelRef.current="";setError(e.message);}}};const timer=setTimeout(()=>attempt(),(s.spinDuration||3400)+150);return()=>{stopped=true;clearTimeout(timer);};},[state?.showdown?.half,state?.showdown?.spinSeq,state?.showdown?.stage,state?.showdown?.spinDuration,code]);
-  useEffect(()=>{const s=state?.showdown;if(!s||!["spinning","bonusSpinning"].includes(s.stage))return;return playWheelClicks(s.spinDuration||3400);},[state?.showdown?.spinSeq,state?.showdown?.stage]);
+  useEffect(()=>{const s=state?.showdown;if(!s||!["spinning","bonusSpinning","automaticSpinning"].includes(s.stage))return;const key=`${s.half}-${s.spinSeq}`;if(key===lastSettledWheelRef.current)return;lastSettledWheelRef.current=key;let stopped=false;const attempt=async(retries=0)=>{try{await settleWheel(code);}catch(e){if(!stopped&&retries<2)setTimeout(()=>attempt(retries+1),1200);else if(!stopped){lastSettledWheelRef.current="";setError(e.message);}}};const timer=setTimeout(()=>attempt(),(s.spinDuration||3400)+150);return()=>{stopped=true;clearTimeout(timer);};},[state?.showdown?.half,state?.showdown?.spinSeq,state?.showdown?.stage,state?.showdown?.spinDuration,code]);
+  useEffect(()=>{const s=state?.showdown;if(!s||!["spinning","bonusSpinning","automaticSpinning"].includes(s.stage))return;return playWheelClicks(s.spinDuration||3400);},[state?.showdown?.spinSeq,state?.showdown?.stage]);
 
   // TV browsers occasionally omit Web Animations' finished Promise. The
   // animation itself settles first; this watchdog prevents a room from ever
@@ -490,7 +490,7 @@ function ShirtReveal({ reveal }) {
 function WheelView({showdown}) {
   if(!showdown)return null;
   const p=showdown.participants.find(x=>x.id===showdown.announcingPlayerId)||(showdown.participants[showdown.currentIndex]||showdown.participants.find(x=>x.id===showdown.winnerId));
-  const spinning=["spinning","bonusSpinning"].includes(showdown.stage);
+  const spinning=["spinning","bonusSpinning","automaticSpinning"].includes(showdown.stage);
   const finished=showdown.participants.filter(x=>x.status==="done"&&x.score<=100);
   const leader=finished.sort((a,b)=>b.score-a.score)[0]||null;
   const startRotation=showdown.spinStartRotation||0;
@@ -519,7 +519,7 @@ function EndCredits({state,config}){
     const audio=new Audio(endCreditsMusicUrl);audio.volume=.72;
     let fallback=null;
     audio.onended=()=>setTrackEnded(true);
-    audio.play().catch(()=>{fallback=setTimeout(()=>setTrackEnded(true),9400);});
+    audio.play().catch(()=>{fallback=setTimeout(()=>setTrackEnded(true),65500);});
     return()=>{clearTimeout(fallback);audio.pause();audio.currentTime=0;audio.onended=null;};
   },[state.phase]);
   if(state.phase==="creditsHost")return <div className="pir-end-credits pir-credits-host"><div className="pir-credit-logo">THE PRICE IS RIGHT</div><div className="pir-credits-host-goodbye"><small>A WORD FROM YOUR HOST</small><strong>{state.hostLine.text}</strong></div></div>;
@@ -619,8 +619,8 @@ function ItemView({ state }) {
         <div className="pir-item-card">
           <ItemImage item={item} />
           <div className="pir-item-info">
-            <h3>{item.name}</h3>
             <div className="pir-item-tag">{prizeSellerLine(item)}</div>
+            <h3>{item.name}</h3>
             <div className="pir-item-desc">{cleanPrizeDescription(item)}</div>
           </div>
         </div>
@@ -638,7 +638,7 @@ function BiddingView({ state, code }) {
       <Caption icon={<Mic2 size={20} />} text={state.hostLine.text} />
       <div className="pir-bidding-prize">
         <ItemImage item={state.item} />
-        <div><span>ITEM UP FOR BID</span><h3>{state.item.name}</h3><p>{prizeSellerLine(state.item)}</p>{cleanPrizeDescription(state.item)&&<p className="pir-bidding-description">{cleanPrizeDescription(state.item)}</p>}</div>
+        <div><span>ITEM UP FOR BID</span><p className="pir-bidding-brand">{prizeSellerLine(state.item)}</p><h3>{state.item.name}</h3>{cleanPrizeDescription(state.item)&&<p className="pir-bidding-description">{cleanPrizeDescription(state.item)}</p>}</div>
       </div>
       <ContestantRow contestants={state.contestants}
         activeTurn={state.turn} code={code} showBids />

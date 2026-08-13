@@ -297,6 +297,69 @@ function cleanProductName(value) {
     .trim();
 }
 
+export function essentialProductName(value, category = "", brand = "") {
+  const clean = cleanProductName(value);
+  const withoutBrand = clean.replace(new RegExp(`^${String(brand || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s+`, "i"), "").trim();
+  const text = `${withoutBrand} ${category}`.toLowerCase();
+  const rules = [
+    [/\b(laptop|notebook|chromebook)\b/, "Laptop computer"],
+    [/\b(all-in-one|desktop computer|gaming desktop)\b/, "Desktop computer"],
+    [/\boled\b.*\b(tv|television)\b|\b(tv|television)\b.*\boled\b/, "OLED smart television"],
+    [/\bqled\b.*\b(tv|television)\b|\b(tv|television)\b.*\bqled\b/, "QLED smart television"],
+    [/\b(tv|television)\b/, "4K smart television"],
+    [/\bgaming monitor\b/, "Gaming monitor"],
+    [/\bmonitor\b/, "Computer monitor"],
+    [/\b(tablet|ipad)\b/, "Tablet"],
+    [/\b(smartphone|mobile phone|iphone)\b/, "Smartphone"],
+    [/\b(noise.?cancell?ing).*\bheadphones?\b|\bheadphones?\b.*\b(noise.?cancell?ing)\b/, "Noise-cancelling headphones"],
+    [/\bheadphones?\b/, "Wireless headphones"],
+    [/\bfrench.?door.*\brefrigerator\b/, "French-door refrigerator"],
+    [/\brefrigerator\b/, "Refrigerator"],
+    [/\bfront.?load.*\bwasher\b/, "Front-load washer"],
+    [/\bwasher\b/, "Washing machine"],
+    [/\bdryer\b/, "Clothes dryer"],
+    [/\bdishwasher\b/, "Dishwasher"],
+    [/\b(espresso|coffee) machine\b/, "Espresso machine"],
+    [/\bstand mixer\b/, "Stand mixer"],
+    [/\bcordless.*\bvacuum\b/, "Cordless vacuum"],
+    [/\brobot.*\bvacuum\b/, "Robot vacuum"],
+    [/\bsectional\b/, "Sectional sofa"],
+    [/\brecliner\b/, "Recliner"],
+    [/\bdining.*\bset\b/, "Dining room set"],
+    [/\bmattress\b/, "Mattress set"],
+    [/\b(short|long)[ -]?sleeve.*\b(shirt|top)\b|\b(shirt|top)\b/, "Shirt"],
+    [/\bhoodie\b/, "Hoodie"],
+    [/\bjacket\b/, "Jacket"],
+    [/\bdress\b/, "Dress"],
+    [/\b(boots?|shoes?|sneakers?)\b/, "Footwear"],
+  ];
+  const matched = rules.find(([pattern]) => pattern.test(text));
+  if (matched) return matched[1];
+  return withoutBrand
+    .replace(/\([^)]*(?:\d|colour|color|size)[^)]*\)/gi, " ")
+    .replace(/\s+(?:with|featuring|includes?)\s+.*$/i, "")
+    .replace(/[,;:].*$/, "")
+    .replace(/\s{2,}/g, " ")
+    .trim() || "Retail prize";
+}
+
+function productSpecificationDescription(rawName, briefName) {
+  const source = stripMarkup(rawName);
+  if (/laptop|notebook|chromebook/i.test(`${source} ${briefName}`)) {
+    const screen = source.match(/\b(\d{2}(?:\.\d+)?)\s*(?:["”]|in(?:ch(?:es)?)?\b)/i)?.[1];
+    const ram = source.match(/\b(\d+)\s*GB(?:\s+DDR\d?)?\s*(?:RAM|memory)\b/i)?.[1];
+    const storage = source.match(/\b(\d+(?:\.\d+)?)\s*(TB|GB)\s*(SSD|solid[ -]?state drive|hard drive|storage)\b/i);
+    const details = [screen ? `a ${screen}-inch display` : "", ram ? `${ram} GB of RAM` : "", storage ? `a ${storage[1]} ${storage[2].toUpperCase()} ${/ssd|solid/i.test(storage[3]) ? "solid-state drive" : "hard drive"}` : ""].filter(Boolean);
+    if (details.length) return `A laptop with ${details.length === 1 ? details[0] : `${details.slice(0, -1).join(", ")} and ${details.at(-1)}`}.`;
+  }
+  if (/\b(tv|television)\b/i.test(`${source} ${briefName}`)) {
+    const size = source.match(/\b(\d{2,3}(?:\.\d+)?)\s*(?:["”]|in(?:ch(?:es)?)?\b)/i)?.[1];
+    const features = [size ? `a ${size}-inch screen` : "", /\b8k\b/i.test(source) ? "8K resolution" : /\b4k\b/i.test(source) ? "4K resolution" : "", /\boled\b/i.test(source) ? "OLED display technology" : /\bqled\b/i.test(source) ? "QLED display technology" : ""].filter(Boolean);
+    if (features.length) return `A smart television with ${features.length === 1 ? features[0] : `${features.slice(0, -1).join(", ")} and ${features.at(-1)}`}.`;
+  }
+  return "";
+}
+
 function cleanSellerName(value, fallback = "a Canadian retailer") {
   const clean = cleanProductName(value);
   return clean || fallback;
@@ -384,18 +447,16 @@ function displayDescription(item) {
   const identityWords = `${item.brand || ""} ${item.name || ""}`.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter(Boolean);
   const subjectWords = subject?.[1].toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter(Boolean) || [];
   const conciseExisting = subject && subjectWords.length >= 2 && subjectWords.every(word => identityWords.includes(word)) ? subject[2] : existing;
-  const usefulExisting =
-    conciseExisting &&
-    conciseExisting.length >= 35 &&
-    !/^it'?s\s+/i.test(conciseExisting) &&
-    !/contestants?'? row|substantial|department|regular canadian retail price/i.test(conciseExisting);
-  const detail = usefulExisting
-    ? conciseExisting
-    : fallbackFeatureDetails(item.name || category, category);
+  const completeSentences = conciseExisting
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length >= 35 && sentence.length <= 210 && !/contestants?'? row|substantial|department|regular canadian retail price|shop now|learn more/i.test(sentence));
+  const detail = completeSentences.find((sentence) => /\d|with|features?|includes?|made|designed/i.test(sentence))
+    || completeSentences[0]
+    || fallbackFeatureDetails(item.name || category, category);
   const sentence = detail.replace(/^(?:sold by|from)\s+[^,.;—]+[,.;—]\s*/i, "").trim();
   const capitalized = sentence ? sentence[0].toUpperCase() + sentence.slice(1) : "";
-  return clipSpeechLine(`${capitalized.replace(/[.!?]+$/, "")}.`, 145)
-    .replace(/\.\.+$/g, ".");
+  return `${capitalized.replace(/[.!?]+$/, "")}.`.replace(/\.\.+$/g, ".");
 }
 
 function isDisplayReadyPrize(item) {
@@ -465,14 +526,16 @@ export function chooseShopifyRegularPrice(product) {
   return prices.length ? Math.min(...prices) : null;
 }
 
-function normalizeShopifyProduct(config, product) {
+export function normalizeShopifyProduct(config, product) {
   const regularPrice = chooseShopifyRegularPrice(product);
   if (!regularPrice || !product.handle || !product.title) return null;
 
   const image = product.images?.[0]?.src || product.image?.src || null;
   const brand = cleanSellerName(product.vendor, config.retailer);
-  const name = cleanProductName(product.title);
+  const rawName = cleanProductName(product.title);
   const category = cleanProductName(product.product_type) || "General merchandise";
+  const name = essentialProductName(rawName, category, brand);
+  const description = productSpecificationDescription(product.title, name) || displayDescription({ description: product.body_html, category, brand, retailer: config.retailer, name });
   if (!name) return null;
   const url = `${config.baseUrl}/products/${product.handle}`;
 
@@ -490,9 +553,9 @@ function normalizeShopifyProduct(config, product) {
     image,
     imageKind: "product",
     imageAlt: name,
-    description: displayDescription({ description: product.body_html, category, brand, retailer: config.retailer, name }),
+    description,
     category,
-    hostDescription: fullPrizeAnnouncement({ brand, name, description: product.body_html }),
+    hostDescription: fullPrizeAnnouncement({ brand, name, description }),
   };
 }
 
@@ -527,18 +590,21 @@ function isSuitableBestBuyProduct(product) {
   );
 }
 
-function normalizeBestBuyProduct(product) {
+export function normalizeBestBuyProduct(product) {
   if (!isSuitableBestBuyProduct(product)) return null;
   const regularPrice = asMoney(product.regularPrice);
-  const name = cleanProductName(product.name);
+  const rawName = cleanProductName(product.name);
+  const brand = cleanSellerName(product.manufacturer || product.brand || rawName.split(/\s+/)[0], "Best Buy");
+  const category = cleanProductName(product.categoryName) || "Electronics";
+  const name = essentialProductName(rawName, category, brand);
+  const description = productSpecificationDescription(product.name, name) || displayDescription({ description: product.shortDescription, category, brand, retailer: "Best Buy Canada", name });
   if (!name) return null;
   const url = new URL(product.productUrl, "https://www.bestbuy.ca").href;
-  const category = cleanProductName(product.categoryName) || "Electronics";
 
   return {
     id: `best-buy-${product.sku}`,
     name,
-    brand: name.split(/\s+/)[0] || "Best Buy",
+    brand,
     retailer: "Best Buy Canada",
     exactPrice: regularPrice,
     price: Math.round(regularPrice),
@@ -549,9 +615,9 @@ function normalizeBestBuyProduct(product) {
     image: product.highResImage || product.thumbnailImage || null,
     imageKind: "product",
     imageAlt: name,
-    description: displayDescription({ description: product.shortDescription, category, retailer: "Best Buy Canada", name }),
+    description,
     category,
-    hostDescription: fullPrizeAnnouncement({ brand: name.split(/\s+/)[0] || "Best Buy", name, description: product.shortDescription }),
+    hostDescription: fullPrizeAnnouncement({ brand, name, description }),
   };
 }
 

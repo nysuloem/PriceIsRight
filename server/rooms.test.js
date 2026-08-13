@@ -286,6 +286,26 @@ test("wheel controls remain locked until the spoken result is acknowledged",()=>
   assert.equal(room.showdown.stage,"decision");
 });
 
+test("the host invites an automatic third-place winner to spin for bonus money", () => {
+  const room = createRoom();
+  room.phase = "showcaseShowdown";
+  room.showdown = createShowdown(1, [
+    { id: "one", name: "One", totalWinnings: 1000 },
+    { id: "two", name: "Two", totalWinnings: 2000 },
+    { id: "three", name: "Three", totalWinnings: 3000 },
+  ]);
+  room.showdown.currentIndex = 2;
+  room.showdown.participants[0].status = "bust";
+  room.showdown.participants[1].status = "bust";
+  room.showdown.participants[2].status = "active";
+  room.showdown.stage = "announcing";
+  room.showdown.pendingStage = "automaticTurn";
+  acknowledgeWheelResult(room);
+  assert.equal(room.showdown.stage, "automaticTurn");
+  assert.match(room.hostLine.text, /automatically win/i);
+  assert.match(room.hostLine.text, /spin for a chance at bonus money/i);
+});
+
 test("a waiting human fills only the winner's podium and bids first",async()=>{
   const room=createRoom();
   room.phase="reveal";room.item={id:"round-prize",price:900};room.winnerIndices=[2];
