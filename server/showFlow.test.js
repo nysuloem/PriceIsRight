@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { advanceShowcase, createFinalShowcase, createShowdown, publicFinalShowcase, settleWheel, showcaseAction, wheelAction } from "./showFlow.js";
-import { resetTripBankForTests, tripBankStats } from "./showcasePrizes.js";
+import { configureTripBankStorageForTests, resetTripBankForTests, showcaseBankStats, tripBankStats } from "./showcasePrizes.js";
 import { prizeFamilyKey } from "./prizeIdentity.js";
 
 const players=[
@@ -97,14 +100,14 @@ test("Final Showcase supports bid or pass, two bids, reveal and double-showcase 
 
 test("Final Showcase trip prizes rotate out after use",()=>{
   resetTripBankForTests();
-  const first=createFinalShowcase([players[0],players[1]]);
-  const firstTrips=first.showcases.flatMap(showcase=>showcase.prizes.filter(prize=>prize.isTripPrize).map(prize=>prize.id));
-  const second=createFinalShowcase([players[0],players[1]]);
-  const secondTrips=second.showcases.flatMap(showcase=>showcase.prizes.filter(prize=>prize.isTripPrize).map(prize=>prize.id));
-  assert.ok(firstTrips.length);
-  assert.ok(secondTrips.length);
-  assert.equal(firstTrips.some(id=>secondTrips.includes(id)),false);
-  assert.ok(tripBankStats().used>=firstTrips.length+secondTrips.length);
+  const trips=[];
+  for(let game=0;game<4;game+=1){
+    const finalShowcase=createFinalShowcase([players[0],players[1]]);
+    trips.push(...finalShowcase.showcases.flatMap(showcase=>showcase.prizes.filter(prize=>prize.isTripPrize).map(prize=>prize.id)));
+  }
+  assert.ok(trips.length>=2);
+  assert.equal(new Set(trips).size,trips.length);
+  assert.ok(tripBankStats().used>=trips.length);
 });
 
 test("repeated Final Showcases replace every used prize family",()=>{
@@ -116,4 +119,43 @@ test("repeated Final Showcases replace every used prize family",()=>{
   }
   assert.equal(families.length,24);
   assert.equal(new Set(families).size,families.length);
+});
+
+test("a used complete Showcase is permanently replaced",()=>{
+  resetTripBankForTests();
+  const first=createFinalShowcase([players[0],players[1]]);
+  const firstIds=first.showcases.map(showcase=>showcase.id);
+  const second=createFinalShowcase([players[0],players[1]]);
+  const secondIds=second.showcases.map(showcase=>showcase.id);
+  assert.equal(firstIds.some(id=>secondIds.includes(id)),false);
+  assert.equal(showcaseBankStats().used,4);
+});
+
+test("the complete Showcase bank never recycles an exhausted package",()=>{
+  resetTripBankForTests();
+  const ids=[];
+  for(let game=0;game<12;game+=1){
+    ids.push(...createFinalShowcase([players[0],players[1]]).showcases.map(showcase=>showcase.id));
+  }
+  assert.equal(ids.length,24);
+  assert.equal(new Set(ids).size,24);
+  assert.deepEqual(showcaseBankStats(),{total:24,used:24,available:0,persistent:false});
+  assert.throws(()=>createFinalShowcase([players[0],players[1]]),/complete Showcase bank is exhausted/i);
+});
+
+test("complete Showcase retirement persists after a server reload",()=>{
+  const dir=mkdtempSync(path.join(tmpdir(),"pir-showcase-bank-")),file=path.join(dir,"bank.json");
+  try{
+    configureTripBankStorageForTests(file);
+    resetTripBankForTests({clearStorage:true});
+    const firstIds=createFinalShowcase([players[0],players[1]]).showcases.map(showcase=>showcase.id);
+    configureTripBankStorageForTests(file);
+    const secondIds=createFinalShowcase([players[0],players[1]]).showcases.map(showcase=>showcase.id);
+    assert.equal(firstIds.some(id=>secondIds.includes(id)),false);
+    assert.equal(showcaseBankStats().used,4);
+    assert.equal(showcaseBankStats().persistent,true);
+  }finally{
+    configureTripBankStorageForTests(null);
+    rmSync(dir,{recursive:true,force:true});
+  }
 });

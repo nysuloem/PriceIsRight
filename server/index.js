@@ -37,7 +37,7 @@ import { getTTS } from "./tts.js";
 import { getPrizePool, prizeBankStats } from "./prizeSource.js";
 import { getSmallPrizePool, smallPrizePoolStats } from "./smallPrizeSource.js";
 import { pricingPrizeBankStats } from "./pricingPrizeBank.js";
-import { tripBankStats } from "./showcasePrizes.js";
+import { showcaseBankStats, tripBankStats } from "./showcasePrizes.js";
 import { unifiedPrizeBankStats } from "./prizeBank.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -294,6 +294,7 @@ app.get("/api/prize-banks/status", (req, res) => {
     pricing: pricingPrizeBankStats(),
     smallItems: smallPrizePoolStats(),
     trips: tripBankStats(),
+    showcases: showcaseBankStats(),
   });
 });
 

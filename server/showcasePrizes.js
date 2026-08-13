@@ -153,6 +153,105 @@ THEMES.push(
   },
 );
 
+THEMES.push(
+  {
+    id:"remote-work",title:"WORK FROM ANYWHERE",intro:"Your office can be anywhere with every prize in this Showcase!",
+    prizes:[
+      {name:"Executive home office",brand:"Herman Miller Canada",description:"A sit-stand desk, ergonomic chair, oak storage and professional task lighting.",price:9840,image:"https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1000&q=85"},
+      {name:"Mobile technology collection",brand:"Apple",description:"A laptop, tablet, smartphone, noise-cancelling headphones and portable accessories.",price:8290,image:"https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=1000&q=85"},
+      TRIP_SLOT,
+    ],
+  },
+  {
+    id:"movie-night",title:"NOW SHOWING AT HOME",intro:"Roll out the red carpet for your own spectacular movie night!",
+    prizes:[
+      {name:"Luxury home theatre",brand:"Samsung",description:"A large OLED television, immersive sound system, media console and professional installation.",price:12350,image:"https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&w=1000&q=85"},
+      {name:"Reclining cinema suite",brand:"Palliser",description:"Six Canadian-made power recliners with tables, lighting and theatre-room décor.",price:14690,image:"https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1000&q=85"},
+      {name:"A year at the movies",brand:"Cineplex",description:"Premium movie passes, concession credits and special-event screenings for a full year.",price:4850,image:"https://images.unsplash.com/photo-1489185078527-777d350b2705?auto=format&fit=crop&w=1000&q=85"},
+    ],
+  },
+  {
+    id:"lake-life",title:"LIFE AT THE LAKE",intro:"Make every Canadian summer unforgettable with this lakeside Showcase!",
+    prizes:[
+      {name:"Pontoon boat",brand:"Princecraft",description:"A Canadian-built pontoon boat with outboard motor, trailer and marine safety package.",price:48990,image:"https://images.unsplash.com/photo-1540946485063-a40da27545f8?auto=format&fit=crop&w=1000&q=85"},
+      {name:"Floating dock system",brand:"CanadaDocks",description:"A modular aluminum dock with swim ladder, kayak rack and waterfront seating.",price:12840,image:"https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=1000&q=85"},
+      {name:"Cottage furniture collection",brand:"Muskoka Living",description:"Indoor and outdoor furniture, wool blankets, lanterns and cottage entertaining essentials.",price:8960,image:"https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1000&q=85"},
+    ],
+  },
+  {
+    id:"road-trip",title:"HIT THE OPEN ROAD",intro:"Pack your bags, because this entire Showcase was built for a Canadian road trip!",
+    prizes:[
+      {name:"Travel trailer",brand:"Grand Design",description:"A fully equipped travel trailer with kitchen, bathroom, sleeping space and climate control.",price:46950,image:"https://images.unsplash.com/photo-1533632359083-0185df1be85d?auto=format&fit=crop&w=1000&q=85"},
+      {name:"Premium camping collection",brand:"MEC",description:"A family tent, sleeping systems, camp kitchen, chairs and all-weather gear.",price:7380,image:"https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=1000&q=85"},
+      {name:"2026 Ford Bronco Sport",brand:"Ford Canada",description:"A new all-wheel-drive sport utility vehicle with flexible cargo space and trail-ready technology.",price:42995,image:"https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1000&q=85"},
+    ],
+  },
+  {
+    id:"creative",title:"CREATE SOMETHING AMAZING",intro:"Paint, photograph and design your next masterpiece with this creative Showcase!",
+    prizes:[
+      {name:"Professional art studio",brand:"DeSerres",description:"Easels, artist paints, printmaking tools, worktables, storage and professional lighting.",price:6890,image:"https://images.unsplash.com/photo-1549490349-8643362247b5?auto=format&fit=crop&w=1000&q=85"},
+      {name:"Photography and editing collection",brand:"Henry's",description:"A mirrorless camera, lenses, studio lights, tripod and high-resolution editing workstation.",price:14980,image:"https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1000&q=85"},
+      TRIP_SLOT,
+    ],
+  },
+  {
+    id:"coffee",title:"A PERFECT MORNING",intro:"Wake up to coffee, brunch and one unforgettable getaway!",
+    prizes:[
+      {name:"Home espresso bar",brand:"Breville",description:"A premium espresso machine, grinder, milk system, bar cabinet and Canadian-roasted coffee.",price:6790,image:"https://images.unsplash.com/photo-1511081692775-05d0f180a065?auto=format&fit=crop&w=1000&q=85"},
+      {name:"Brunch dining collection",brand:"EQ3",description:"A Canadian-designed dining table, six chairs, bar cart, dinnerware and linens.",price:8240,image:"https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=1000&q=85"},
+      TRIP_SLOT,
+    ],
+  },
+  {
+    id:"eco-home",title:"A GREENER TOMORROW",intro:"Save energy and travel electric with this forward-looking Showcase!",
+    prizes:[
+      {name:"Rooftop solar system",brand:"Solar X",description:"A professionally installed home solar array with battery storage and energy monitoring.",price:28950,image:"https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?auto=format&fit=crop&w=1000&q=85"},
+      {name:"Cold-climate heat pump",brand:"Mitsubishi Electric",description:"A high-efficiency whole-home heat pump with smart controls and professional installation.",price:17480,image:"https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=1000&q=85"},
+      {name:"2026 Chevrolet Equinox electric SUV",brand:"Chevrolet Canada",description:"A new electric sport utility vehicle with long-range driving and home charging equipment.",price:54995,image:"https://images.unsplash.com/photo-1593941707882-a5bba14938c7?auto=format&fit=crop&w=1000&q=85"},
+    ],
+  },
+  {
+    id:"sports-fan",title:"THE ULTIMATE SPORTS FAN",intro:"Cheer, play and travel with this all-star sports Showcase!",
+    prizes:[
+      {name:"Canadian sports ticket collection",brand:"Ticketmaster Canada",description:"Premium season-ticket packages for hockey, baseball, basketball and Canadian football.",price:18500,image:"https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=1000&q=85"},
+      {name:"Indoor sports simulator",brand:"Golfzon",description:"A high-definition golf and multisport simulator with projector, screen and installation.",price:24650,image:"https://images.unsplash.com/photo-1535131749006-b7f58c99034b?auto=format&fit=crop&w=1000&q=85"},
+      TRIP_SLOT,
+    ],
+  },
+  {
+    id:"sleep",title:"SWEET DREAMS",intro:"Rest, relax and wake refreshed with this luxurious Showcase!",
+    prizes:[
+      {name:"Canadian-made bedroom suite",brand:"Durham Furniture",description:"A solid-wood king bed, nightstands, dresser, wardrobe and upholstered bench.",price:14980,image:"https://images.unsplash.com/photo-1617325247661-675ab4b64ae2?auto=format&fit=crop&w=1000&q=85"},
+      {name:"Luxury sleep system",brand:"Endy",description:"A Canadian mattress, adjustable base, premium pillows, duvet, sheets and weighted blanket.",price:7340,image:"https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1000&q=85"},
+      TRIP_SLOT,
+    ],
+  },
+  {
+    id:"workshop",title:"BUILD IT YOURSELF",intro:"Bring your biggest projects to life with this complete workshop Showcase!",
+    prizes:[
+      {name:"Professional woodworking shop",brand:"DeWalt",description:"Cabinet saw, mitre saw, planer, dust collection, hand tools and safety equipment.",price:16890,image:"https://images.unsplash.com/photo-1581166397057-235af2b3c6dd?auto=format&fit=crop&w=1000&q=85"},
+      {name:"Digital fabrication studio",brand:"Prusa",description:"Two 3D printers, a laser cutter, computers, materials and ventilation equipment.",price:12750,image:"https://images.unsplash.com/photo-1581092160562-40aa08e78837?auto=format&fit=crop&w=1000&q=85"},
+      {name:"Garage organization system",brand:"Husky",description:"Rolling tool cabinets, workbenches, wall storage, lighting and durable garage flooring.",price:9460,image:"https://images.unsplash.com/photo-1530124566582-a618bc2615dc?auto=format&fit=crop&w=1000&q=85"},
+    ],
+  },
+  {
+    id:"pets",title:"PAMPER YOUR PETS",intro:"Your four-legged family members are the stars of this Showcase!",
+    prizes:[
+      {name:"Designer pet room",brand:"Rolf C. Hagen",description:"Custom pet furniture, beds, feeding stations, storage and indoor play equipment.",price:6890,image:"https://images.unsplash.com/photo-1450778869180-41d0601e046e?auto=format&fit=crop&w=1000&q=85"},
+      {name:"A year of premium pet care",brand:"PetSmart Canada",description:"Food, grooming, training, veterinary wellness visits and toys for a full year.",price:8950,image:"https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=1000&q=85"},
+      {name:"Pet-friendly backyard",brand:"RONA",description:"Secure fencing, artificial turf, shade structures, splash pool and professional landscaping.",price:13980,image:"https://images.unsplash.com/photo-1558788353-f76d92427f16?auto=format&fit=crop&w=1000&q=85"},
+    ],
+  },
+  {
+    id:"celebration",title:"LET'S CELEBRATE",intro:"Invite everyone you know, because this Showcase is one enormous celebration!",
+    prizes:[
+      {name:"Backyard party pavilion",brand:"Toja Grid",description:"A modern pergola, outdoor kitchen, dining furniture, heaters and professional installation.",price:18980,image:"https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=1000&q=85"},
+      {name:"Professional party package",brand:"Long & McQuade",description:"A sound system, dance lighting, karaoke equipment, event tent and catering credit.",price:11450,image:"https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1000&q=85"},
+      TRIP_SLOT,
+    ],
+  },
+);
+
 // These are replacements, not variants of the theme prizes. Once any prize is
 // shown, its exact identity and broader family are retired across the whole app.
 const SHOWCASE_REPLACEMENTS = [
@@ -177,6 +276,7 @@ const SHOWCASE_REPLACEMENTS = [
 ].map(([name, brand, description, price, image], index) => ({ id: `showcase-replacement-${index + 1}`, name, brand, retailer: brand, description, price, image, imageAlt: name }));
 
 const shuffle=(a)=>{const c=[...a];for(let i=c.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[c[i],c[j]]=[c[j],c[i]];}return c;};
+const showcaseThemeKey=showcase=>`showcase-theme-${showcase.id}`;
 
 function takeFreshTrip(){
   const retired=retiredKeys("trips");
@@ -201,16 +301,28 @@ function fillShowcasePrize(prize){
 }
 
 export function createShowcases(){
-  return shuffle(THEMES).slice(0,2).map(showcase=>{
+  const retiredThemes=retiredKeys("showcaseThemes");
+  const availableThemes=THEMES.filter(showcase=>!retiredThemes.exact.has(showcaseThemeKey(showcase)));
+  if(availableThemes.length<2)throw new Error("The complete Showcase bank is exhausted; add two entirely new Showcase packages before continuing.");
+  const selected=shuffle(availableThemes).slice(0,2);
+  const filled=selected.map(showcase=>{
     const prizes=showcase.prizes.map(fillShowcasePrize);
     return {...showcase,prizes,actualPrice:prizes.reduce((total,prize)=>total+prize.price,0)};
   });
+  retireKeys("showcaseThemes",{exact:selected.map(showcaseThemeKey)});
+  return filled;
 }
 
 export function tripBankStats(){
   const retired=retiredKeys("trips");
   const used=TRIP_PRIZES.filter(trip=>retired.exact.has(exactPrizeKey(trip))||retired.families.has(prizeFamilyKey(trip))).length;
   return {total:TRIP_PRIZES.length,used,persistent:unifiedPrizeBankStats().persistent};
+}
+
+export function showcaseBankStats(){
+  const retired=retiredKeys("showcaseThemes");
+  const used=THEMES.filter(showcase=>retired.exact.has(showcaseThemeKey(showcase))).length;
+  return {total:THEMES.length,used,available:THEMES.length-used,persistent:unifiedPrizeBankStats().persistent};
 }
 
 export function resetTripBankForTests(options={}){
