@@ -506,13 +506,12 @@ function EndCredits({state,config}){
 }
 
 function prizeSellerLine(item){
-  const brand=(item?.brand||"").trim(),retailer=(item?.retailer||"").trim();
-  if(brand&&retailer&&brand.toLowerCase()!==retailer.toLowerCase())return `${brand} · ${retailer}`;
-  return brand||retailer||"";
+  return (item?.brand||"").trim();
 }
 
 function cleanPrizeDescription(item){
   return String(item?.description||item?.hostDescription||"")
+    .replace(/^(?:(?:sold by|available (?:from|at)|from)\s+[^,.;—]+[,.;—]\s*)+/i,"")
     .replace(/^From\s+[^—]+—\s*/i,"")
     .replace(/^From\s+[^,]+,\s*/i,"")
     .replace(/^From\s+[^.]+?\.\s*/i,"")

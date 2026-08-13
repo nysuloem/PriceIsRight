@@ -28,8 +28,15 @@ function normalize(config,product){
   if(!product?.id||!product.handle||!product.title||/\b(gift card|e-?gift|digital|subscription|deposit|replacement part)\b/.test(text))return null;
   const variants=(product.variants||[]).filter(variant=>variant.available!==false),eligible=(variants.length?variants:product.variants||[]).map(variant=>({variant,price:regularPrice(variant)})).filter(row=>inRange(row.price)).sort((a,b)=>a.price-b.price);
   if(!eligible.length)return null;
-  const {variant,price}=eligible[0],baseName=clean(product.title),variantName=clean(variant.title),name=variantName&&variantName.toLowerCase()!=="default title"?`${baseName} — ${variantName}`:baseName,brand=clean(product.vendor)||config.retailer,image=product.images?.[0]?.src||product.image?.src||null,description=clean(product.body_html).slice(0,190);
-  return {id:`${slug(config.retailer)}-${product.id}-${variant.id||slug(variantName)}`,name,brand,retailer:config.retailer,exactPrice:price,price,roundedPrice:Math.round(price),priceIsLive:true,priceKind:"regular",currency:"CAD",url:`${config.baseUrl}/products/${product.handle}`,image,imageAlt:name,category:clean(product.product_type)||config.category,description,hostDescription:description?`From ${config.retailer} — ${name}! ${description}`:`From ${config.retailer} — ${name}!`};
+  const {variant,price}=eligible[0],variantName=clean(variant.title),brand=clean(product.vendor)||config.retailer;
+  const escapedBrand=brand.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+  const name=clean(product.title)
+    .replace(/\b(?:model|sku|item|article|part|product code)\s*[:#]?\s*[A-Z0-9][A-Z0-9-]{3,}\b/gi," ")
+    .replace(/\b(?=[A-Z0-9-]{6,}\b)(?=[A-Z0-9-]*[A-Z])(?=[A-Z0-9-]*\d)[A-Z0-9]+(?:-[A-Z0-9]+)*\b/g," ")
+    .replace(/\bAmuseables?\b/gi," ").replace(new RegExp(`^${escapedBrand}\\s+`,"i"),"").replace(/\s{2,}/g," ").trim();
+  const image=product.images?.[0]?.src||product.image?.src||null;
+  const description=clean(product.body_html).replace(/^(?:(?:sold by|available (?:from|at)|from)\s+[^,.;—]+[,.;—]\s*)+/i,"").split(/(?<=[.!?])\s+/)[0].slice(0,145);
+  return {id:`${slug(config.retailer)}-${product.id}-${variant.id||slug(variantName)}`,name,brand,retailer:config.retailer,exactPrice:price,price,roundedPrice:Math.round(price),priceIsLive:true,priceKind:"regular",currency:"CAD",url:`${config.baseUrl}/products/${product.handle}`,image,imageAlt:name,category:clean(product.product_type)||config.category,description,hostDescription:description};
 }
 async function fetchRetailer(config){
   const items=[],seen=new Set();

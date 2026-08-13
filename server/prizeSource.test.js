@@ -6,6 +6,7 @@ import path from "node:path";
 import {
   configurePrizeBankStorageForTests,
   getPrizePool,
+  normalizePrizePresentation,
   prizeBankStats,
   prizeCategory,
   prizeFamily,
@@ -18,18 +19,35 @@ test("similar shirts collapse into the same bidding family", () => {
   const b = { name: "Women's Red Toronto Tee", category: "Clothing" };
   assert.equal(prizeFamily(a), "t-shirt");
   assert.equal(prizeFamily(b), "t-shirt");
-  assert.equal(prizeCategory(a), "Apparel");
+  assert.equal(prizeCategory(a), "Clothing");
 });
 
-test("the fallback bidding bank has 200+ genuinely distinct Canadian families", async () => {
+test("the fallback bidding bank has 150+ genuinely distinct Canadian families", async () => {
   resetPrizeBankForTests();
   const pool = await getPrizePool();
   const retailers = new Set(pool.map((item) => item.retailer));
-  assert.ok(pool.length >= 200);
+  assert.ok(pool.length >= 150);
   assert.equal(new Set(pool.map(prizeFamily)).size, pool.length);
   assert.ok(retailers.has("The Brick"));
   assert.ok(retailers.has("Leon's"));
   assert.ok(retailers.has("RONA"));
+  for (const category of ["Clothing", "Appliances", "Jewellery", "Recreation", "Electronics", "Furniture"]) {
+    assert.ok(pool.filter(item => item.bidCategory === category).length >= 10, `${category} needs at least ten fresh families`);
+  }
+});
+
+test("prize presentation keeps only brand, clean name and concise copy", () => {
+  const item = normalizePrizePresentation({
+    name: "Amuseables Peanut Cat Plush Toy SKU JEL12345",
+    brand: "Jellycat",
+    retailer: "Snuggle Bugz",
+    category: "Toys",
+    description: "sold by Snuggle Bugz, sold by Snuggle Bugz, The Jellycat Amuseables Peanut Cat is a playful plush featuring everyone's favourite peanut!",
+  });
+  assert.equal(item.brand, "Jellycat");
+  assert.equal(item.name, "Peanut Cat Plush Toy");
+  assert.equal(item.description, "A playful plush featuring everyone's favourite peanut.");
+  assert.doesNotMatch(`${item.name} ${item.description}`, /Snuggle Bugz|SKU|JEL12345|Amuseables/i);
 });
 
 test("fallback bidding prizes are display-ready with photos and useful copy", async () => {
@@ -59,7 +77,7 @@ test("a used bidding prize leaves the available bank permanently", async () => {
 test("retiring a generated prize removes its whole semantic family", async () => {
   resetPrizeBankForTests();
   const before = await getPrizePool();
-  const used = before.find((item) => item.retailer === "The Brick" && /home office desk/i.test(item.name));
+  const used = before.find((item) => /home office desk/i.test(item.name));
   assert.ok(used);
   const family = prizeFamily(used);
   assert.equal(retirePrize(used.id), true);

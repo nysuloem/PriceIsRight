@@ -50,6 +50,18 @@ test("Grocery Game has a grand prize and awards its actual value",()=>{
   assert.equal(g.winnings,g._bonusPrice);
 });
 
+test("grocery games use familiar national brands instead of boutique feed items",()=>{
+  const boutique={id:"boutique",name:"Organic einkorn cake mix",brand:"Tiny Farm Pantry",description:"A niche organic cake mix.",price:5.49,image:"https://example.com/cake.jpg"};
+  const seen=new Set();
+  for(let attempt=0;attempt<80;attempt+=1){
+    const game=createPricingGameForType("groceryGame",player,[],[boutique]);
+    game.items.forEach(item=>seen.add(`${item.brand} ${item.name}`));
+    assert.equal(game.items.some(item=>item.brand===boutique.brand),false);
+  }
+  assert.ok([...seen].some(item=>/^Heinz Tomato Ketchup$/i.test(item)));
+  assert.ok([...seen].some(item=>/^Janes Pub Style Chicken Strips$/i.test(item)));
+});
+
 test("all pricing game engines can reach a result", () => {
   let g = createPricingGameForType("plinko", player); while(g.stage === "qualify") { playPricingGame(g,{choice:g._qualifierCorrect[g.qualifierIndex]}); g.pendingPrizeAnnouncement=null; } while(g.status === "playing") { playPricingGame(g,{position:5}); settlePricingAnimation(g); } assert.notEqual(g.status,"playing");
   g = createPricingGameForType("cliffHangers", player); for (const price of [...g._prices]) { playPricingGame(g,{value:price}); settlePricingAnimation(g); clearDeferredPrice(g); } assert.equal(g.status,"won");

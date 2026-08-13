@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { advanceShowcase, createFinalShowcase, createShowdown, publicFinalShowcase, settleWheel, showcaseAction, wheelAction } from "./showFlow.js";
 import { resetTripBankForTests, tripBankStats } from "./showcasePrizes.js";
+import { prizeFamilyKey } from "./prizeIdentity.js";
 
 const players=[
   {id:"a",name:"Alice",totalWinnings:1200,isAI:false},
@@ -104,4 +105,15 @@ test("Final Showcase trip prizes rotate out after use",()=>{
   assert.ok(secondTrips.length);
   assert.equal(firstTrips.some(id=>secondTrips.includes(id)),false);
   assert.ok(tripBankStats().used>=firstTrips.length+secondTrips.length);
+});
+
+test("repeated Final Showcases replace every used prize family",()=>{
+  resetTripBankForTests();
+  const families=[];
+  for(let show=0;show<4;show+=1){
+    const game=createFinalShowcase([players[0],players[1]]);
+    families.push(...game.showcases.flatMap(showcase=>showcase.prizes.map(prizeFamilyKey)));
+  }
+  assert.equal(families.length,24);
+  assert.equal(new Set(families).size,families.length);
 });

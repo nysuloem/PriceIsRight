@@ -102,6 +102,57 @@ const THEMES = [
   },
 ];
 
+THEMES.push(
+  {
+    id:"music",title:"MAKE SOME NOISE",intro:"This showcase has everything you need to fill your home with music!",
+    prizes:[
+      {name:"Digital piano collection",brand:"Yamaha",description:"A weighted-key digital piano with bench, headphones and home delivery.",price:5890,image:"https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?auto=format&fit=crop&w=1000&q=85"},
+      {name:"Home recording studio",brand:"Long & McQuade",description:"Guitars, microphones, studio monitors, recording software and an acoustic treatment package.",price:7640,image:"https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=1000&q=85"},
+      TRIP_SLOT,
+    ],
+  },
+  {
+    id:"connected",title:"FULLY CONNECTED",intro:"Every prize in this showcase puts smart technology at your fingertips!",
+    prizes:[
+      {name:"Premium gaming room",brand:"Best Buy Canada",description:"A gaming computer, OLED monitor, surround headset, desk and ergonomic chair.",price:10980,image:"https://images.unsplash.com/photo-1598550476439-6847785fcea6?auto=format&fit=crop&w=1000&q=85"},
+      {name:"Whole-home smart package",brand:"Google Nest",description:"Smart displays, cameras, doorbells, thermostats and mesh Wi-Fi for every room.",price:6845,image:"https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=1000&q=85"},
+      {name:"2026 Hyundai Ioniq electric crossover",brand:"Hyundai Canada",description:"A new electric crossover with fast charging, a spacious cabin and advanced safety technology.",price:58995,image:"https://images.unsplash.com/photo-1593941707882-a5bba14938c7?auto=format&fit=crop&w=1000&q=85"},
+    ],
+  },
+  {
+    id:"garden",title:"GROW YOUR OWN",intro:"This showcase will turn your backyard into a four-season garden retreat!",
+    prizes:[
+      {name:"Cedar greenhouse",brand:"BC Greenhouse Builders",description:"A Canadian-built greenhouse with raised beds, automatic vents and irrigation.",price:12950,image:"https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=1000&q=85"},
+      {name:"Battery lawn-care collection",brand:"EGO",description:"A mower, snow blower, trimmer, leaf blower and interchangeable battery system.",price:6240,image:"https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=1000&q=85"},
+      TRIP_SLOT,
+    ],
+  },
+  {
+    id:"family",title:"FAMILY FUN FOR EVERYONE",intro:"Bring everyone together with this showcase full of family adventures!",
+    prizes:[
+      {name:"Deluxe games room",brand:"Palason",description:"A pool table, shuffleboard, arcade cabinet, dartboard and pub-style furniture.",price:11290,image:"https://images.unsplash.com/photo-1511882150382-421056c89033?auto=format&fit=crop&w=1000&q=85"},
+      TRIP_SLOT,
+      {name:"2026 Kia Carnival",brand:"Kia Canada",description:"A new family vehicle with three rows of seating, power doors and modern driver assistance.",price:49995,image:"https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1000&q=85"},
+    ],
+  },
+  {
+    id:"wellness",title:"YOUR WELLNESS RETREAT",intro:"Relax, recharge and feel your best with every prize in this showcase!",
+    prizes:[
+      {name:"Canadian cedar sauna",brand:"Dundalk LeisureCraft",description:"A Canadian-made outdoor sauna with heater, lighting, robes and professional installation.",price:13980,image:"https://images.unsplash.com/photo-1583416750470-965b2707b355?auto=format&fit=crop&w=1000&q=85"},
+      {name:"Complete home gym",brand:"Northern Fitness",description:"A treadmill, smart rower, power rack, weights, flooring and recovery equipment.",price:15740,image:"https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1000&q=85"},
+      TRIP_SLOT,
+    ],
+  },
+  {
+    id:"chef",title:"A CANADIAN KITCHEN",intro:"Cook, entertain and dine in style with this delicious showcase!",
+    prizes:[
+      {name:"Professional appliance suite",brand:"Bosch",description:"A refrigerator, induction range, dishwasher and built-in microwave with installation.",price:14890,image:"https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=1000&q=85"},
+      {name:"Chef's cookware and pantry",brand:"The Bay",description:"Premium cookware, knives, small appliances, dinnerware and a stocked Canadian pantry.",price:7180,image:"https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1000&q=85"},
+      TRIP_SLOT,
+    ],
+  },
+);
+
 // These are replacements, not variants of the theme prizes. Once any prize is
 // shown, its exact identity and broader family are retired across the whole app.
 const SHOWCASE_REPLACEMENTS = [

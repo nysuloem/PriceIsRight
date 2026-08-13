@@ -16,6 +16,8 @@ const MAX_PLAYERS = 8;   // how many humans can join
 const DICE_AUTO_REVEAL_DELAY_MS = 1600;
 const CAR_FIRST_GAMES = new Set(["diceGame", "oneAway", "anyNumber", "moneyGame", "luckySeven", "threeStrikes", "tenChances"]);
 const recentPricingPrizeNames=[];
+export const BIDDING_CATEGORY_SCHEDULE = ["Clothing", "Appliances", "Jewellery", "Recreation", "Electronics", "Furniture"];
+export const biddingCategoryForRound = round => BIDDING_CATEGORY_SCHEDULE[Math.max(0, Number(round) || 0) % BIDDING_CATEGORY_SCHEDULE.length];
 export function makePricingGameSchedule(random=Math.random){const schedule=Array(6).fill("nonCar");schedule[Math.floor(random()*3)]="car";schedule[3+Math.floor(random()*3)]="car";return schedule;}
 function rememberPricingPrizes(names){for(const name of names){const old=recentPricingPrizeNames.indexOf(name);if(old>=0)recentPricingPrizeNames.splice(old,1);recentPricingPrizeNames.push(name);}if(recentPricingPrizeNames.length>240)recentPricingPrizeNames.splice(0,recentPricingPrizeNames.length-240);}
 
@@ -184,11 +186,9 @@ async function selectFreshPrize(room) {
   }
   const newFamilies = unused.filter(item => !room.usedPrizeFamilies.includes(item.prizeFamily));
   if (newFamilies.length) unused = newFamilies;
-  // Prefer the least-used category in this room, which prevents a run of
-  // apparel even when retailer feeds contain many clothing products.
-  const minimum = Math.min(...unused.map(item => room.prizeCategoryCounts[item.bidCategory] || 0));
-  const balanced = unused.filter(item => (room.prizeCategoryCounts[item.bidCategory] || 0) === minimum);
-  const candidates = balanced.length ? balanced : unused;
+  const requiredCategory = biddingCategoryForRound(room.completedRounds);
+  const candidates = unused.filter(item => item.bidCategory === requiredCategory);
+  if (!candidates.length) throw new Error(`The ${requiredCategory} bidding bank is empty; used prizes will not be recycled.`);
   const livePhotoCandidates = candidates.filter(item => item.priceIsLive && item.image && item.imageKind !== "representative");
   const item = pickRandomItem(livePhotoCandidates.length >= 8 ? livePhotoCandidates : candidates);
   if (!item) throw new Error("No prizes are currently available");

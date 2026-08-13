@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { acknowledgeWheelResult, advance, advanceShowcasePresentation, beginPricingGame, continuePricingPrice, createPricingGameDemo, createRoom, joinRoom, kissHost, makePricingGameSchedule, nextTurn, pricingGameAction, publicState, restart, revealPricingPrice, revealReplacement, settlePricingGame, settleWheelGame, submitBid, wheelGameAction } from "./rooms.js";
+import { BIDDING_CATEGORY_SCHEDULE, acknowledgeWheelResult, advance, advanceShowcasePresentation, beginPricingGame, biddingCategoryForRound, continuePricingPrice, createPricingGameDemo, createRoom, joinRoom, kissHost, makePricingGameSchedule, nextTurn, pricingGameAction, publicState, restart, revealPricingPrice, revealReplacement, settlePricingGame, settleWheelGame, submitBid, wheelGameAction } from "./rooms.js";
 import { createShowdown } from "./showFlow.js";
 import { createPricingGameForType, playPricingGame } from "./pricingGames.js";
 
@@ -12,6 +12,12 @@ test("each half schedules exactly one car game and two non-car games",()=>{
     assert.equal(schedule.slice(3,6).filter(type=>type==="car").length,1);
     assert.equal(schedule.slice(3,6).filter(type=>type==="nonCar").length,2);
   }
+});
+
+test("the six bidding rounds visit six different prize departments",()=>{
+  assert.deepEqual(BIDDING_CATEGORY_SCHEDULE,["Clothing","Appliances","Jewellery","Recreation","Electronics","Furniture"]);
+  assert.deepEqual(Array.from({length:6},(_,round)=>biddingCategoryForRound(round)),BIDDING_CATEGORY_SCHEDULE);
+  assert.equal(new Set(BIDDING_CATEGORY_SCHEDULE).size,6);
 });
 
 test("pricing game demos wait for a phone, introduce the game, then unlock controls", () => {

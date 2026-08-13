@@ -99,13 +99,6 @@ const CURATED_FALLBACKS = [
 // Large static fallback catalogue inspired by Canadian brick-and-mortar retail.
 // These are not live offers; they keep Contestants' Row varied when public
 // product feeds are slow or temporarily unavailable.
-const CANADIAN_RETAILER_VARIANTS = [
-  ["Classic", 0],
-  ["Deluxe", 0.12],
-  ["Premium", 0.24],
-  ["Compact", -0.1],
-];
-
 const CANADIAN_RETAILER_PRIZE_BLUEPRINTS = [
   { retailers: ["The Brick", "Leon's"], category: "Furniture", items: [
     ["fabric sofa", 1199], ["leather recliner", 899], ["sectional sofa", 2299],
@@ -142,6 +135,65 @@ const CANADIAN_RETAILER_PRIZE_BLUEPRINTS = [
     ["espresso machine", 799], ["stand mixer", 549], ["air fryer oven", 279],
     ["cookware set", 399], ["countertop ice maker", 249], ["food processor", 219],
   ] },
+];
+
+// Contestants' Row needs six recognizably different departments, not colour or
+// trim variants of the same product. These records are deliberately one item
+// per product family and use the manufacturer as the brand.
+const SIX_ROUND_PRIZE_CATALOG = [
+  ["Clothing", "Roots", "Cabin fleece hoodie", "A warm cotton-fleece hoodie with a soft brushed interior.", 98, "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=900&q=80"],
+  ["Clothing", "Canada Goose", "Down vest", "A lightweight insulated vest designed for cool Canadian weather.", 595, "https://images.unsplash.com/photo-1548883354-7622d03aca27?auto=format&fit=crop&w=900&q=80"],
+  ["Clothing", "Lululemon", "Training jacket", "A breathable zip-front jacket for workouts and everyday wear.", 168, "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=900&q=80"],
+  ["Clothing", "Arc'teryx", "Waterproof shell", "A weatherproof shell jacket with an adjustable hood.", 500, "https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?auto=format&fit=crop&w=900&q=80"],
+  ["Clothing", "Levi's", "Denim jacket", "A classic trucker-style denim jacket with button pockets.", 129, "https://images.unsplash.com/photo-1523205771623-e0faa4d2813d?auto=format&fit=crop&w=900&q=80"],
+  ["Clothing", "Columbia", "Winter parka", "An insulated parka with a water-resistant outer shell.", 279, "https://images.unsplash.com/photo-1539533018447-63fcce2678e3?auto=format&fit=crop&w=900&q=80"],
+  ["Clothing", "RW&CO", "Tailored suit", "A coordinated tailored suit with professional fitting.", 498, "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=900&q=80"],
+  ["Clothing", "Reitmans", "Wrap dress", "A versatile wrap dress with a softly draped silhouette.", 90, "https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=900&q=80"],
+  ["Clothing", "Simons", "Dress shirt collection", "Four crisp cotton dress shirts in classic colours.", 240, "https://images.unsplash.com/photo-1603252109303-2751441dd157?auto=format&fit=crop&w=900&q=80"],
+  ["Clothing", "Aritzia", "Wool skirt", "A tailored wool skirt with a clean, modern cut.", 148, "https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?auto=format&fit=crop&w=900&q=80"],
+  ["Clothing", "Blundstone", "Chelsea boots", "A durable pair of leather pull-on boots for year-round wear.", 265, "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=80"],
+  ["Clothing", "Nike", "Running shoes", "Lightweight cushioned running shoes for everyday training.", 190, "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=80"],
+  ["Clothing", "SAXX", "Underwear collection", "A collection of comfortable Canadian-designed everyday underwear.", 180, "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?auto=format&fit=crop&w=900&q=80"],
+  ["Clothing", "Smartwool", "Merino sock collection", "Six pairs of soft merino-wool socks for work and outdoor wear.", 168, "https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?auto=format&fit=crop&w=900&q=80"],
+  ["Clothing", "Joe Fresh", "Cotton pyjama set", "A comfortable cotton sleepwear set with matching robe.", 75, "https://images.unsplash.com/photo-1617952385804-7b31f8c2e7e2?auto=format&fit=crop&w=900&q=80"],
+  ["Clothing", "Adidas", "Track suit", "A coordinated zip jacket and athletic pant set.", 180, "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&w=900&q=80"],
+  ["Clothing", "The Bay", "Plush bathrobe", "A soft cotton bathrobe with deep pockets and a shawl collar.", 110, "https://images.unsplash.com/photo-1618220179428-22790b461013?auto=format&fit=crop&w=900&q=80"],
+  ["Appliances", "KitchenAid", "Stand mixer", "A tilt-head stand mixer with a stainless-steel bowl and attachments.", 549, "https://images.unsplash.com/photo-1594385208974-2e75f8d7bb48?auto=format&fit=crop&w=900&q=80"],
+  ["Appliances", "Dyson", "Cordless vacuum", "A powerful cordless vacuum with whole-machine filtration.", 799, "https://images.unsplash.com/photo-1558317374-067fb5f30001?auto=format&fit=crop&w=900&q=80"],
+  ["Appliances", "Breville", "Espresso machine", "A stainless-steel espresso machine with an integrated steam wand.", 899, "https://images.unsplash.com/photo-1517668808822-9ebb02f2a0e6?auto=format&fit=crop&w=900&q=80"],
+  ["Appliances", "Samsung", "Front-load washer", "A high-capacity washer with steam cycles and smart controls.", 1099, "https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&w=900&q=80"],
+  ["Appliances", "LG", "French-door refrigerator", "A spacious refrigerator with adjustable shelves and a bottom freezer.", 2499, "https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?auto=format&fit=crop&w=900&q=80"],
+  ["Appliances", "Instant Pot", "Multi-cooker", "A large pressure cooker with slow-cook, steam and sauté settings.", 159, "https://images.unsplash.com/photo-1585515320310-259814833e62?auto=format&fit=crop&w=900&q=80"],
+  ["Jewellery", "Birks", "Sterling silver necklace", "A polished sterling silver pendant on a fine chain.", 395, "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=900&q=80"],
+  ["Jewellery", "Mejuri", "Gold hoop earrings", "A pair of polished gold hoops for everyday wear.", 248, "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=900&q=80"],
+  ["Jewellery", "Pandora", "Charm bracelet", "A sterling silver bracelet with a collection of Canadian-themed charms.", 310, "https://images.unsplash.com/photo-1573408301185-9146fe634ad0?auto=format&fit=crop&w=900&q=80"],
+  ["Jewellery", "Swarovski", "Crystal tennis bracelet", "A rhodium-finished bracelet set with a continuous row of crystals.", 280, "https://images.unsplash.com/photo-1617038260897-41a1f14a8ca0?auto=format&fit=crop&w=900&q=80"],
+  ["Jewellery", "Tissot", "Classic wristwatch", "A Swiss-made stainless-steel watch with a leather strap.", 575, "https://images.unsplash.com/photo-1524592094714-0f0654e20314?auto=format&fit=crop&w=900&q=80"],
+  ["Jewellery", "Peoples", "Diamond stud earrings", "A matched pair of round diamond studs in white gold.", 699, "https://images.unsplash.com/photo-1535556116002-6281ff3e9f36?auto=format&fit=crop&w=900&q=80"],
+  ["Jewellery", "Birks", "Pearl ring", "A luminous cultured pearl set in polished sterling silver.", 450, "https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=900&q=80"],
+  ["Jewellery", "Mejuri", "Gold bangle", "A slender polished gold bangle for everyday wear.", 398, "https://images.unsplash.com/photo-1611652022419-a9419f74343d?auto=format&fit=crop&w=900&q=80"],
+  ["Jewellery", "Pandora", "Silver anklet", "A delicate sterling silver anklet with an adjustable clasp.", 125, "https://images.unsplash.com/photo-1617038220319-276d3cfab638?auto=format&fit=crop&w=900&q=80"],
+  ["Jewellery", "Swarovski", "Crystal brooch", "A sculpted crystal brooch with a polished metal setting.", 220, "https://images.unsplash.com/photo-1617038260897-41a1f14a8ca0?auto=format&fit=crop&w=900&q=80"],
+  ["Jewellery", "Hugo Boss", "Cufflink set", "A pair of polished metal cufflinks in a presentation case.", 195, "https://images.unsplash.com/photo-1599643477877-530eb83abc8e?auto=format&fit=crop&w=900&q=80"],
+  ["Jewellery", "Mikimoto", "Pearl pendant", "A cultured pearl pendant on a fine white-gold chain.", 1450, "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=900&q=80"],
+  ["Recreation", "Pelican", "Recreational kayak", "A stable sit-in kayak with paddle and personal flotation device.", 699, "https://images.unsplash.com/photo-1544551763-46a013bb70d5f?auto=format&fit=crop&w=900&q=80"],
+  ["Recreation", "CCM", "Hockey equipment set", "Skates, helmet, gloves and protective equipment for the rink.", 849, "https://images.unsplash.com/photo-1580748141549-71748dbe0bdc?auto=format&fit=crop&w=900&q=80"],
+  ["Recreation", "Coleman", "Camping package", "A family tent, sleeping bags, camp stove and rechargeable lanterns.", 629, "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=900&q=80"],
+  ["Recreation", "Trek", "Hybrid bicycle", "A versatile bicycle for city paths, fitness rides and weekend trails.", 1099, "https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=900&q=80"],
+  ["Recreation", "Callaway", "Golf club set", "A complete set of clubs with a cart bag and head covers.", 1299, "https://images.unsplash.com/photo-1535131749006-b7f58c99034b?auto=format&fit=crop&w=900&q=80"],
+  ["Recreation", "Napoleon", "Propane barbecue", "A Canadian-designed barbecue with side burner and folding shelves.", 999, "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=900&q=80"],
+  ["Electronics", "Sony", "OLED television", "A large 4K television with vivid colour and smart streaming apps.", 2199, "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&w=900&q=80"],
+  ["Electronics", "Apple", "Tablet", "A lightweight tablet with a sharp display and all-day battery life.", 799, "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?auto=format&fit=crop&w=900&q=80"],
+  ["Electronics", "Nintendo", "Video game console", "A home and portable game system with two wireless controllers.", 629, "https://images.unsplash.com/photo-1486401899868-0e435ed85128?auto=format&fit=crop&w=900&q=80"],
+  ["Electronics", "Bose", "Noise-cancelling headphones", "Wireless over-ear headphones with adjustable noise cancellation.", 479, "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=80"],
+  ["Electronics", "Canon", "Mirrorless camera", "A compact interchangeable-lens camera with a zoom lens.", 1249, "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=900&q=80"],
+  ["Electronics", "Lenovo", "Laptop computer", "A slim laptop with a bright display and generous solid-state storage.", 1199, "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=900&q=80"],
+  ["Furniture", "EQ3", "Leather lounge chair", "A Canadian-designed lounge chair with tailored leather upholstery.", 1899, "https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?auto=format&fit=crop&w=900&q=80"],
+  ["Furniture", "IKEA", "Dining room set", "A solid dining table with six coordinating chairs.", 1099, "https://images.unsplash.com/photo-1617104678098-de229db51175?auto=format&fit=crop&w=900&q=80"],
+  ["Furniture", "Article", "Sectional sofa", "A roomy upholstered sectional with deep, comfortable seating.", 2499, "https://images.unsplash.com/photo-1555041469-a586c61ea9bcf?auto=format&fit=crop&w=900&q=80"],
+  ["Furniture", "Structube", "Bedroom collection", "A queen bed, two nightstands and a six-drawer dresser.", 1799, "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=900&q=80"],
+  ["Furniture", "La-Z-Boy", "Power recliner", "An upholstered recliner with powered footrest and adjustable head support.", 1699, "https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?auto=format&fit=crop&w=900&q=80"],
+  ["Furniture", "Herman Miller", "Ergonomic office chair", "An adjustable task chair with breathable support for the home office.", 1795, "https://images.unsplash.com/photo-1580480055273-228ff5388ef8?auto=format&fit=crop&w=900&q=80"],
 ];
 
 const CATALOG_IMAGE_RULES = [
@@ -238,6 +290,8 @@ function preferEnglishCopy(value) {
 function cleanProductName(value) {
   return preferEnglishCopy(value)
     .replace(/\b(?:new|online only|web only|clearance|sale)\b/gi, " ")
+    .replace(/\bAmuseables?\b/gi, " ")
+    .replace(/\s+[—|]\s+.*$/, "")
     .replace(/\s+([,.;:!?])/g, "$1")
     .replace(/\s{2,}/g, " ")
     .trim();
@@ -257,17 +311,6 @@ function clipSpeechLine(value, maxLength = 110) {
 function makeHostDescription(retailer, name) {
   const intro = `From ${retailer} — ${name}!`;
   return clipSpeechLine(intro);
-}
-
-function fallbackDescription(retailer, variant, baseName, category) {
-  const style = {
-    Classic: "a dependable",
-    Deluxe: "a deluxe",
-    Premium: "a premium",
-    Compact: "a space-saving",
-  }[variant] || "a featured";
-  const feature = fallbackFeatureDetails(baseName, category);
-  return `From ${retailer}, ${style} ${baseName} with ${feature}.`;
 }
 
 function fallbackFeatureDetails(baseName, category) {
@@ -299,23 +342,59 @@ function fallbackImage(baseName, category) {
   return matched?.[1] || CATALOG_CATEGORY_IMAGES[category] || CATALOG_CATEGORY_IMAGES["Home & Kitchen"];
 }
 
+function fallbackBrand(baseName) {
+  const text = String(baseName).toLowerCase();
+  const rules = [
+    [/refrigerator|washer|dryer|dishwasher|range|microwave|freezer|wine fridge|range hood/, "LG"],
+    [/sofa|sectional|recliner|dining|bedroom|coffee table|tv stand|accent chair|ottoman/, "CANVAS"],
+    [/desk|bookcase|shelving|tool chest/, "Husky"],
+    [/drill|mitre saw|laser level/, "DeWalt"],
+    [/socket|wrench|wet-dry|pressure washer|ladder/, "Mastercraft"],
+    [/vanity|faucet/, "Moen"],
+    [/thermostat/, "ecobee"],
+    [/barbecue/, "Napoleon"],
+    [/patio|gazebo|fire pit|deck box|umbrella|planter|hose|string light/, "CANVAS"],
+    [/lawn mower|snow blower/, "EGO"],
+    [/garden shed/, "Keter"],
+    [/television|sound bar/, "Samsung"],
+    [/laptop|tablet|printer|wi-fi|monitor/, "HP"],
+    [/headphones|speaker/, "JBL"],
+    [/robot vacuum/, "iRobot"],
+    [/smartwatch/, "Garmin"],
+    [/camera/, "Canon"],
+    [/mattress|bed base/, "Sealy"],
+    [/duvet|blanket|sheet|towel/, "GlucksteinHome"],
+    [/air purifier/, "Honeywell"],
+    [/espresso/, "Breville"],
+    [/mixer|food processor/, "KitchenAid"],
+    [/air fryer|ice maker/, "Ninja"],
+    [/cookware/, "Paderno"],
+  ];
+  return rules.find(([pattern]) => pattern.test(text))?.[1] || "Canadian Living";
+}
+
 function displayDescription(item) {
-  const seller = cleanSellerName(item.retailer || item.brand);
-  const maker = cleanProductName(item.brand);
   const category = cleanProductName(item.category || item.bidCategory || "retail prize").toLowerCase();
   const existing = preferEnglishCopy(item.description || item.shortDescription || item.hostDescription)
-    .replace(/^from [^—]+—\s*/i, "")
-    .replace(/^from [^,]+,\s*/i, "");
+    .replace(/^(?:(?:sold by|available (?:from|at)|from)\s+[^,.;—]+[,.;—]\s*)+/i, "")
+    .replace(/^it'?s\s+(?:an?\s+)?/i, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  const subject = existing.match(/^The\s+(.{2,80}?)\s+(?:is|are)\s+(.+)$/i);
+  const identityWords = `${item.brand || ""} ${item.name || ""}`.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter(Boolean);
+  const subjectWords = subject?.[1].toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter(Boolean) || [];
+  const conciseExisting = subject && subjectWords.length >= 2 && subjectWords.every(word => identityWords.includes(word)) ? subject[2] : existing;
   const usefulExisting =
-    existing &&
-    existing.length >= 35 &&
-    !/^it'?s\s+/i.test(existing) &&
-    !/contestants?'? row|substantial|department|regular canadian retail price/i.test(existing);
+    conciseExisting &&
+    conciseExisting.length >= 35 &&
+    !/^it'?s\s+/i.test(conciseExisting) &&
+    !/contestants?'? row|substantial|department|regular canadian retail price/i.test(conciseExisting);
   const detail = usefulExisting
-    ? existing
+    ? conciseExisting
     : fallbackFeatureDetails(item.name || category, category);
-  const makerLine = maker && maker !== seller ? `${maker}, sold by ${seller}` : seller;
-  return clipSpeechLine(`From ${makerLine}, ${detail.replace(/^[Aa]n?\s+/, "")}.`, 155)
+  const sentence = detail.replace(/^(?:sold by|from)\s+[^,.;—]+[,.;—]\s*/i, "").trim();
+  const capitalized = sentence ? sentence[0].toUpperCase() + sentence.slice(1) : "";
+  return clipSpeechLine(`${capitalized.replace(/[.!?]+$/, "")}.`, 145)
     .replace(/\.\.+$/g, ".");
 }
 
@@ -332,40 +411,29 @@ function isDisplayReadyPrize(item) {
 }
 
 function buildCanadianRetailerCatalog() {
-  const prizes = [];
-  for (const section of CANADIAN_RETAILER_PRIZE_BLUEPRINTS) {
-    section.items.forEach(([baseName, basePrice], itemIndex) => {
-      section.retailers.forEach((retailer, retailerIndex) => {
-        CANADIAN_RETAILER_VARIANTS.forEach(([variant, multiplier], variantIndex) => {
-          const name = `${variant} ${baseName}`;
-          const description = fallbackDescription(retailer, variant, baseName, section.category);
-          const exactPrice = Math.max(
-            MIN_PRICE,
-            Math.round((basePrice * (1 + multiplier) + retailerIndex * 37 + itemIndex * 11) * 100) / 100,
-          );
-          prizes.push({
-            id: `canadian-retail-${slugify(retailer)}-${slugify(name)}-${variantIndex}`,
-            name,
-            brand: retailer,
-            retailer,
-            exactPrice,
-            price: Math.round(exactPrice),
-            priceIsLive: false,
-            priceKind: "regular",
-            currency: "CAD",
-            url: `catalogue:${slugify(retailer)}/${slugify(name)}`,
-            image: fallbackImage(baseName, section.category),
-            imageKind: "representative",
-            imageAlt: name,
-            description,
-            category: section.category,
-            hostDescription: clipSpeechLine(`${makeHostDescription(retailer, name)} ${description.replace(/^From [^,]+,\s*/i, "")}`, 170),
-          });
-        });
-      });
-    });
-  }
-  return prizes;
+  const sixRound = SIX_ROUND_PRIZE_CATALOG.map(([category, brand, name, description, exactPrice, image], index) => ({
+    id: `six-round-${slugify(category)}-${index + 1}`,
+    name, brand, retailer: "Canadian prize catalogue", exactPrice, price: Math.round(exactPrice),
+    priceIsLive: false, priceKind: "regular", currency: "CAD", url: `catalogue:six-round/${index + 1}`,
+    image, imageKind: "representative", imageAlt: name, description, category,
+    hostDescription: `${brand} ${name}! ${description}`,
+  }));
+  const departmentPrizes = CANADIAN_RETAILER_PRIZE_BLUEPRINTS.flatMap((section) =>
+    section.items.map(([baseName, basePrice], index) => {
+      const retailer = section.retailers[index % section.retailers.length];
+      const brand = fallbackBrand(baseName);
+      return {
+        id: `canadian-department-${slugify(baseName)}`,
+        name: baseName[0].toUpperCase() + baseName.slice(1), brand, retailer,
+        exactPrice: basePrice, price: Math.round(basePrice), priceIsLive: false,
+        priceKind: "regular", currency: "CAD", url: `catalogue:department/${slugify(baseName)}`,
+        image: fallbackImage(baseName, section.category), imageKind: "representative", imageAlt: baseName,
+        description: `${fallbackFeatureDetails(baseName, section.category)[0].toUpperCase()}${fallbackFeatureDetails(baseName, section.category).slice(1)}.`,
+        category: section.category,
+      };
+    }),
+  );
+  return [...sixRound, ...departmentPrizes];
 }
 
 async function fetchData(url) {
@@ -579,15 +647,13 @@ function deduplicate(items) {
 
 export function prizeCategory(item) {
   const text = `${item.category || ""} ${item.name || ""}`.toLowerCase();
+  if (/\b(jewellery|jewelry|necklace|earrings?|bracelet|pendant|diamond|gold hoop|wristwatch|ring|bangle|anklet|brooch|cufflinks?|pearl)\b/.test(text)) return "Jewellery";
+  if (/\b(furniture|sofa|sectional|recliner|lounge chair|dining room|bedroom|office chair|mattress|bookcase|ottoman|desk)\b/.test(text)) return "Furniture";
+  if (/\b(appliances?|refrigerator|freezer|washer|dryer|dishwasher|range|microwave|vacuum|mixer|espresso|multi-cooker|air fryer)\b/.test(text)) return "Appliances";
   if (/\b(tv|television|laptop|computer|tablet|phone|camera|speaker|headphone|console|gaming|electronics?)\b/.test(text)) return "Electronics";
-  if (/\b(toy|game|puzzle|doll|lego|playset|scooter)\b/.test(text)) return "Toys & Games";
-  if (/\b(baby|infant|stroller|car seat|crib|nursery|toddler)\b/.test(text)) return "Baby & Family";
-  if (/\b(kitchen|cook|coffee|toaster|blender|mixer|furniture|lamp|bedding|blanket|vacuum|home)\b/.test(text)) return "Home & Kitchen";
-  if (/\b(skincare|beauty|shampoo|conditioner|makeup|wellness|oil|cream|lotion|diffuser)\b/.test(text)) return "Beauty & Wellness";
-  if (/\b(backpack|luggage|bag|wallet|watch|sunglasses|travel)\b/.test(text)) return "Travel & Accessories";
-  if (/\b(outdoor|camp|bike|sport|fitness|golf|hockey|garden)\b/.test(text)) return "Sports & Outdoors";
-  if (/\b(shirt|tee|t-shirt|hoodie|sweater|sweatshirt|pant|jogger|legging|dress|bra|underwear|sock|jacket|coat|apparel|clothing)\b/.test(text)) return "Apparel";
-  return "General Merchandise";
+  if (/\b(recreation|outdoor|camp|kayak|bike|bicycle|sport|fitness|golf|hockey|barbecue|scooter)\b/.test(text)) return "Recreation";
+  if (/\b(shirt|tee|t-shirt|hoodie|sweater|sweatshirt|pant|jogger|legging|dress|skirt|suit|tracksuit|track suit|pyjama|pajama|robe|boots?|shoes?|bra|underwear|sock|jacket|coat|parka|vest|apparel|clothing)\b/.test(text)) return "Clothing";
+  return "Other";
 }
 
 // Deliberately broad: once a T-shirt has appeared in a room, another T-shirt
@@ -597,10 +663,14 @@ export function prizeFamily(item) {
   return prizeFamilyKey(item);
 }
 
-function enrichPrize(item) {
-  const enriched = { ...item, description: displayDescription(item) };
+export function normalizePrizePresentation(item) {
+  const brand = cleanSellerName(item.brand, item.retailer);
+  const brandPattern = new RegExp(`^${brand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s+`, "i");
+  const enriched = { ...item, brand, name: cleanProductName(item.name).replace(brandPattern, "").trim(), description: displayDescription(item) };
   return { ...enriched, bidCategory: prizeCategory(enriched), prizeFamily: prizeFamily(enriched) };
 }
+
+const enrichPrize = normalizePrizePresentation;
 
 function reduceSimilarPrizes(items) {
   const families = new Set();
