@@ -11,6 +11,7 @@ export default function PlayerView({ code, navigate }) {
     () => localStorage.getItem(`pir_player_${code}`)
   );
   const [name, setName] = useState("");
+  const [shirtMessage, setShirtMessage] = useState("");
   const [photo, setPhoto] = useState(null);       // base64 data URL or null
   const [cameraOpen, setCameraOpen] = useState(false);
   const [bidDraft, setBidDraft] = useState("");
@@ -123,7 +124,7 @@ export default function PlayerView({ code, navigate }) {
     e.preventDefault();
     setError("");
     try {
-      const data = await joinRoom(code, name.trim(), photo);
+      const data = await joinRoom(code, name.trim(), photo, shirtMessage.trim());
       localStorage.setItem(`pir_player_${code}`, data.playerId);
       localStorage.setItem(`pir_name_${code}`, name.trim());
       setPlayerId(data.playerId);
@@ -209,6 +210,17 @@ export default function PlayerView({ code, navigate }) {
             autoFocus
             onChange={(e) => setName(e.target.value)}
           />
+          <label className="pir-shirt-message-field">
+            <span>Fun T-shirt message <small>(optional)</small></span>
+            <textarea
+              placeholder="I'VE WAITED MY WHOLE LIFE TO COME ON DOWN!"
+              value={shirtMessage}
+              maxLength={80}
+              rows={3}
+              onChange={(e) => setShirtMessage(e.target.value)}
+            />
+            <small>{shirtMessage.length}/80 · It’ll appear if you win Contestants’ Row.</small>
+          </label>
           <button className="pir-btn" type="submit" disabled={!name.trim()}>
             <Check size={18} /> Join Game
           </button>

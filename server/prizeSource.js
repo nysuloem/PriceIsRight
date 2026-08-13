@@ -308,9 +308,9 @@ function clipSpeechLine(value, maxLength = 110) {
   return clean.slice(0, maxLength - 1).replace(/\s+\S*$/, "") + "!";
 }
 
-function makeHostDescription(retailer, name) {
-  const intro = `From ${retailer} — ${name}!`;
-  return clipSpeechLine(intro);
+function fullPrizeAnnouncement({ brand, name, description }) {
+  const identity = [cleanSellerName(brand, "Canadian brand"), cleanProductName(name)].filter(Boolean).join(" ");
+  return `It's the ${identity}! ${displayDescription({ brand, name, description })}`;
 }
 
 function fallbackFeatureDetails(baseName, category) {
@@ -445,15 +445,21 @@ async function fetchData(url) {
   return response;
 }
 
-function chooseShopifyRegularPrice(product) {
+const MARKDOWN_WORDS = /\b(last call|final sale|clearance|closeout|liquidation)\b/i;
+
+export function chooseShopifyRegularPrice(product) {
+  const productCopy = `${product?.title || ""} ${product?.handle || ""} ${product?.tags || ""}`;
+  if (MARKDOWN_WORDS.test(productCopy)) return null;
   const available = (product.variants || []).filter((variant) => variant.available !== false);
   const variants = available.length ? available : product.variants || [];
   const prices = variants
     .map((variant) => {
       const sellingPrice = asMoney(variant.price);
       const compareAtPrice = asMoney(variant.compare_at_price);
-      // Shopify compare_at_price is the crossed-out regular price during a sale.
-      return compareAtPrice && compareAtPrice > sellingPrice ? compareAtPrice : sellingPrice;
+      // A crossed-out compare-at price means the variant is discounted. The
+      // game uses regular merchandise only, so reject that variant entirely.
+      if (compareAtPrice && compareAtPrice > sellingPrice) return null;
+      return sellingPrice;
     })
     .filter(plausiblePrice);
   return prices.length ? Math.min(...prices) : null;
@@ -486,7 +492,7 @@ function normalizeShopifyProduct(config, product) {
     imageAlt: name,
     description: displayDescription({ description: product.body_html, category, brand, retailer: config.retailer, name }),
     category,
-    hostDescription: makeHostDescription(config.retailer, name),
+    hostDescription: fullPrizeAnnouncement({ brand, name, description: product.body_html }),
   };
 }
 
@@ -508,13 +514,16 @@ async function fetchShopifyRetailer(config) {
 
 function isSuitableBestBuyProduct(product) {
   const text = `${product.name || ""} ${product.shortDescription || ""}`.toLowerCase();
-  const excluded = /\b(open[ -]?box|refurbished|renewed|used|pre-owned|monthly financing|digital download)\b/;
+  const excluded = /\b(open[ -]?box|refurbished|renewed|used|pre-owned|monthly financing|digital download|last call|final sale|clearance|closeout|liquidation)\b/;
   const firstParty = product.isMarketplace === false || product.seller?.name === "Best Buy";
+  const regularPrice = asMoney(product.regularPrice);
+  const sellingPrice = asMoney(product.salePrice ?? product.currentPrice ?? product.price);
   return (
     firstParty &&
     product.isVisible !== false &&
     !excluded.test(text) &&
-    plausiblePrice(asMoney(product.regularPrice))
+    plausiblePrice(regularPrice) &&
+    !(plausiblePrice(sellingPrice) && sellingPrice < regularPrice)
   );
 }
 
@@ -542,10 +551,7 @@ function normalizeBestBuyProduct(product) {
     imageAlt: name,
     description: displayDescription({ description: product.shortDescription, category, retailer: "Best Buy Canada", name }),
     category,
-    hostDescription: makeHostDescription(
-      "Best Buy Canada",
-      name,
-    ),
+    hostDescription: fullPrizeAnnouncement({ brand: name.split(/\s+/)[0] || "Best Buy", name, description: product.shortDescription }),
   };
 }
 
@@ -667,7 +673,7 @@ export function normalizePrizePresentation(item) {
   const brand = cleanSellerName(item.brand, item.retailer);
   const brandPattern = new RegExp(`^${brand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s+`, "i");
   const enriched = { ...item, brand, name: cleanProductName(item.name).replace(brandPattern, "").trim(), description: displayDescription(item) };
-  return { ...enriched, bidCategory: prizeCategory(enriched), prizeFamily: prizeFamily(enriched) };
+  return { ...enriched, hostDescription: fullPrizeAnnouncement(enriched), bidCategory: prizeCategory(enriched), prizeFamily: prizeFamily(enriched) };
 }
 
 const enrichPrize = normalizePrizePresentation;

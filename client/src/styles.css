@@ -518,7 +518,8 @@ body {
   flex-direction: column;
   gap: 10px;
 }
-.pir-join-form input {
+.pir-join-form input,
+.pir-join-form textarea {
   background: var(--led-bg);
   border: 1px solid rgba(255, 176, 0, 0.35);
   color: var(--cream);
@@ -528,10 +529,15 @@ body {
   text-align: center;
   font-family: "Inter", sans-serif;
 }
-.pir-join-form input:focus {
+.pir-join-form textarea { resize: vertical; min-height: 78px; line-height: 1.35; }
+.pir-join-form input:focus,
+.pir-join-form textarea:focus {
   outline: 2px solid var(--gold);
   outline-offset: 1px;
 }
+.pir-shirt-message-field { display:flex; flex-direction:column; gap:6px; color:var(--cream); font-weight:800; }
+.pir-shirt-message-field>span { color:var(--gold-bright); letter-spacing:.5px; }
+.pir-shirt-message-field small { color:var(--muted); font-weight:500; }
 
 /* ---- Lobby room code ---- */
 .pir-room-code {
@@ -979,6 +985,11 @@ body {
 }
 
 /* ---- Pricing games ---- */
+.pir-shirt-reveal { min-height:min(690px,calc(100dvh - 130px)); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:18px; text-align:center; overflow:hidden; background:radial-gradient(circle at 50% 38%,#ffe45d 0 9%,#db3e36 38%,#16386f 76%); border:8px solid #f4d94f; border-radius:22px; box-shadow:inset 0 0 0 5px #fff5,0 12px 35px #0007; }
+.pir-shirt-reveal h2 { max-width:850px; margin:8px 0 2px; color:#fff; font:900 clamp(30px,6vw,58px)/1.05 "Anton",sans-serif; letter-spacing:2px; text-shadow:4px 4px 0 #b62c29; }
+.pir-shirt { position:relative; width:min(500px,85vw); aspect-ratio:1.32; margin:10px auto; display:grid; place-items:center; background:linear-gradient(145deg,#2382d0,#07529b 72%); clip-path:polygon(30% 5%,42% 0,44% 12%,56% 12%,58% 0,70% 5%,100% 23%,88% 45%,75% 37%,78% 100%,22% 100%,25% 37%,12% 45%,0 23%); filter:drop-shadow(0 14px 10px #0008); }
+.pir-shirt::before { content:""; position:absolute; z-index:0; top:0; left:42%; width:16%; height:17%; border-radius:0 0 50% 50%; background:#092951; box-shadow:0 5px 0 #55a9e6; }
+.pir-shirt-copy { position:relative; z-index:1; width:52%; margin-top:7%; color:#ffe04e; font:900 clamp(20px,4.5vw,42px)/1.02 "Anton",sans-serif; letter-spacing:1px; text-transform:uppercase; overflow-wrap:anywhere; text-shadow:2px 2px 0 #17335c; }
 .pir-pricing-board {
   background: radial-gradient(circle at 50% 0, rgba(255,255,255,.16), transparent 38%), #17386f;
   border: 8px solid #f4d94f;

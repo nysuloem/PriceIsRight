@@ -27,7 +27,7 @@ export default function OpeningSequence({
   contestants,
   contestantCount = contestants.length,
   roomCode,
-  announcerVoice = "onyx",
+  announcerVoice = "cedar",
   hostVoice = "coral",
   onDone,
 }) {

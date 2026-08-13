@@ -14,6 +14,18 @@ test("all pricing games can be created without leaking answers", () => {
   }
 });
 
+test("every announced pricing prize includes its brand, item name, and description", () => {
+  for (const type of types) {
+    const game = createPricingGameForType(type, player);
+    for (const prize of game.introPrizes) {
+      assert.ok(prize.brand && prize.name && prize.description, `${type} has complete prize fields`);
+      assert.match(prize.announcerText, new RegExp(prize.brand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+      assert.match(prize.announcerText, new RegExp(prize.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+      assert.ok(prize.announcerText.includes(prize.description), `${type} announces the full description`);
+    }
+  }
+});
+
 test("the built-in bidding catalogue is large, varied, and uniquely keyed",()=>{
   const catalog=expandedBiddingCatalog();
   assert.ok(catalog.length>=100);

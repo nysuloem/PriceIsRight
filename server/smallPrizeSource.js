@@ -22,10 +22,10 @@ const clean=value=>String(value||"").replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi
 const money=value=>{const parsed=Number.parseFloat(String(value??"").replace(/[$,]/g,""));return Number.isFinite(parsed)?parsed:null;};
 const inRange=value=>Number.isFinite(value)&&value>=MIN_PRICE&&value<=MAX_PRICE;
 
-function regularPrice(variant){const selling=money(variant.price),regular=money(variant.compare_at_price);return regular&&regular>selling?regular:selling;}
-function normalize(config,product){
+function regularPrice(variant){const selling=money(variant.price),regular=money(variant.compare_at_price);return regular&&regular>selling?null:selling;}
+export function normalizeSmallPrizeProduct(config,product){
   const text=`${product?.title||""} ${product?.product_type||""}`.toLowerCase();
-  if(!product?.id||!product.handle||!product.title||/\b(gift card|e-?gift|digital|subscription|deposit|replacement part)\b/.test(text))return null;
+  if(!product?.id||!product.handle||!product.title||/\b(gift card|e-?gift|digital|subscription|deposit|replacement part|last call|final sale|clearance|closeout|liquidation)\b/.test(text))return null;
   const variants=(product.variants||[]).filter(variant=>variant.available!==false),eligible=(variants.length?variants:product.variants||[]).map(variant=>({variant,price:regularPrice(variant)})).filter(row=>inRange(row.price)).sort((a,b)=>a.price-b.price);
   if(!eligible.length)return null;
   const {variant,price}=eligible[0],variantName=clean(variant.title),brand=clean(product.vendor)||config.retailer;
@@ -40,7 +40,7 @@ function normalize(config,product){
 }
 async function fetchRetailer(config){
   const items=[],seen=new Set();
-  for(let page=1;page<=5;page+=1){const response=await fetch(`${config.baseUrl}/products.json?limit=250&page=${page}`,{headers,signal:AbortSignal.timeout(TIMEOUT_MS)});if(!response.ok)throw new Error(`HTTP ${response.status}`);const products=(await response.json()).products||[];if(!products.length)break;for(const product of products){if(seen.has(product.id))continue;seen.add(product.id);const item=normalize(config,product);if(item)items.push(item);}if(products.length<250)break;}
+  for(let page=1;page<=5;page+=1){const response=await fetch(`${config.baseUrl}/products.json?limit=250&page=${page}`,{headers,signal:AbortSignal.timeout(TIMEOUT_MS)});if(!response.ok)throw new Error(`HTTP ${response.status}`);const products=(await response.json()).products||[];if(!products.length)break;for(const product of products){if(seen.has(product.id))continue;seen.add(product.id);const item=normalizeSmallPrizeProduct(config,product);if(item)items.push(item);}if(products.length<250)break;}
   return items.sort((a,b)=>a.name.localeCompare(b.name));
 }
 function interleave(groups){const result=[],positions=groups.map(()=>0),ids=new Set(),families=new Set();let advanced=true;while(result.length<TARGET_SIZE&&advanced){advanced=false;for(let i=0;i<groups.length&&result.length<TARGET_SIZE;i+=1){const item=groups[i][positions[i]++];if(!item)continue;advanced=true;const exact=exactPrizeKey(item),family=prizeFamilyKey(item);if(ids.has(exact)||families.has(family))continue;ids.add(exact);families.add(family);result.push(item);}}return result;}

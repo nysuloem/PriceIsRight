@@ -12,10 +12,10 @@ async function request(path, options = {}) {
 
 export const createRoom = () => request("/rooms", { method: "POST" });
 
-export const joinRoom = (code, name, photo) =>
+export const joinRoom = (code, name, photo, shirtMessage = "") =>
   request(`/rooms/${code}/join`, {
     method: "POST",
-    body: JSON.stringify({ name, photo: photo || null }),
+    body: JSON.stringify({ name, photo: photo || null, shirtMessage }),
   });
 
 export const getState = (code) => request(`/rooms/${code}/state`);

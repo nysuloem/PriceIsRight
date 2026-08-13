@@ -98,6 +98,16 @@ test("Final Showcase supports bid or pass, two bids, reveal and double-showcase 
   assert.equal(publicFinalShowcase(f).winnerId,"a");
 });
 
+test("every Showcase prize announcement includes brand, item, and description", () => {
+  resetTripBankForTests({ clearStorage: true });
+  const finalShowcase = createFinalShowcase(players);
+  for (const prize of finalShowcase.showcases.flatMap(showcase => showcase.prizes)) {
+    assert.ok(prize.announcerText.includes(prize.brand));
+    assert.ok(prize.announcerText.includes(prize.name));
+    assert.ok(prize.announcerText.includes(prize.description));
+  }
+});
+
 test("Final Showcase trip prizes rotate out after use",()=>{
   resetTripBankForTests();
   const trips=[];

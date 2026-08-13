@@ -80,7 +80,7 @@ app.post(
   "/api/rooms/:code/join",
   wrap(async (req, res) => {
     const room = requireRoom(req);
-    const player = joinRoom(room, req.body?.name, req.body?.photo);
+    const player = joinRoom(room, req.body?.name, req.body?.photo, req.body?.shirtMessage);
     res.json({ playerId: player.id, ...publicState(room) });
   })
 );
@@ -256,7 +256,7 @@ app.get(
     const text = (req.query.text || "").toString().trim().slice(0, 600);
     if (!text) return res.status(400).json({ error: "Missing text" });
     const style = (req.query.style || "host").toString();
-    const defaultVoice = style === "announcer" ? "onyx" : "coral";
+    const defaultVoice = style === "announcer" ? "cedar" : "coral";
     const voice = (req.query.voice || (style === "announcer" ? process.env.ANNOUNCER_VOICE : process.env.HOST_VOICE) || defaultVoice).toString();
     const audio = await getTTS(text, voice, style);
     if (!audio) return res.status(503).json({ error: "TTS unavailable" });
@@ -271,7 +271,7 @@ app.get("/api/config", (req, res) => {
   res.json({
     hostName: process.env.HOST_NAME || "Robbie Archer",
     announcerName: process.env.ANNOUNCER_NAME || "Rod Roddy",
-    announcerVoice: process.env.ANNOUNCER_VOICE || "onyx",
+    announcerVoice: process.env.ANNOUNCER_VOICE || "cedar",
     hostVoice: process.env.HOST_VOICE || "coral",
   });
 });

@@ -146,7 +146,7 @@ function HostViewInner({ code }) {
   const [state, setState] = useState(null);
   const [phase, setPhase] = useState("lobby"); // "lobby" | "opening" | "game"
   const [error, setError] = useState("");
-  const [config, setConfig] = useState({ hostName: "Robbie Archer", announcerName: "Rod Roddy", announcerVoice: "onyx", hostVoice: "coral" });
+  const [config, setConfig] = useState({ hostName: "Robbie Archer", announcerName: "Rod Roddy", announcerVoice: "cedar", hostVoice: "coral" });
   const [kissBurst,setKissBurst]=useState(null);
   const [audienceBurst,setAudienceBurst]=useState(null);
   const lastSeqRef = useRef(-1);
@@ -236,7 +236,7 @@ function HostViewInner({ code }) {
       return; // opening already did this — ignore
     } else if (type === "replacementIntro") {
       const [hostPart = "", announcerPart = ""] = text.split("||");
-      const annVoice = config.announcerVoice || "onyx";
+      const annVoice = config.announcerVoice || "cedar";
       playTTS(el, hostPart, () => current(() => {
         revealReplacement(code).then(fresh => current(() => {
           setState(fresh);
@@ -248,7 +248,7 @@ function HostViewInner({ code }) {
       const parts = text.split("||");
       const hostPart = parts[0] || "";
       const announcerPart = parts[1] || "";
-      const annVoice = config.announcerVoice || "onyx";
+      const annVoice = config.announcerVoice || "cedar";
       const afterAnnounce = () => {
         safely(() => advance(code, "bidding"));
       };
@@ -291,6 +291,10 @@ function HostViewInner({ code }) {
             : restartGame(code, "sameLineup")), voice);
         });
       }, 800);
+    } else if (type === "shirtReveal") {
+      playTTS(el, text, () => {
+        setTimeout(() => safely(() => beginPricingGame(code)), 1400);
+      }, voice, "host");
     } else if (type === "pricingGameIntro") {
       const game = state.pricingGame;
       const hostIntro = `${text} ${game.instructions}`;
@@ -300,14 +304,14 @@ function HostViewInner({ code }) {
       if (/new car/i.test(text)) playCarFanfare();
       else if(state.pricingGame?.type==="shellGame"&&state.pricingAnnouncement?.id===state.pricingGame?.bonusPrize?.id)playShowcaseCelebration();
       const bellDelay=state.pricingGame?.type==="clockGame"&&state.pricingGame?.lastOutcome?.kind==="success"?4000:650;
-      setTimeout(() => current(() => playTTS(ann, text, () => safely(() => beginPricingGame(code)), config.announcerVoice || "onyx", "announcer")), bellDelay);
+      setTimeout(() => current(() => playTTS(ann, text, () => safely(() => beginPricingGame(code)), config.announcerVoice || "cedar", "announcer")), bellDelay);
     } else if (type === "pricingRevealCue") {
       playTTS(el, text, () => safely(() => revealPricingPrice(code)), voice, "host");
     } else if (type === "pricingPriceShown") {
       setTimeout(() => current(() => playTTS(el, text, () => safely(() => continuePricingPrice(code)), voice, "host")), 650);
     } else if (type === "pricingGame" || type === "pricingPrompt") {
       const diceReveal=state.pricingGame?.type==="diceGame"&&state.pricingGame?.stage==="reveal";
-      if(diceReveal)playTTS(ann,text,()=>{},config.announcerVoice||"onyx","announcer");
+      if(diceReveal)playTTS(ann,text,()=>{},config.announcerVoice||"cedar","announcer");
       else playTTS(el, text, () => {}, voice);
     } else if (type === "pricingResult") {
       const finish=()=>playTTS(el, text, () => { if (!state.isDemo) safely(() => restartGame(code, "sameLineup")); }, voice);
@@ -323,7 +327,7 @@ function HostViewInner({ code }) {
     } else if (type === "showcaseTheme") {
       playTTS(el,text,()=>safely(()=>advanceShowcase(code)),voice);
     } else if (type === "showcasePrize") {
-      playTTS(ann,text,()=>safely(()=>advanceShowcase(code)),config.announcerVoice||"onyx","announcer");
+      playTTS(ann,text,()=>safely(()=>advanceShowcase(code)),config.announcerVoice||"cedar","announcer");
     } else if (type === "showcaseRevealStep") {
       playTTS(el,text,()=>safely(()=>advanceShowcase(code)),voice);
     } else if (type === "showcaseChoice" || type === "showcaseBid") {
@@ -461,6 +465,7 @@ function HostViewInner({ code }) {
                   onNextRound={forceAction(() => restartGame(code, "sameLineup"))}
                   onNewPlayers={action(() => restartGame(code, "newPlayers"))} />
               )}
+              {state.phase === "shirtReveal" && <ShirtReveal reveal={state.shirtReveal} />}
               {(state.phase === "pricingIntro" || state.phase === "pricingPrizeIntro" || state.phase === "pricingGame" || state.phase === "pricingRevealCue" || state.phase === "pricingPriceShown") && (
                 <PricingGameView game={state.pricingGame} spotlight={state.phase === "pricingPrizeIntro" ? state.pricingAnnouncement : null} rulesOnly={state.phase === "pricingIntro"} onSkipRules={state.phase==="pricingIntro"?forceAction(()=>beginPricingGame(code)):null} />
               )}
@@ -477,6 +482,11 @@ function HostViewInner({ code }) {
 }
 
 const WHEEL_VALUES=[100,5,90,25,70,45,10,65,30,85,50,95,55,75,40,20,60,35,80,15];
+function ShirtReveal({ reveal }) {
+  if (!reveal) return null;
+  return <div className="pir-shirt-reveal"><div className="pir-pricing-kicker">CONTESTANT T-SHIRT SPOTLIGHT</div><h2>{reveal.playerName} IS COMING ON DOWN IN STYLE!</h2><div className="pir-shirt"><div className="pir-shirt-copy">{reveal.message}</div></div><div className="pir-pricing-prompt">Next stop: the pricing game!</div></div>;
+}
+
 function WheelView({showdown}) {
   if(!showdown)return null;
   const p=showdown.participants.find(x=>x.id===showdown.announcingPlayerId)||(showdown.participants[showdown.currentIndex]||showdown.participants.find(x=>x.id===showdown.winnerId));

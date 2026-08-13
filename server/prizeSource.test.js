@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   configurePrizeBankStorageForTests,
+  chooseShopifyRegularPrice,
   getPrizePool,
   normalizePrizePresentation,
   prizeBankStats,
@@ -13,6 +14,14 @@ import {
   resetPrizeBankForTests,
   retirePrize,
 } from "./prizeSource.js";
+
+test("live bidding feeds reject Last Call, clearance, and discounted variants", () => {
+  const regular = { title: "Modal Rib Shirt", handle: "modal-rib-shirt", variants: [{ available: true, price: "79.00", compare_at_price: null }] };
+  assert.equal(chooseShopifyRegularPrice(regular), 79);
+  assert.equal(chooseShopifyRegularPrice({ ...regular, title: "Modal Rib Shirt - Last Call" }), null);
+  assert.equal(chooseShopifyRegularPrice({ ...regular, tags: ["Clearance"] }), null);
+  assert.equal(chooseShopifyRegularPrice({ ...regular, variants: [{ available: true, price: "49.00", compare_at_price: "79.00" }] }), null);
+});
 
 test("similar shirts collapse into the same bidding family", () => {
   const a = { name: "Men's Classic Blue Logo T-Shirt", category: "Apparel" };
@@ -47,6 +56,7 @@ test("prize presentation keeps only brand, clean name and concise copy", () => {
   assert.equal(item.brand, "Jellycat");
   assert.equal(item.name, "Peanut Cat Plush Toy");
   assert.equal(item.description, "A playful plush featuring everyone's favourite peanut.");
+  assert.equal(item.hostDescription, "It's the Jellycat Peanut Cat Plush Toy! A playful plush featuring everyone's favourite peanut.");
   assert.doesNotMatch(`${item.name} ${item.description}`, /Snuggle Bugz|SKU|JEL12345|Amuseables/i);
 });
 
@@ -60,6 +70,11 @@ test("fallback bidding prizes are display-ready with photos and useful copy", as
   assert.equal(pool.some((item) => /contestants?'? row|substantial|department/i.test(item.description)), false);
   assert.equal(pool.some((item) => /\b(modèle|modele|sku|web code|product code)\b/i.test(visibleCopy(item))), false);
   assert.equal(pool.some((item) => /\b(laveuse|sécheuse|secheuse|réfrigérateur|refrigerateur|congélateur|congelateur|cuisinière|cuisiniere)\b/i.test(visibleCopy(item))), false);
+  for (const item of pool) {
+    assert.ok(item.hostDescription.includes(item.brand), `${item.name} announcement includes brand`);
+    assert.ok(item.hostDescription.includes(item.name), `${item.name} announcement includes item name`);
+    assert.ok(item.hostDescription.includes(item.description), `${item.name} announcement includes description`);
+  }
 });
 
 test("a used bidding prize leaves the available bank permanently", async () => {

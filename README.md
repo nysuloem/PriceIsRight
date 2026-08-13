@@ -33,7 +33,8 @@ price-is-right/
 | Variable         | Required? | Notes                                                              |
 | ---------------- | --------- | ------------------------------------------------------------------ |
 | `OPENAI_API_KEY` | optional  | Enables the host voice via OpenAI TTS. Without it, the game still works — it just paces itself with timed pauses instead of audio. |
-| `HOST_VOICE`     | optional  | OpenAI TTS voice name, e.g. `onyx` (default), `alloy`, `nova`, etc. |
+| `HOST_VOICE`     | optional  | OpenAI TTS voice name, e.g. `coral` (default), `alloy`, `nova`, etc. |
+| `ANNOUNCER_VOICE` | optional | OpenAI TTS voice name; defaults to the energetic `cedar` voice. |
 | `PORT`           | optional  | Set automatically by Railway.                                       |
 
 ## Local development

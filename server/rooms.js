@@ -39,6 +39,14 @@ function preparePricingIntroduction(room, player) {
   }
 }
 
+export function prepareWinnerPricingIntroduction(room, winner) {
+  if (winner.shirtMessage) {
+    room.shirtReveal = { playerId: winner.id, playerName: winner.name, message: winner.shirtMessage };
+    room.phase = "shirtReveal";
+    setHostLine(room, `Before we play, take a look at ${winner.name}'s fantastic shirt! It says: ${winner.shirtMessage}`, "shirtReveal");
+  } else preparePricingIntroduction(room, winner);
+}
+
 function genCode() {
   let code;
   do {
@@ -75,6 +83,7 @@ export function createRoom() {
     pricingGame: null,
     pricingAnnouncement: null,
     pricingAnnouncementQueue: [],
+    shirtReveal: null,
     showcaseContestants: [],
     completedRounds: 0,
     halfWinners: [],
@@ -146,7 +155,7 @@ export function publicState(room) {
   return {
     code: room.code,
     phase: room.phase,
-    players: room.players.map(({ id, name, hasPhoto }) => ({ id, name, hasPhoto: !!hasPhoto })),
+    players: room.players.map(({ id, name, hasPhoto, shirtMessage }) => ({ id, name, hasPhoto: !!hasPhoto, shirtMessage: shirtMessage || "" })),
     contestants: room.contestants
       .filter(c => room.phase !== "replacement" || room.replacementVisible || c.id !== room.replacementContestantId)
       .map((c) => ({
@@ -161,6 +170,7 @@ export function publicState(room) {
     revealType: room.revealType || null,
     pricingGame: publicPricingGame(room.pricingGame),
     pricingAnnouncement: room.pricingAnnouncement,
+    shirtReveal: room.shirtReveal,
     showcaseContestants: room.showcaseContestants.map(({ id, name, isAI }) => ({ id, name, isAI })),
     completedRounds: room.completedRounds,
     showHalf: room.completedRounds < 3 ? 1 : 2,
@@ -203,17 +213,18 @@ function setHostLine(room, text, type) {
   room.hostLine = { seq: room.hostLine.seq + 1, text, type };
 }
 
-export function joinRoom(room, name, photoDataUrl) {
+export function joinRoom(room, name, photoDataUrl, shirtMessage) {
   if (room.phase !== "lobby" && room.phase !== "demoLobby") throw new Error("Game already started");
   if (room.players.length >= MAX_PLAYERS) throw new Error("Room is full");
   const cleanName = (name || "").trim().slice(0, 24) || "Player";
+  const cleanShirtMessage = String(shirtMessage || "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
   // Validate photo is a data URL if provided; silently drop if malformed.
   let photo = null;
   if (photoDataUrl && typeof photoDataUrl === "string" && photoDataUrl.startsWith("data:image/")) {
     // Limit size to ~2MB base64
     if (photoDataUrl.length < 2_800_000) photo = photoDataUrl;
   }
-  const player = { id: randomUUID(), name: cleanName, photo, hasPhoto: !!photo };
+  const player = { id: randomUUID(), name: cleanName, photo, hasPhoto: !!photo, shirtMessage: cleanShirtMessage };
   room.players.push(player);
   if (room.phase === "demoLobby") {
     room.contestants = [{ ...player, isAI: false, strategy: null, bid: null }];
@@ -247,6 +258,7 @@ export async function startGame(room) {
   room.halfWinners = [];
   room.showdown = null;
   room.finalShowcase = null;
+  room.shirtReveal = null;
   room.closingLine = "Keep smiling, keep cheering, and take good care of each other!";
   void generateClosingLine().then(line=>{room.closingLine=line;}).catch(()=>{});
   room.phase = "calling";
@@ -335,12 +347,18 @@ export async function startPricingGame(room) {
   room.usedPricingPrizeNames.push(...selectedPricingPrizeNames);
   rememberPricingPrizes(selectedPricingPrizeNames);
   retirePricingPrizes(selectedPricingPrizes);
-  preparePricingIntroduction(room,winner);
+  prepareWinnerPricingIntroduction(room,winner);
 }
 
 export function beginPricingGame(room) {
   if (!room.pricingGame) throw new Error("No pricing game introduction is active");
   const game=room.pricingGame;
+  if (room.phase === "shirtReveal") {
+    room.shirtReveal = null;
+    const player = room.contestants.find(contestant => contestant.id === game.playerId) || { name: game.playerName };
+    preparePricingIntroduction(room, player);
+    return;
+  }
   if (room.phase === "pricingPrizeIntro" && game._featuredPrizeIntroducedFirst && !game._rulesIntroduced) {
     if(room.pricingAnnouncementQueue.length){const next=room.pricingAnnouncementQueue.shift();room.pricingAnnouncement=next;setHostLine(room,next.announcerText,"pricingPrizeIntro");return;}
     game._rulesIntroduced=true;
@@ -637,7 +655,7 @@ async function prepareReplacement(room){
       return;
     }
     room.returningHumanQueue.push(winner.id);
-    const replacement = { id: waitingHuman.id, name: waitingHuman.name, isAI: false, strategy: null, bid: null, photo: waitingHuman.photo || null };
+    const replacement = { id: waitingHuman.id, name: waitingHuman.name, isAI: false, strategy: null, bid: null, photo: waitingHuman.photo || null, shirtMessage: waitingHuman.shirtMessage || "" };
     // Preserve every podium position: only the winner's vacated spot changes.
     room.contestants[winnerIndex]=replacement;
     room.firstBidderId=replacement.id;

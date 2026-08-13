@@ -41,6 +41,7 @@ export function buildLineup(players) {
     strategy: null,
     bid: null,
     photo: p.photo || null,        // base64 data URL or null
+    shirtMessage: p.shirtMessage || "",
   }));
 }
 
