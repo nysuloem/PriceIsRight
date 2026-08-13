@@ -140,6 +140,16 @@ test("higher/lower prizes wait for an on-screen price reveal before the result",
   assert.equal(g.priceReveal,null);
 });
 
+test("higher/lower small prizes and displayed prices are always double digit",()=>{
+  for(const type of ["punchABunch","shellGame"]){
+    for(let run=0;run<30;run+=1){
+      const game=createPricingGameForType(type,player),items=type==="punchABunch"?game.qualifiers:game.items,actual=type==="punchABunch"?game._qualifierPrices:game._prices;
+      assert.ok(actual.every(price=>price>=10),`${type} actual prices must be double digit`);
+      assert.ok(items.every(item=>item.shownPrice>=10),`${type} shown prices must be double digit`);
+    }
+  }
+});
+
 test("car games avoid cars already used during the show",()=>{
   const first=createPricingGameForType("oneAway",player);
   const second=createPricingGameForType("oneAway",player,[first.car.name]);

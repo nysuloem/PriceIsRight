@@ -40,11 +40,7 @@ function preparePricingIntroduction(room, player) {
 }
 
 export function prepareWinnerPricingIntroduction(room, winner) {
-  if (winner.shirtMessage) {
-    room.shirtReveal = { playerId: winner.id, playerName: winner.name, message: winner.shirtMessage };
-    room.phase = "shirtReveal";
-    setHostLine(room, `Before we play, take a look at ${winner.name}'s fantastic shirt! It says: ${winner.shirtMessage}`, "shirtReveal");
-  } else preparePricingIntroduction(room, winner);
+  preparePricingIntroduction(room, winner);
 }
 
 function genCode() {
@@ -94,6 +90,8 @@ export function createRoom() {
     replacementVisible: false,
     isDemo: false,
     kissEvent: null,
+    shirtEvent: null,
+    celebrationSeq: 0,
     closingLine: "Keep smiling, keep cheering, and take good care of each other!",
     hostLine: { seq: 0, text: "", type: "welcome" },
   };
@@ -183,6 +181,7 @@ export function publicState(room) {
     isDemo: room.isDemo,
     demoGameType: room.demoGameType || null,
     kissEvent: room.kissEvent,
+    shirtEvent: room.shirtEvent,
   };
 }
 
@@ -499,6 +498,7 @@ export function revealReplacement(room) {
 
 export function submitBid(room, playerId, amount) {
   if(amount==="__kiss_host__"){kissHost(room,playerId);return;}
+  if(amount==="__show_shirt__"){showShirt(room,playerId);return;}
   if (room.phase !== "bidding") throw new Error("Bidding isn't open");
   const c = room.contestants[room.turn];
   if (!c || c.id !== playerId) throw new Error("Not your turn");
@@ -509,12 +509,31 @@ export function submitBid(room, playerId, amount) {
   setHostLine(room, `${c.name} bids $${c.bid}!`, "bidResult");
 }
 
+function celebrationWinner(room,playerId){
+  const rowWinner=room.winnerIndices.map(i=>room.contestants[i]).find(c=>c&&!c.isAI&&contestantKey(c)===playerId);
+  if(room.phase==="reveal")return rowWinner||null;
+  if(["pricingIntro","pricingPrizeIntro","pricingGame"].includes(room.phase)&&room.pricingGame?.playerId===playerId){
+    return room.contestants.find(c=>contestantKey(c)===playerId)||{id:playerId,name:room.pricingGame.playerName,shirtMessage:room.players.find(p=>p.id===playerId)?.shirtMessage};
+  }
+  return null;
+}
+
 export function kissHost(room,playerId){
-  if(room.phase!=="reveal")throw new Error("The host is not ready for that yet");
-  const winner=room.winnerIndices.map(i=>room.contestants[i]).find(c=>c&&!c.isAI&&c.id===playerId);
-  if(!winner)throw new Error("Only the winning contestant can kiss the host");
-  room.kissEvent={seq:(room.kissEvent?.seq||0)+1,playerName:winner.name};
+  const winner=celebrationWinner(room,playerId);
+  if(!winner)throw new Error("Only the current winning contestant can kiss the host");
+  room.celebrationSeq+=1;
+  room.kissEvent={seq:room.celebrationSeq,playerName:winner.name};
   return room.kissEvent;
+}
+
+export function showShirt(room,playerId){
+  const winner=celebrationWinner(room,playerId);
+  if(!winner)throw new Error("Only the current winning contestant can show a T-shirt");
+  const message=String(winner.shirtMessage||room.players.find(p=>p.id===playerId)?.shirtMessage||"").trim();
+  if(!message)throw new Error("No T-shirt message was entered");
+  room.celebrationSeq+=1;
+  room.shirtEvent={seq:room.celebrationSeq,playerName:winner.name,message};
+  return room.shirtEvent;
 }
 
 export function resolveAITurn(room) {
@@ -571,6 +590,8 @@ export async function restart(room, mode) {
     room.usedPricingPrizeNames = [];
     room.pricingGame = null;
     room.kissEvent = null;
+    room.shirtEvent = null;
+    room.celebrationSeq = 0;
     room.showcaseContestants = [];
     room.completedRounds = 0;
     room.halfWinners = [];

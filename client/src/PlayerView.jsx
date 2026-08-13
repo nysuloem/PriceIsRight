@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Bot, Trophy, Camera, Upload, X, Check, Mic, MicOff } from "lucide-react";
-import { getState, joinRoom, submitBid, kissHost, beginPricingGame, pricingGameAction, showcaseAction, wheelAction } from "./api.js";
+import { getState, joinRoom, submitBid, kissHost, showShirt, beginPricingGame, pricingGameAction, showcaseAction, wheelAction } from "./api.js";
 
 const POLL_MS = 500;
 
@@ -234,6 +234,11 @@ export default function PlayerView({ code, navigate }) {
   // ── In game ────────────────────────────────────────────────────────
   const myIndex = state.contestants.findIndex((c) => c.id === playerId);
   const me = state.contestants[myIndex];
+  const pricingWinner = state.pricingGame?.playerId === playerId ? me : null;
+  const celebrate = async (kind) => {
+    try { await (kind === "kiss" ? kissHost(code, playerId) : showShirt(code, playerId)); }
+    catch (e) { setError(e.message); }
+  };
   const myName = me?.name || localStorage.getItem(`pir_name_${code}`) || "You";
 
   return (
@@ -289,14 +294,14 @@ export default function PlayerView({ code, navigate }) {
       )}
 
       {state.phase === "reveal" && (
-        <RevealPhase state={state} myIndex={myIndex} onKiss={async()=>{try{await kissHost(code,playerId);}catch(e){setError(e.message);}}} />
+        <RevealPhase state={state} myIndex={myIndex} onCelebrate={celebrate} />
       )}
 
       {state.phase === "pricingIntro" && (
-        <SkipRulesPhone code={code} game={state.pricingGame} playerId={playerId} onError={setError} />
+        <><WinnerCelebrationButtons player={pricingWinner} onCelebrate={celebrate} /><SkipRulesPhone code={code} game={state.pricingGame} playerId={playerId} onError={setError} /></>
       )}
       {state.phase === "pricingPrizeIntro" && !(state.pricingGame?.type === "clockGame" && state.pricingGame?.clockEndsAt) && (
-        <div className="pir-panel pir-center"><h2>Here comes the next prize!</h2><p>Watch the main screen while the announcer introduces it.</p></div>
+        <div className="pir-panel pir-center"><h2>Here comes the next prize!</h2><p>Watch the main screen while the announcer introduces it.</p><WinnerCelebrationButtons player={pricingWinner} onCelebrate={celebrate} /></div>
       )}
       {(state.phase === "pricingRevealCue" || state.phase === "pricingPriceShown") && (
         <div className="pir-panel pir-center"><h2>Show us the price!</h2><p>Your choice is locked in. Watch the reveal on the main screen.</p></div>
@@ -484,7 +489,12 @@ function BiddingPhase({ state, playerId, bidDraft, setBidDraft, onSubmit }) {
   );
 }
 
-function RevealPhase({ state, myIndex, onKiss }) {
+function WinnerCelebrationButtons({player,onCelebrate}) {
+  if(!player||player.isAI)return null;
+  return <div className="pir-winner-celebrations"><button className="pir-btn pir-kiss-btn" onClick={()=>onCelebrate("kiss")}>💋 KISS THE HOST</button>{player.shirtMessage&&<button className="pir-btn pir-shirt-btn" onClick={()=>onCelebrate("shirt")}>👕 SHOW MY T-SHIRT</button>}</div>;
+}
+
+function RevealPhase({ state, myIndex, onCelebrate }) {
   const { item, contestants, winnerIndices, revealType } = state;
   const allOverbid=revealType==="overbid";
   const me = contestants[myIndex];
@@ -508,7 +518,7 @@ function RevealPhase({ state, myIndex, onKiss }) {
             : over ? `over by $${diff}` : `under by $${diff}`}
         </p>
       )}
-      {isWinner&&!me?.isAI&&<button className="pir-btn pir-kiss-btn" onClick={onKiss}>💋 KISS THE HOST</button>}
+      {isWinner&&<WinnerCelebrationButtons player={me} onCelebrate={onCelebrate} />}
     </div>
   );
 }

@@ -5,12 +5,10 @@ import { ttsUrl, playerPhotoUrl } from "./api.js";
 // OpeningSequence
 //
 // Flow:
-//  1. Theme music starts
-//  2. Announcer: "Get ready for television's most fantastic hour of prizes —
-//     The Price is Right!"
-//  3. Each contestant called one by one — face pops in as name is called
-//  4. Announcer: "And now... here's your host!"
-//  5. Theme fades → onDone()
+//  1. Recorded classic opening line
+//  2. Each contestant is called one by one by the AI announcer
+//  3. Recorded show-opening handoff
+//  4. onDone() hands directly to the first prize
 //
 // The host then takes over via the game's TTS loop (itemIntro, prompt, etc.)
 // ---------------------------------------------------------------------------
@@ -25,14 +23,12 @@ export function openingContestantLine(count) {
 
 export default function OpeningSequence({
   contestants,
-  contestantCount = contestants.length,
   roomCode,
   announcerVoice = "cedar",
-  hostVoice = "coral",
   onDone,
 }) {
   const [revealed, setRevealed] = useState([]);
-  const themeRef = useRef(null);
+  const clipRef = useRef(null);
   const announcerRef = useRef(null);
   const startedRef = useRef(false);
   const doneRef = useRef(false);
@@ -62,21 +58,21 @@ export default function OpeningSequence({
 
   const announce = (text) => speakAs(text, announcerVoice, "announcer");
 
-  function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-  function fadeTheme(theme) {
-    return new Promise(resolve => {
-      const fade = setInterval(() => {
-        if (theme && theme.volume > 0.04) {
-          theme.volume = Math.max(0, theme.volume - 0.04);
-        } else {
-          if (theme) theme.pause();
-          clearInterval(fade);
-          resolve();
-        }
-      }, 60);
+  function playClip(src) {
+    return new Promise((resolve) => {
+      const el = clipRef.current;
+      if (!el) { resolve(); return; }
+      let fired = false;
+      const fire = () => { if (fired) return; fired = true; resolve(); };
+      el.src = src;
+      el.volume = 1;
+      el.onended = fire;
+      el.onerror = fire;
+      el.play().catch(fire);
     });
   }
+
+  function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
 
   function finish() {
     if (doneRef.current) return;
@@ -85,25 +81,10 @@ export default function OpeningSequence({
   }
 
   async function runSequence() {
-    // 1. Start theme — load lazily so it doesn't block page render
-    const theme = themeRef.current;
-    if (theme) {
-      try {
-        theme.src = "/media/price-is-right-theme.mp3";
-        theme.volume = 0.28;
-        theme.loop = true;
-        await theme.play().catch(() => {});
-      } catch (err) {
-        console.warn("[OpeningSequence] theme music failed to load:", err.message);
-      }
-    }
-    await wait(600);
-
-    // 2. Opening line
-    await announce("Get ready for television's most fantastic hour of prizes — The Price is Right!");
+    await playClip("/media/opening-greatest-hour.mp3");
     await wait(300);
 
-    // 3. Call each contestant
+    // The contestant names remain dynamic and use the selected announcer voice.
     for (let i = 0; i < contestants.length; i++) {
       const c = contestants[i];
       setRevealed(prev => [...prev, i]);
@@ -112,17 +93,8 @@ export default function OpeningSequence({
       await wait(200);
     }
 
-    await wait(400);
-
-    await announce(openingContestantLine(contestantCount));
     await wait(350);
-
-    // 4. Hand off to host
-    await announce("And now... here's your host!");
-    await wait(300);
-
-    // 5. Fade music and finish — host TTS takes over from here
-    await fadeTheme(theme);
+    await playClip("/media/opening-show-handoff.mp3");
     await wait(300);
     finish();
   }
@@ -133,7 +105,7 @@ export default function OpeningSequence({
 
   return (
     <div className="pir-opening">
-      <audio ref={themeRef} style={{ display: "none" }} />
+      <audio ref={clipRef} style={{ display: "none" }} />
       <audio ref={announcerRef} style={{ display: "none" }} />
 
       <div className="pir-opening-logo">

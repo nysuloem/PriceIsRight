@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { BIDDING_CATEGORY_SCHEDULE, acknowledgeWheelResult, advance, advanceShowcasePresentation, beginPricingGame, biddingCategoryForRound, continuePricingPrice, createPricingGameDemo, createRoom, joinRoom, kissHost, makePricingGameSchedule, nextTurn, prepareWinnerPricingIntroduction, pricingGameAction, publicState, restart, revealPricingPrice, revealReplacement, settlePricingGame, settleWheelGame, submitBid, wheelGameAction } from "./rooms.js";
+import { BIDDING_CATEGORY_SCHEDULE, acknowledgeWheelResult, advance, advanceShowcasePresentation, beginPricingGame, biddingCategoryForRound, continuePricingPrice, createPricingGameDemo, createRoom, joinRoom, kissHost, showShirt, makePricingGameSchedule, nextTurn, prepareWinnerPricingIntroduction, pricingGameAction, publicState, restart, revealPricingPrice, revealReplacement, settlePricingGame, settleWheelGame, submitBid, wheelGameAction } from "./rooms.js";
 import { createShowdown } from "./showFlow.js";
 import { createPricingGameForType, playPricingGame } from "./pricingGames.js";
 
@@ -27,18 +27,15 @@ test("contestants can add a sanitized optional T-shirt message", () => {
   assert.equal(publicState(room).players[0].shirtMessage, player.shirtMessage);
 });
 
-test("a winning contestant's shirt is revealed before the pricing-game introduction", () => {
+test("a winning contestant's shirt no longer pauses the pricing-game introduction", () => {
   const room = createRoom();
   const winner = { id: "winner", name: "Jamie", isAI: false, shirtMessage: "I LOVE THE BIG WHEEL!" };
   room.contestants = [winner];
   room.pricingGame = createPricingGameForType("clockGame", winner);
   prepareWinnerPricingIntroduction(room, winner);
-  assert.equal(room.phase, "shirtReveal");
-  assert.equal(publicState(room).shirtReveal.message, winner.shirtMessage);
-  assert.equal(room.hostLine.type, "shirtReveal");
-  beginPricingGame(room);
-  assert.equal(room.shirtReveal, null);
   assert.equal(room.phase, "pricingIntro");
+  assert.equal(publicState(room).shirtReveal, null);
+  assert.equal(room.hostLine.type, "pricingGameIntro");
 });
 
 test("pricing game demos wait for a phone, introduce the game, then unlock controls", () => {
@@ -205,11 +202,24 @@ test("Switch introduces both large prizes before explaining the rules",()=>{
 });
 
 test("only a human bidding winner can trigger the host-kiss celebration",()=>{
-  const room=createRoom();room.phase="reveal";room.contestants=[{id:"winner",name:"Jamie",isAI:false},{id:"other",name:"Pat",isAI:false}];room.winnerIndices=[0];
+  const room=createRoom();room.phase="reveal";room.players=[{id:"winner",name:"Jamie",shirtMessage:"I waited my whole life!"}];room.contestants=[{id:"winner",name:"Jamie",isAI:false,shirtMessage:"I waited my whole life!"},{id:"other",name:"Pat",isAI:false}];room.winnerIndices=[0];
   const event=kissHost(room,"winner");
   assert.equal(event.playerName,"Jamie");
   assert.equal(publicState(room).kissEvent.seq,1);
+  assert.equal(kissHost(room,"winner").seq,2,"repeat kisses create fresh events");
+  const shirt=showShirt(room,"winner");assert.equal(shirt.seq,3);assert.equal(shirt.message,"I waited my whole life!");
+  room.pricingGame=createPricingGameForType("doublePrices",room.contestants[0]);room.phase="pricingIntro";
+  assert.equal(kissHost(room,"winner").seq,4,"the buttons remain live during the introduction");
+  assert.equal(showShirt(room,"winner").seq,5);
   assert.throws(()=>kissHost(room,"other"),/winning contestant/i);
+});
+
+test("winner shirt is optional and never pauses the pricing-game introduction",()=>{
+  const room=createRoom(),winner={id:"winner",name:"Jamie",isAI:false,shirtMessage:"COME ON DOWN!"};
+  room.contestants=[winner];room.players=[winner];room.pricingGame=createPricingGameForType("doublePrices",winner);
+  prepareWinnerPricingIntroduction(room,winner);
+  assert.notEqual(room.phase,"shirtReveal");
+  assert.ok(["pricingIntro","pricingPrizeIntro"].includes(room.phase));
 });
 
 test("non-playing humans can shout pricing suggestions without changing the game",()=>{
