@@ -21,6 +21,7 @@ const GAMES = [
   ["tenChances", "10 Chances", "Use ten total attempts to price two prizes and a new car."],
   ["pickAPair", "Pick-a-Pair", "Find two grocery products with exactly the same price."],
   ["balanceGame", "Balance Game", "Choose two money bags that balance with the grand prize."],
+  ["holeInOne", "Hole in One (or Two)", "Order six groceries, earn a closer putting line, and time the perfect putt."],
 ];
 
 export default function PricingGamesLab({ navigate }) {

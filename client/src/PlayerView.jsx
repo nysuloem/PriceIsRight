@@ -382,6 +382,14 @@ function audienceOptions(game){
   return [];
 }
 
+function PuttAccuracyMeter({window:target,disabled,onPutt,attempt}){
+  const [position,setPosition]=useState(0),positionRef=useRef(0),startRef=useRef(0);
+  useEffect(()=>{let frame;startRef.current=performance.now();const animate=now=>{const elapsed=(now-startRef.current)%2800,phase=elapsed/1400,next=phase<=1?phase*100:(2-phase)*100;positionRef.current=next;setPosition(next);frame=requestAnimationFrame(animate);};frame=requestAnimationFrame(animate);return()=>cancelAnimationFrame(frame);},[target?.center,target?.tolerance,attempt]);
+  if(!target)return <p className="pir-helptext">Watch the main screen while your putting line is prepared.</p>;
+  const left=Math.max(0,target.center-target.tolerance),width=Math.min(100-left,target.tolerance*2);
+  return <div className="pir-putt-phone"><p><b>{attempt?"SECOND PUTT":"FIRST PUTT"}</b></p><div className="pir-putt-meter"><span className="target" style={{left:`${left}%`,width:`${width}%`}}>SWEET SPOT</span><i style={{left:`${position}%`}} /></div><button className="pir-btn" disabled={disabled} onClick={()=>onPutt(positionRef.current)}>PUTT!</button><small>Tap when the moving marker is inside the green zone.</small></div>;
+}
+
 function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError, acceptGuesses = true }) {
   const [number, setNumber] = useState("");
   const [order, setOrder] = useState([]);
@@ -432,6 +440,7 @@ function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError
       </>}
       {game.mode === "choice" && <div className="pir-choice-grid">{game.options.map(option=><button key={option} className="pir-btn secondary" disabled={busy} onClick={()=>send({ choice: option })}>{option}</button>)}</div>}
       {game.mode === "drop" && <><p className="pir-helptext">Tap where you want the chip released.</p><div className="pir-drop-picker">{Array.from({length:9},(_,i)=><button key={i} disabled={busy} onClick={()=>send({position:i+1})}>{i+1}</button>)}</div></>}
+      {game.mode === "putt" && <PuttAccuracyMeter window={game.puttWindow} disabled={busy||!acceptGuesses} attempt={game.attempts} onPutt={accuracy=>send({accuracy})} />}
       {game.mode === "multi" && <><div className="pir-one-away-phone">{game.shownDigits.map((digit,i)=><div key={i}><b>{digit}</b><button className={answers[i]==="Higher"?"selected":""} onClick={()=>setAnswers(a=>{const n=[...a];n[i]="Higher";return n;})}>+1</button><button className={answers[i]==="Lower"?"selected":""} onClick={()=>setAnswers(a=>{const n=[...a];n[i]="Lower";return n;})}>−1</button></div>)}</div><button className="pir-btn" disabled={busy||answers.filter(Boolean).length!==5} onClick={()=>send({answers})}>Lock In Final Price</button></>}
       {game.mode === "order" && <>
         <div className="pir-order-list">{orderedNames.map((name,i)=><span key={i}>{i+1}. {name}</span>)}</div>

@@ -77,8 +77,8 @@ export const pricingGameAction = (code, playerId, action) =>
 export const beginPricingGame = (code) =>
   request(`/rooms/${code}/pricing-game/begin`, { method: "POST" });
 
-export const settlePricingGame = (code) =>
-  request(`/rooms/${code}/pricing-game/settle`, { method: "POST" });
+export const settlePricingGame = (code, action = null) =>
+  request(`/rooms/${code}/pricing-game/settle`, { method: "POST", ...(action ? { body: JSON.stringify(action) } : {}) });
 
 export const revealPricingPrice = (code) =>
   request(`/rooms/${code}/pricing-game/reveal-price`, { method: "POST" });

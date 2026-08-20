@@ -224,7 +224,7 @@ app.post(
   "/api/rooms/:code/pricing-game/settle",
   wrap(async (req, res) => {
     const room = requireRoom(req);
-    settlePricingGame(room);
+    settlePricingGame(room,req.body||{});
     res.json(publicState(room));
   })
 );

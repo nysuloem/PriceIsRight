@@ -86,6 +86,18 @@ test("Cliff Hangers apologizes before revealing the losing prize price, then end
   assert.equal(room.hostLine.text,"");
 });
 
+test("Hole in One reveals groceries, animates a putt, and unlocks OR TWO only after a miss",()=>{
+  const room=createRoom();room.pricingGame=createPricingGameForType("holeInOne",{id:"p",name:"Player"});room.phase="pricingGame";const g=room.pricingGame;
+  const order=g.items.map((item,index)=>({id:item.id,price:g._prices[index]})).sort((a,b)=>a.price-b.price).map(entry=>entry.id);
+  pricingGameAction(room,"p",{order});assert.equal(room.hostLine.type,"holeOrderReveal");
+  for(let index=0;index<6;index+=1){settlePricingGame(room,{kind:"holeOrder",index});}
+  assert.equal(g.stage,"puttReady");assert.equal(room.hostLine.type,"holePuttReady");
+  pricingGameAction(room,"p",{accuracy:0});assert.equal(g.stage,"putting");assert.equal(room.hostLine.type,"holePutt");
+  settlePricingGame(room,{kind:"holePutt",id:g.lastPutt.id});assert.equal(g.stage,"orTwoReveal");assert.equal(room.hostLine.type,"holeOrTwoReveal");
+  settlePricingGame(room,{kind:"holePutt",id:g.lastPutt.id});assert.equal(g.stage,"orTwoReveal","a duplicate animation callback must not skip the reveal");
+  settlePricingGame(room,{kind:"holeOrTwo"});assert.equal(g.stage,"puttReady");assert.equal(g.attempts,1);
+});
+
 test("car games introduce the car before the host explains the rules",()=>{
   const {room}=createPricingGameDemo("diceGame");
   joinRoom(room,"Car Player");

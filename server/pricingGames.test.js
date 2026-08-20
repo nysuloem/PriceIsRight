@@ -102,6 +102,7 @@ test("all pricing game engines can reach a result", () => {
   g=createPricingGameForType("tenChances",player);for(const price of g._prices)playPricingGame(g,{value:price});assert.equal(g.status,"won");
   g=createPricingGameForType("pickAPair",player);{const first=0,second=g._prices.findIndex((price,index)=>index!==first&&price===g._prices[first]);playPricingGame(g,{choice:g.options.find(option=>option.startsWith(`${first+1}.`))});playPricingGame(g,{choice:g.options.find(option=>option.startsWith(`${second+1}.`))});}assert.equal(g.status,"won");
   g=createPricingGameForType("balanceGame",player);for(const amount of g._correctBagAmounts)playPricingGame(g,{choice:`$${amount.toLocaleString("en-CA")}`});assert.equal(g.status,"won");
+  g=createPricingGameForType("holeInOne",player);playPricingGame(g,{order:g.items.map((item,index)=>({id:item.id,price:g._prices[index]})).sort((a,b)=>a.price-b.price).map(entry=>entry.id)});for(let i=0;i<6;i+=1)settlePricingAnimation(g);playPricingGame(g,{accuracy:g.puttWindow.center});settlePricingAnimation(g);assert.equal(g.status,"won");
 });
 
 test("Pick-a-Pair creates three pairs and offers one keep-and-repick chance",()=>{
@@ -139,6 +140,25 @@ test("Balance Game has exactly one winning pair and awards the grand prize",()=>
   assert.equal(pairs.length,1);assert.equal(g.bags.length,3);
   for(const amount of pairs[0])playPricingGame(g,{choice:`$${amount.toLocaleString("en-CA")}`});
   assert.equal(g.status,"won");assert.equal(g.balanceState,"balanced");assert.equal(g.winnings,g._actual);
+});
+
+test("Hole in One rewards accurate grocery ordering with an easier putting meter",()=>{
+  const g=createPricingGameForType("holeInOne",player),sorted=g.items.map((item,index)=>({id:item.id,price:g._prices[index]})).sort((a,b)=>a.price-b.price);
+  assert.equal(g.title,"HOLE IN ONE");assert.doesNotMatch(g.instructions,/or two/i);
+  playPricingGame(g,{order:sorted.map(entry=>entry.id)});assert.equal(g.stage,"orderReveal");assert.equal(g.revealedCount,0);
+  for(let i=0;i<6;i+=1)settlePricingAnimation(g);
+  assert.equal(g.stage,"puttReady");assert.equal(g.earnedLines,6);assert.equal(g.distanceLine,1);assert.equal(g.puttWindow.tolerance,20);
+});
+
+test("Hole in One reveals OR TWO only after a missed first putt",()=>{
+  const g=createPricingGameForType("holeInOne",player),reverse=g.items.map((item,index)=>({id:item.id,price:g._prices[index]})).sort((a,b)=>b.price-a.price).map(entry=>entry.id);
+  playPricingGame(g,{order:reverse});for(let i=0;i<6;i+=1)settlePricingAnimation(g);
+  assert.equal(g.distanceLine,6);assert.equal(g.puttWindow.tolerance,10);assert.equal(g.orTwoRevealed,false);
+  playPricingGame(g,{accuracy:0});assert.equal(g.stage,"putting");settlePricingAnimation(g);
+  assert.equal(g.stage,"orTwoReveal");assert.equal(g.orTwoRevealed,true);assert.match(g.prompt,/OR TWO/i);
+  settlePricingAnimation(g);assert.equal(g.stage,"puttReady");assert.equal(g.attempts,1);
+  playPricingGame(g,{accuracy:g.puttWindow.center});settlePricingAnimation(g);
+  assert.equal(g.status,"won");assert.match(g.result,/Hole in two/i);assert.equal(g.winnings,g._bonusPrice);
 });
 
 test("higher/lower prizes wait for an on-screen price reveal before the result", () => {

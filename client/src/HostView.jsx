@@ -142,6 +142,10 @@ function playWomp() {
   try { const ctx=audioContext(); [330,262,220].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.2;o.type="sine";o.connect(g);g.connect(ctx.destination);o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(f*.88,t+.18);g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.11,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.2);o.start(t);o.stop(t+.22);}); } catch {}
 }
 
+function playOrTwoSting(){
+  try{const ctx=audioContext(),notes=[196,247,294,392,523];notes.forEach((frequency,index)=>{const oscillator=ctx.createOscillator(),gain=ctx.createGain(),start=ctx.currentTime+index*.14;oscillator.type=index<3?"sawtooth":"square";oscillator.frequency.value=frequency;gain.gain.setValueAtTime(.001,start);gain.gain.exponentialRampToValueAtTime(.16,start+.025);gain.gain.exponentialRampToValueAtTime(.001,start+.42);oscillator.connect(gain);gain.connect(ctx.destination);oscillator.start(start);oscillator.stop(start+.44);});}catch{}
+}
+
 function playWheelClicks(duration=3400){
   let stopped=false,timer=null,elapsed=0;
   const click=()=>{if(stopped)return;try{const ctx=audioContext(),o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime;o.type="square";o.frequency.setValueAtTime(1450,t);o.frequency.exponentialRampToValueAtTime(620,t+.025);g.gain.setValueAtTime(.09,t);g.gain.exponentialRampToValueAtTime(.001,t+.035);o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+.04);}catch{}const progress=Math.min(1,elapsed/duration),delay=38+Math.pow(progress,2.7)*245;elapsed+=delay;if(elapsed<duration)timer=setTimeout(click,delay);};
@@ -166,6 +170,7 @@ function HostViewInner({ code }) {
   const lastSettledClimbRef = useRef(0);
   const lastYodelClimbRef = useRef(0);
   const lastCliffCelebrationRef = useRef(0);
+  const lastSettledPuttRef = useRef(0);
   const cliffYodelRef = useRef(null);
   const lastSettledWheelRef = useRef("");
   const lastAIWheelActionRef = useRef("");
@@ -174,6 +179,7 @@ function HostViewInner({ code }) {
   const lastAudienceRef=useRef(0);
   const finishPlinkoDrop=useCallback((dropId)=>{if(!dropId||dropId===lastSettledDropRef.current)return;lastSettledDropRef.current=dropId;settlePricingGame(code).catch(e=>{lastSettledDropRef.current=0;setError(e.message);});},[code]);
   const finishCliffClimb=useCallback((climbId)=>{if(!climbId||climbId===lastSettledClimbRef.current)return;lastSettledClimbRef.current=climbId;settlePricingGame(code).catch(e=>{lastSettledClimbRef.current=0;setError(e.message);});},[code]);
+  const finishHolePutt=useCallback((puttId)=>{if(!puttId||puttId===lastSettledPuttRef.current)return;lastSettledPuttRef.current=puttId;settlePricingGame(code,{kind:"holePutt",id:puttId}).catch(e=>{lastSettledPuttRef.current=0;setError(e.message);});},[code]);
 
   useEffect(() => { if (state?.isDemo && phase !== "game") setPhase("game"); }, [state?.isDemo]);
 
@@ -201,6 +207,8 @@ function HostViewInner({ code }) {
   useEffect(()=>{const game=state?.pricingGame,drop=game?.lastDrop;if(game?.type!=="plinko"||game.stage!=="dropping"||!drop)return;const timer=setTimeout(()=>finishPlinkoDrop(drop.id),(drop.duration||5600)+900);return()=>clearTimeout(timer);},[state?.pricingGame?.lastDrop?.id,state?.pricingGame?.stage,state?.pricingGame?.lastDrop?.duration,finishPlinkoDrop]);
 
   useEffect(()=>{const game=state?.pricingGame,climb=game?.lastClimb;if(game?.type!=="cliffHangers"||game.stage!=="climbing"||!climb)return;const timer=setTimeout(()=>finishCliffClimb(climb.id),(climb.duration||1000)+700);return()=>clearTimeout(timer);},[state?.pricingGame?.lastClimb?.id,state?.pricingGame?.stage,state?.pricingGame?.lastClimb?.duration,finishCliffClimb]);
+
+  useEffect(()=>{const game=state?.pricingGame,putt=game?.lastPutt;if(game?.type!=="holeInOne"||game.stage!=="putting"||!putt)return;const timer=setTimeout(()=>finishHolePutt(putt.id),(putt.duration||2600)+650);return()=>clearTimeout(timer);},[state?.pricingGame?.lastPutt?.id,state?.pricingGame?.stage,state?.pricingGame?.lastPutt?.duration,finishHolePutt]);
 
   useEffect(()=>{const game=state?.pricingGame,climb=game?.lastClimb,audio=cliffYodelRef.current;if(game?.type!=="cliffHangers"||game.stage!=="climbing"||!climb||climb.correct){if(audio){audio.pause();audio.currentTime=0;}return;}if(climb.id===lastYodelClimbRef.current)return;lastYodelClimbRef.current=climb.id;audio.pause();audio.currentTime=0;audio.loop=true;audio.volume=.72;audio.play().catch(()=>{});return()=>{audio.pause();audio.currentTime=0;};},[state?.pricingGame?.lastClimb?.id,state?.pricingGame?.stage,state?.pricingGame?.lastClimb?.correct]);
 
@@ -324,6 +332,14 @@ function HostViewInner({ code }) {
       setTimeout(() => current(() => playTTS(el, text, () => safely(() => continuePricingPrice(code)), voice, "host")), 650);
     } else if(type==="cliffCheck"){
       playTTS(el,text,()=>current(()=>{if(state.pricingGame?.lastClimb?.correct)playSuccess();else playBuzzer();setTimeout(()=>safely(()=>settlePricingGame(code)),750);}),voice,"host");
+    } else if(type==="holeOrderReveal"){
+      playTTS(el,text,()=>setTimeout(()=>safely(()=>settlePricingGame(code,{kind:"holeOrder",index:state.pricingGame?.revealedCount||0})),500),voice,"host");
+    } else if(type==="holeOrderRevealStep"){
+      playTTS(el,text,()=>setTimeout(()=>safely(()=>settlePricingGame(code,{kind:"holeOrder",index:state.pricingGame?.revealedCount||0})),650),voice,"host");
+    } else if(type==="holePuttReady"){
+      playTTS(el,text,()=>{},voice,"host");
+    } else if(type==="holeOrTwoReveal"){
+      playOrTwoSting();setTimeout(()=>current(()=>playTTS(el,text,()=>setTimeout(()=>safely(()=>settlePricingGame(code,{kind:"holeOrTwo"})),900),voice,"host")),700);
     } else if (type === "pricingGame" || type === "pricingPrompt") {
       const diceReveal=state.pricingGame?.type==="diceGame"&&state.pricingGame?.stage==="reveal";
       if(diceReveal)playTTS(ann,text,()=>{},config.announcerVoice||"cedar","announcer");
@@ -481,7 +497,7 @@ function HostViewInner({ code }) {
                   onNewPlayers={action(() => restartGame(code, "newPlayers"))} />
               )}
               {(state.phase === "pricingIntro" || state.phase === "pricingPrizeIntro" || state.phase === "pricingGame" || state.phase === "pricingRevealCue" || state.phase === "pricingPriceShown") && (
-                <PricingGameView game={state.pricingGame} poolWarnings={state.prizePoolWarnings} spotlight={state.phase === "pricingPrizeIntro" ? state.pricingAnnouncement : null} rulesOnly={state.phase === "pricingIntro"} onSkipRules={state.phase==="pricingIntro"?forceAction(()=>beginPricingGame(code)):null} />
+                <PricingGameView game={state.pricingGame} poolWarnings={state.prizePoolWarnings} spotlight={state.phase === "pricingPrizeIntro" ? state.pricingAnnouncement : null} rulesOnly={state.phase === "pricingIntro"} onSkipRules={state.phase==="pricingIntro"?forceAction(()=>beginPricingGame(code)):null} onPlinkoLanded={finishPlinkoDrop} onCliffStopped={finishCliffClimb} onPuttStopped={finishHolePutt} />
               )}
               {state.phase === "showcaseShowdown" && <WheelView showdown={state.showdown} />}
               {(state.phase.startsWith("showcase")||state.phase.startsWith("credits")) && state.finalShowcase && (state.phase.startsWith("credits")?<EndCredits state={state} config={config}/>:<FinalShowcaseView state={state} />)}
@@ -734,7 +750,7 @@ function MoneyBag({ value, selected = false, automatic = false, onScale = false 
   </div>;
 }
 
-export function PricingGameView({ game, poolWarnings = [], spotlight = null, rulesOnly = false, onSkipRules = null }) {
+export function PricingGameView({ game, poolWarnings = [], spotlight = null, rulesOnly = false, onSkipRules = null, onPlinkoLanded = null, onCliffStopped = null, onPuttStopped = null }) {
   if (!game) return <div className="pir-loading">Loading pricing game…</div>;
   if (rulesOnly) return <div className={`pir-pricing-board pir-game-${game.type} pir-rules-only ${game.type==="plinko"?"pir-plinko-intro":""}`}>{game.type==="plinko"&&<><div className="pir-plinko-logo">PLINKO!</div><div className="pir-plinko-jackpot">A CHANCE TO WIN<br/><strong>$50,000!!!</strong></div></>}<div className="pir-pricing-kicker">HOW TO PLAY</div>{game.type!=="plinko"&&<h2 className="pir-pricing-title">{game.title}</h2>}<p className="pir-pricing-rules">{game.instructions}</p>{game.type==="cliffHangers"&&<CliffBoard game={game} /> }<div className="pir-pricing-prompt">Listen to the rules…</div>{onSkipRules&&<button className="pir-btn pir-skip-rules" onClick={onSkipRules}>SKIP RULES — LET'S PLAY!</button>}</div>;
   if (spotlight) { const isCar=/IT'S A NEW CAR/i.test(spotlight.announcerText||""),isGrand=!isCar&&(spotlight.id===game.bonusPrize?.id||Boolean(game.featuredIntroCount)); return <div className={`pir-pricing-board pir-game-${game.type} pir-model-presentation ${isCar?"pir-new-car-stage":""} ${isGrand?"pir-shell-grand-intro":""}`}><div className="pir-pricing-kicker">PRIZE INTRODUCTION</div>{isCar&&<div className="pir-new-car-flash">IT'S A NEW CAR!!!</div>}{isGrand&&<div className="pir-shell-grand-flash">PLAYING FOR THIS GRAND PRIZE!</div>}<h2 className="pir-pricing-title">{game.title}</h2><img className="pir-prize-models" src={prizeModelsUrl} alt="Prize models presenting the prize"/><div className="pir-model-prize"><GameCards items={[spotlight]} /></div><div className="pir-pricing-prompt">Listen to the announcer…</div></div>; }
@@ -750,13 +766,13 @@ export function PricingGameView({ game, poolWarnings = [], spotlight = null, rul
         <div className="pir-plinko-board">
           {game.stage === "qualify" && <GameCards items={[game.qualifiers[game.qualifierIndex]].filter(Boolean)} />}
           <div className="pir-plinko-drop-line">{Array.from({length:9},(_,i)=><span key={i}>{i+1}</span>)}</div>
-          <div className="pir-plinko-field"><div className="pir-plinko-pegs">{Array.from({length:12},(_,row)=><div key={row} className={row%2?"offset":""}>{Array.from({length:row%2?8:9},(_,peg)=><i key={peg} />)}</div>)}</div>{game.lastDrop && <PlinkoChip key={game.lastDrop.id} drop={game.lastDrop} onLanded={()=>finishPlinkoDrop(game.lastDrop.id)} />}</div>
+          <div className="pir-plinko-field"><div className="pir-plinko-pegs">{Array.from({length:12},(_,row)=><div key={row} className={row%2?"offset":""}>{Array.from({length:row%2?8:9},(_,peg)=><i key={peg} />)}</div>)}</div>{game.lastDrop && <PlinkoChip key={game.lastDrop.id} drop={game.lastDrop} onLanded={()=>onPlinkoLanded?.(game.lastDrop.id)} />}</div>
           <div className="pir-plinko-slots">{game.slots.map((v,i) => <span key={i}>${v}</span>)}</div>
           {game.lastDrop?.value != null && <div className="pir-plinko-result">LANDED ON ${game.lastDrop.value.toLocaleString("en-CA")}</div>}
           <b>{game.stage === "qualify" ? `${game.chips} chip${game.chips === 1 ? "" : "s"} earned` : `${game.chipsLeft} chip${game.chipsLeft === 1 ? "" : "s"} left`}</b>
         </div>
       )}
-      {game.type === "cliffHangers" && <><GameCards items={[game.items[game.itemIndex]].filter(Boolean)} /><CliffBoard game={game} onStopped={()=>finishCliffClimb(game.lastClimb?.id)} /></>}
+      {game.type === "cliffHangers" && <><GameCards items={[game.items[game.itemIndex]].filter(Boolean)} /><CliffBoard game={game} onStopped={()=>onCliffStopped?.(game.lastClimb?.id)} /></>}
       {game.type === "punchABunch" && <><div className="pir-punch-status">PUNCHES EARNED: {game.punches}</div>{game.stage === "qualify" ? <GameCards items={[game.qualifiers[game.qualifierIndex]].filter(Boolean)} /> : <div className="pir-punch-grid">{Array.from({length:50},(_,i)=><span key={i} className={game.punched?.includes(i)?"punched":""}>{game.punched?.includes(i)?"💥":i+1}</span>)}</div>}</>}
       {game.type === "diceGame" && <><GameCards items={[game.car]} /><div className="pir-dice-board"><div className="pir-price-digits"><span>{game.firstDigit}</span>{game.revealed.map((n,i)=><span key={i} className={game.correct[i]===false?"wrong":game.correct[i]===true?"right":""}>{n ?? "?"}</span>)}</div><div className="pir-dice-columns">{game.rolls.map((roll,i)=><div key={i}><div className={`pir-die ${i===game.digitIndex&&game.stage==="roll"?"rolling":""}`}>{roll ?? "–"}</div><b>{game.choices[i] || "WAITING"}</b><small>{game.correct[i]===true?"✓ RIGHT":game.correct[i]===false?"✕ WRONG":"LOCKED"}</small></div>)}</div></div></>}
       {game.type === "groceryGame" && <><div className="pir-grocery-grand"><b>PLAYING FOR</b><GameCards items={[game.bonusPrize].filter(Boolean)} /></div><div className="pir-register">TOTAL ${game.total.toFixed(2)}</div><GameCards items={game.items} /></>}
@@ -783,6 +799,7 @@ export function PricingGameView({ game, poolWarnings = [], spotlight = null, rul
           <div className="pir-balance-base">⚖</div>
         </div>
       </div>}
+      {game.type === "holeInOne" && <HoleInOneBoard game={game} onPuttStopped={()=>onPuttStopped?.(game.lastPutt?.id)} />}
       {game.type === "tenChances" && <div className="pir-ten-stage">
         <div className="pir-ten-logo"><b>10</b><span>CHANCES</span></div>
         <div className="pir-ten-prizes">{game.prizes.map((prize,i)=><div key={prize.name} className={`${i===game.prizeIndex?"active":""} ${i<game.prizeIndex?"won":""}`}><small>{i===0?"2 DIGITS":i===1?"3 DIGITS":"NEW CAR"}</small><strong>{prize.name}</strong></div>)}</div>
@@ -833,6 +850,22 @@ function CliffClimber({position,climb,onStopped}){
 
 function CliffBoard({game,reveal=null,onStopped}){
   return <div className="pir-cliff"><CliffClimber position={game.climber} climb={game.stage==="climbing"?game.lastClimb:null} onStopped={onStopped}/><div className="pir-cliff-track" /><b>{game.stage==="checking"?"IS THAT THE RIGHT PRICE?":game.stage==="climbing"?(game.lastClimb?.correct?"HE STAYS PUT!":"WATCH HIM CLIMB..."):`Step ${game.climber} / 25`}</b>{reveal&&<div className={`pir-cliff-price-pop ${reveal.actual==null?"waiting":game.cliffFinalWin?"subtle":""}`}><small>YOUR GUESS: {reveal.guess}</small>{reveal.actual==null?<span>?</span>:<><em>ACTUAL RETAIL PRICE</em><strong>${Number(reveal.actual).toLocaleString("en-CA")}</strong></>}</div>}</div>;
+}
+
+function HolePutt({putt,onStopped}){
+  const ref=useRef(null),stoppedRef=useRef(onStopped);useEffect(()=>{stoppedRef.current=onStopped;},[onStopped]);
+  useEffect(()=>{const ball=ref.current,green=ball?.parentElement;if(!ball||!green||!putt)return;const width=green.clientWidth,startPercent=9+(6-putt.distanceLine)*8,endPercent=putt.won?88:putt.missDirection==="short"?78:96,start=startPercent*width/100,end=endPercent*width/100,travel=end-start;let fired=false;const finish=()=>{if(fired)return;fired=true;stoppedRef.current?.();};const animation=ball.animate([{transform:"translate(0,0) rotate(0deg)",offset:0},{transform:`translate(${travel*.55}px,-24px) rotate(430deg)`,offset:.55},{transform:`translate(${travel}px,0) rotate(820deg)`,offset:1}],{duration:putt.duration||2600,easing:"cubic-bezier(.18,.65,.28,1)",fill:"forwards"});animation.onfinish=finish;if(animation.finished?.then)animation.finished.then(finish).catch(()=>{});return()=>animation.cancel();},[putt?.id]);
+  const startPercent=9+(6-(putt?.distanceLine||6))*8;return <span ref={ref} className="pir-hole-ball" style={{left:`${startPercent}%`}} />;
+}
+
+function HoleInOneBoard({game,onPuttStopped}){
+  const ordered=game.orderedIds?.length?game.orderedIds.map(id=>game.items.find(item=>item.id===id)).filter(Boolean):game.items,showGreen=["puttReady","putting","orTwoReveal"].includes(game.stage)||game.status!=="playing";
+  return <div className={`pir-hole-stage ${game.orTwoRevealed?"or-two":""}`}>
+    <div className="pir-hole-logo"><span>HOLE IN ONE</span>{game.orTwoRevealed&&<b>OR TWO!</b>}</div>
+    {!showGreen&&<div className="pir-hole-groceries"><GameCards items={ordered.map((item,index)=>({...item,revealedPrice:index<game.revealedCount?item.revealedPrice:null}))} /></div>}
+    {showGreen&&<><div className="pir-hole-prize"><b>PLAYING FOR</b><GameCards items={[game.bonusPrize]} /></div><div className="pir-hole-green"><div className="pir-hole-lines">{[6,5,4,3,2,1].map(line=><i key={line} className={line===game.distanceLine?"active":""}><small>{line}</small></i>)}</div><span className="pir-hole-golfer">🏌️</span><span className="pir-hole-cup">⚑</span>{game.lastPutt&&<HolePutt key={game.lastPutt.id} putt={game.lastPutt} onStopped={game.stage==="putting"?onPuttStopped:null}/>}</div><div className="pir-hole-distance">PUTTING LINE {game.distanceLine} · TARGET ZONE {game.puttWindow?.tolerance?`${game.puttWindow.tolerance*2}% WIDE`:"LOCKED"}</div></>}
+    {game.stage==="orTwoReveal"&&<div className="pir-or-two-reveal">OR TWO!</div>}
+  </div>;
 }
 
 function PrizePhoto({item}){

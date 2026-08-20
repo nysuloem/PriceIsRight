@@ -187,7 +187,7 @@ const SHELL_BONUS_PRIZES = [
   { name:"Backyard spa retreat",brand:"Hydropool",description:"A self-cleaning hot tub with delivery, steps, cover, and patio furniture.",price:9750,image:"https://images.unsplash.com/photo-1572331165267-854da2b10ccc?auto=format&fit=crop&w=1200&q=85" },
 ];
 
-const GAME_NAMES = ["plinko", "cliffHangers", "punchABunch", "diceGame", "groceryGame", "oneAway", "clockGame", "anyNumber", "grandGame", "shellGame", "moneyGame", "luckySeven", "doublePrices", "threeStrikes", "switchGame", "tenChances", "pickAPair", "balanceGame"];
+const GAME_NAMES = ["plinko", "cliffHangers", "punchABunch", "diceGame", "groceryGame", "oneAway", "clockGame", "anyNumber", "grandGame", "shellGame", "moneyGame", "luckySeven", "doublePrices", "threeStrikes", "switchGame", "tenChances", "pickAPair", "balanceGame", "holeInOne"];
 export const CAR_PRICING_GAME_TYPES = ["diceGame", "oneAway", "anyNumber", "moneyGame", "luckySeven", "threeStrikes", "tenChances"];
 export const NON_CAR_PRICING_GAME_TYPES = GAME_NAMES.filter(type=>!CAR_PRICING_GAME_TYPES.includes(type));
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
@@ -321,11 +321,24 @@ function makeBalanceGame(player,excluded=[],liveItems=[]){
   const source=pick(requireItems(grandPrizeCandidates(excluded,liveItems).filter(prize=>prize.price>=4000&&prize.price<10000),1,"Balance Game prize bank")),raw={...source,price:Math.round(source.price)},prize=prizeIntro(raw),amounts=balanceBagAmounts(raw.price),smallBag=raw.price%1000;
   return {...base("balanceGame","BALANCE GAME",player,"The small bag, showing the last three digits of the prize price, is yours automatically. Choose exactly two of the three larger bags. If your bags balance with the prize's actual retail price, you win it.",[prize]),featuredIntroCount:1,prize,_actual:raw.price,_correctBagAmounts:amounts.correct,smallBag,bags:amounts.bags.map((value,index)=>({id:`balance-bag-${index}`,value,selected:false})),chosenBagValues:[],balanceTotal:smallBag,balanceState:"waiting",stage:"choose",prompt:"Choose the first large money bag.",mode:"choice",options:amounts.bags.map(money)};
 }
+function holeInOneGroceries(excluded=[],liveItems=[]){
+  const source=fresh([...PICK_A_PAIR_CATALOG,...GROCERIES,...liveItems.filter(item=>Number(item.price)>=1&&Number(item.price)<=15&&item.image)],excluded),byPrice=new Map(),families=new Set();
+  for(const item of shuffle(source)){const key=Number(item.price).toFixed(2),family=prizeFamilyKey(item);if(!byPrice.has(key)&&!families.has(family)){byPrice.set(key,item);families.add(family);}}
+  const available=shuffle([...byPrice.values()]);
+  if(available.length>=6)return available.slice(0,6);
+  const reserveByPrice=new Map(),reserveFamilies=new Set();for(const item of shuffle([...PICK_A_PAIR_CATALOG,...GROCERIES])){const key=Number(item.price).toFixed(2),family=prizeFamilyKey(item);if(!reserveByPrice.has(key)&&!reserveFamilies.has(family)){reserveByPrice.set(key,item);reserveFamilies.add(family);}}
+  return requireItems([...reserveByPrice.values()],6,"Hole in One grocery bank").slice(0,6);
+}
+function newPuttWindow(earnedLines){return {center:44+Math.floor(Math.random()*13),tolerance:8+Math.max(1,Math.min(6,earnedLines))*2};}
+function makeHoleInOne(player,excluded=[],liveItems=[]){
+  const rawItems=holeInOneGroceries(excluded,liveItems),items=shuffle(rawItems).map((item,index)=>({...prizeIntro(item),id:`hole-grocery-${prizeIdentity(item)}`,displayNumber:index+1,revealedPrice:null})),rawPrize=pick(requireItems(grandPrizeCandidates(excluded,liveItems),1,"Hole in One grand-prize bank")),bonusPrize={...prizeIntro(rawPrize),announcerText:prizeAnnouncementText(rawPrize,"Sink your putt and you could win this fabulous prize! It's")};
+  return {...base("holeInOne","HOLE IN ONE",player,"Arrange the six grocery products from least to most expensive. Each correct step moves you closer to the hole. Then stop the moving accuracy meter inside the target zone to sink your putt and win the grand prize.",[bonusPrize]),featuredIntroCount:1,bonusPrize,_bonusPrice:rawPrize.price,items,_prices:items.map(item=>rawItems.find(raw=>`hole-grocery-${prizeIdentity(raw)}`===item.id)?.price),orderedIds:[],revealedCount:0,earnedLines:0,distanceLine:6,orderStillCorrect:true,attempts:0,orTwoRevealed:false,puttWindow:null,lastPutt:null,stage:"order",prompt:"Arrange all six products from least to most expensive.",mode:"order"};
+}
 function tenChanceDigits(price,count){const digits=[...new Set(String(price).split(""))];for(const d of shuffle(["0","1","2","3","4","5","6","7","8","9"]))if(!digits.includes(d)){digits.push(d);if(digits.length===count)break;}return shuffle(digits);}
 function shuffledCarDigits(price){const answer=String(price).split(""),shuffled=shuffle(answer);return shuffled.join("")===answer.join("")?[...answer.slice(1),answer[0]]:shuffled;}
 function makeTenChances(player,excluded=[],liveItems=[]){const two=requireItems(diverseSmallItems(1,excluded,p=>p.price>=10&&p.price<=99&&new Set(String(Math.round(p.price))).size===2,liveItems),1,"10 Chances two-digit bank")[0],three=requireItems(diverseSmallItems(1,[...excluded,two.name],p=>p.price>=100&&p.price<=999&&new Set(String(Math.round(p.price))).size===3,liveItems),1,"10 Chances three-digit bank")[0],car=freshCar(excluded,c=>new Set(String(c.price)).size===5,"10 Chances car bank"),raw=[two,three,car],prizes=[prizeIntro(two),prizeIntro(three),carIntro(car)],prices=raw.map(p=>Math.round(p.price)),digitSets=[tenChanceDigits(prices[0],3),tenChanceDigits(prices[1],4),shuffledCarDigits(prices[2])];return {...base("tenChances","10 CHANCES",player,"You have ten chances total to price three prizes: first a two-digit prize, then a three-digit prize, and finally a new car. Build each price using only the digits shown, without repeating a digit. Correctly price a prize to move to the next one.",prizes),prizes,_prices:prices,digitSets,prizeIndex:0,chancesLeft:10,guesses:[],winnings:0,prompt:`Use two of the digits shown to price the ${two.name}.`,mode:"number"};}
 
-const FACTORIES={plinko:makePlinko,cliffHangers:makeCliff,punchABunch:makePunch,diceGame:makeDice,groceryGame:makeGrocery,oneAway:makeOneAway,clockGame:makeClock,anyNumber:makeAnyNumber,grandGame:makeGrand,shellGame:makeShell,moneyGame:makeMoneyGame,luckySeven:makeLuckySeven,doublePrices:makeDoublePrices,threeStrikes:makeThreeStrikes,switchGame:makeSwitch,tenChances:makeTenChances,pickAPair:makePickAPair,balanceGame:makeBalanceGame};
+const FACTORIES={plinko:makePlinko,cliffHangers:makeCliff,punchABunch:makePunch,diceGame:makeDice,groceryGame:makeGrocery,oneAway:makeOneAway,clockGame:makeClock,anyNumber:makeAnyNumber,grandGame:makeGrand,shellGame:makeShell,moneyGame:makeMoneyGame,luckySeven:makeLuckySeven,doublePrices:makeDoublePrices,threeStrikes:makeThreeStrikes,switchGame:makeSwitch,tenChances:makeTenChances,pickAPair:makePickAPair,balanceGame:makeBalanceGame,holeInOne:makeHoleInOne};
 export const PRICING_GAME_TYPES=[...GAME_NAMES];
 export function createPricingGameForType(type,player,excluded=[],liveItems=[]){ if(!FACTORIES[type]) throw new Error(`Unknown pricing game: ${type}`); return FACTORIES[type](player,excluded,liveItems); }
 export function createPricingGame(player,previous=[],excluded=[],liveItems=[],allowedTypes=GAME_NAMES){ const pool=allowedTypes.filter(type=>FACTORIES[type]),a=pool.filter(type=>!previous.includes(type)); return FACTORIES[pick(a.length?a:pool)](player,excluded,liveItems); }
@@ -393,6 +406,16 @@ export function playPricingGame(g,action={}) {
     if(g.chosenBagValues.length===1){g.prompt=`Your bags total ${money(g.balanceTotal)}. Choose one more large bag.`;outcome(g,"neutral",`${money(selected)} is on the contestant's side of the scale.`);}
     else{const won=g.balanceTotal===g._actual;g.revealedPrice=g._actual;g.balanceState=won?"balanced":g.balanceTotal>g._actual?"contestant-heavy":"prize-heavy";finish(g,won,won?`The scale balances at ${money(g._actual)}! You won the ${g.prize.name}!`:`The bags total ${money(g.balanceTotal)}, but the prize is ${money(g._actual)}.`,won?g._actual:0);}
   }
+  else if(g.type==="holeInOne"){
+    if(g.stage==="order"){
+      const order=Array.isArray(action.order)?action.order.map(String):[];
+      if(order.length!==g.items.length||new Set(order).size!==g.items.length||order.some(id=>!g.items.some(item=>item.id===id)))throw new Error("Arrange all six grocery products before locking in the order");
+      g.orderedIds=order;g.revealedCount=0;g.earnedLines=0;g.distanceLine=6;g.orderStillCorrect=true;g.stage="orderReveal";g.mode="wait";g.prompt="Let's reveal the prices, starting with your least expensive product.";
+    }else if(g.stage==="puttReady"){
+      const accuracy=Number(action.accuracy),window=g.puttWindow;if(!Number.isFinite(accuracy)||accuracy<0||accuracy>100)throw new Error("Tap the putting meter to take your shot");
+      const delta=accuracy-window.center,won=Math.abs(delta)<=window.tolerance;g.stage="putting";g.mode="wait";g.lastPutt={id:(g.lastPutt?.id||0)+1,attempt:g.attempts+1,accuracy,center:window.center,tolerance:window.tolerance,won,missDirection:delta<0?"short":"long",distanceLine:g.distanceLine,duration:2600};g.prompt="The ball is rolling...";
+    }else throw new Error("Wait for the current Hole in One sequence to finish");
+  }
   else if(g.type==="tenChances"){
     if(g.chancesLeft<=0)return finish(g,false,"All ten chances have been used.",g.winnings);
     const i=g.prizeIndex,guess=String(action.value??"").replace(/\D/g,""),needed=i===0?2:i===1?3:5,available=g.digitSets[i];
@@ -449,6 +472,7 @@ export function initialPrizeAnnouncements(game) {
   if (game.type === "groceryGame") return [game.bonusPrize];
   if (game.type === "pickAPair") return [game.bonusPrize];
   if (game.type === "balanceGame") return [game.prize];
+  if (game.type === "holeInOne") return [game.bonusPrize];
   if (game.type === "shellGame") return [game.bonusPrize, game.items[0]];
   if (game.type === "tenChances") return [game.prizes[2], game.prizes[0]];
   if (game.type === "cliffHangers" || game.type === "clockGame") return [game.items[0]];
@@ -456,6 +480,20 @@ export function initialPrizeAnnouncements(game) {
 }
 
 export function settlePricingAnimation(game) {
+  if(game?.type==="holeInOne"){
+    if(game.stage==="orderReveal"){
+      const index=game.revealedCount,item=game.items.find(entry=>entry.id===game.orderedIds[index]),price=game._prices[game.items.indexOf(item)];if(!item)throw new Error("The grocery order could not be revealed");item.revealedPrice=price;game.revealedCount+=1;
+      if(index===0){game.earnedLines=1;outcome(game,"neutral",`${item.brand} ${item.name} is ${money(price)}.`);}
+      else{const previous=game.items.find(entry=>entry.id===game.orderedIds[index-1]),previousPrice=game._prices[game.items.indexOf(previous)],higher=price>previousPrice;if(game.orderStillCorrect&&higher){game.earnedLines+=1;outcome(game,"success",`${money(price)} — higher! Move one line closer.`);}else{if(game.orderStillCorrect)outcome(game,"failure",`${money(price)} is not higher. This is your putting line.`);else outcome(game,"neutral",`${item.brand} ${item.name} is ${money(price)}.`);game.orderStillCorrect=false;}}
+      game.distanceLine=7-game.earnedLines;
+      if(game.revealedCount===game.items.length){game.stage="puttReady";game.mode="putt";game.puttWindow=newPuttWindow(game.earnedLines);game.prompt=`You earned putting line ${game.distanceLine}. Stop the meter in the target zone to take your first putt.`;}
+      else game.prompt=game.lastOutcome.text;
+      return game;
+    }
+    if(game.stage==="putting"&&game.lastPutt){game.attempts+=1;if(game.lastPutt.won)return finish(game,true,`${game.attempts===1?"Hole in one":"Hole in two"}! You won the ${game.bonusPrize.name}!`,game._bonusPrice);if(game.attempts===1){game.stage="orTwoReveal";game.mode="wait";game.orTwoRevealed=true;game.prompt="...OR TWO! You get one more putt.";return game;}return finish(game,false,`The second putt missed. The ${game.bonusPrize.name} was not won.`);}
+    if(game.stage==="orTwoReveal"){game.stage="puttReady";game.mode="putt";game.puttWindow=newPuttWindow(game.earnedLines);game.prompt="Stop the meter in the target zone for your second putt.";return game;}
+    throw new Error("No Hole in One animation is active");
+  }
   if(game?.type==="cliffHangers"){
     if(game.stage==="checking"&&game._pendingCliffReveal){game.stage="climbing";game.climber=game.lastClimb.to;game.prompt=game.lastClimb.correct?"The climber stays put!":"Watch the climber...";return game;}
     if(game.stage!=="climbing"||!game._pendingCliffReveal)throw new Error("The climber is not moving");const p=game._pendingCliffReveal;game.history.push(`${game.items[p.i].name}: ${money(p.guess)}, actual ${money(p.actual)} — ${p.error} steps.`);outcome(game,p.error===0?"success":"failure",p.error===0?"Exactly right!":`${p.error} climber step${p.error===1?"":"s"}.`);game.lastOutcome.silent=true;const revealOutcome=game.lastOutcome;game.itemIndex+=1;game.stage="pricing";game.mode="number";if(game.climber>25){game.cliffOver=true;finish(game,false,"The climber went over the cliff!");}else if(game.itemIndex===3){game.cliffFinalWin=true;finish(game,true,`HE MADE IT! You won all three prizes!`,game._prices.reduce((sum,price)=>sum+price,0));}else{game.prompt=`What is the price of the ${game.items[game.itemIndex].name}?`;introduceNext(game,game.items[game.itemIndex]);}holdPriceReveal(game,p.beforeSeq,p.beforeOutcome,game.items[p.i],money(p.guess),p.actual,revealOutcome);game._pendingCliffReveal=null;return game;

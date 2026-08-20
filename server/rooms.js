@@ -451,6 +451,10 @@ export function pricingGameAction(room, playerId, action) {
     setHostLine(room, `${g.priceReveal.guess ? `You said ${g.priceReveal.guess}. ` : ""}Show me the price!`, "pricingRevealCue");
   } else if(g.type==="cliffHangers"&&g.stage==="checking"){
     setHostLine(room,"Is that the right price?","cliffCheck");
+  } else if(g.type==="holeInOne"&&g.stage==="orderReveal"){
+    setHostLine(room,"Let's reveal your grocery prices, starting with the least expensive.","holeOrderReveal");
+  } else if(g.type==="holeInOne"&&g.stage==="putting"){
+    setHostLine(room,"","holePutt");
   } else if (g.pendingPrizeAnnouncement) {
     room.pricingAnnouncementQueue = [g.pendingPrizeAnnouncement];
     g.pendingPrizeAnnouncement = null;
@@ -493,14 +497,20 @@ export function continuePricingPrice(room) {
   }
 }
 
-export function settlePricingGame(room) {
+export function settlePricingGame(room,action={}) {
   if (!room.pricingGame) throw new Error("No pricing game is active");
   // Animation completion can be reported by both the normal browser event and
   // its watchdog (or by two host displays). Treat repeats as harmless.
   if(room.pricingGame.type==="plinko"&&room.pricingGame.stage!=="dropping"&&room.pricingGame.lastDrop?.value!=null)return room;
   if(room.pricingGame.type==="cliffHangers"&&room.pricingGame.stage!=="climbing"&&room.pricingGame.priceReveal)return room;
+  if(room.pricingGame.type==="holeInOne"&&action.kind){const g=room.pricingGame;if(action.kind==="holeOrder"&&(g.stage!=="orderReveal"||Number(action.index)!==g.revealedCount))return room;if(action.kind==="holePutt"&&(g.stage!=="putting"||Number(action.id)!==g.lastPutt?.id))return room;if(action.kind==="holeOrTwo"&&g.stage!=="orTwoReveal")return room;}
   settlePricingAnimation(room.pricingGame);
   const g=room.pricingGame;
+  if(g.type==="holeInOne"){
+    if(g.stage==="orderReveal"){setHostLine(room,g.prompt,"holeOrderRevealStep");return room;}
+    if(g.stage==="puttReady"){setHostLine(room,g.prompt,"holePuttReady");return room;}
+    if(g.stage==="orTwoReveal"){setHostLine(room,"...OR TWO!","holeOrTwoReveal");return room;}
+  }
   if(g.type==="cliffHangers"&&g.stage==="climbing"){setHostLine(room,"","cliffClimb");return room;}
   if(g._pendingPriceReveal){room.phase="pricingRevealCue";setHostLine(room,g.cliffFinalWin?"HE MADE IT! You won all three prizes!":g.cliffOver?"OH, sorry, he went over the cliff.":`The climber stopped at step ${g.climber}. Now, show me the actual price!`,"pricingRevealCue");return room;}
   setHostLine(room,g.status==="playing"?g.prompt:g.result,g.status==="playing"?"pricingPrompt":"pricingResult");
