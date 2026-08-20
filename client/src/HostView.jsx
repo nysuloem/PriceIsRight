@@ -16,6 +16,8 @@ const cliffYodelUrl="/media/cliff-hangers-yodel.mp3";
 const clockBellUrl="/media/clock-game-bell.mp3";
 const clockGotItUrl="/media/clock-game-got-it.mp3";
 const endCreditsMusicUrl="/media/end-credits.mp3";
+const newCarIntroUrl="/media/new-car-intro.mp3";
+const plinkoIntroUrl="/media/plinko-intro.mp3";
 const prizeModelsUrl="/media/prize-models.webp";
 
 const POLL_MS = 500;
@@ -53,6 +55,10 @@ function playTTS(audioEl, text, onDone, voice, style = "host") {
     fire();
   }, 12000);
   audioEl.play().catch(() => setTimeout(fire, 350));
+}
+
+function playRecorded(audioEl,src,onDone){
+  if(!audioEl){onDone();return;}let fired=false;const fire=()=>{if(fired)return;fired=true;onDone();};audioEl.pause();audioEl.currentTime=0;audioEl.src=src;audioEl.onended=fire;audioEl.onerror=fire;audioEl.play().catch(fire);
 }
 
 // ---------------------------------------------------------------------------
@@ -153,6 +159,7 @@ function HostViewInner({ code }) {
   const lastSeqRef = useRef(-1);
   const audioRef = useRef(null);       // host voice
   const announcerRef = useRef(null);   // announcer voice (for prize descriptions)
+  const gameClipRef = useRef(null);
   const speechRunRef = useRef(0);
   const lastOutcomeRef = useRef(0);
   const lastSettledDropRef = useRef(0);
@@ -228,7 +235,8 @@ function HostViewInner({ code }) {
     const ann = announcerRef.current;
     // A new server line owns the sound stage. Stop both channels before it
     // begins so delayed network audio can never talk over a later line.
-    [el, ann].forEach(audio => { if (audio) { audio.pause(); audio.currentTime = 0; } });
+    const clip=gameClipRef.current;
+    [el, ann, clip].forEach(audio => { if (audio) { audio.pause(); audio.currentTime = 0; } });
     const current = (fn) => { if (speechRun === speechRunRef.current) fn(); };
     const safely = (fn) => current(() => fn().catch((e) => setError(e.message)));
 
@@ -301,13 +309,14 @@ function HostViewInner({ code }) {
     } else if (type === "pricingGameIntro") {
       const game = state.pricingGame;
       const hostIntro = `${text} ${game.instructions}`;
-      if(game?.type==="plinko"){playPlinkoFanfare();setTimeout(()=>current(()=>playTTS(el,hostIntro,()=>safely(()=>beginPricingGame(code)),voice,"host")),900);}
+      if(game?.type==="plinko")playRecorded(clip,plinkoIntroUrl,()=>current(()=>playTTS(el,game.instructions,()=>safely(()=>beginPricingGame(code)),voice,"host")));
       else playTTS(el, hostIntro, () => safely(() => beginPricingGame(code)), voice, "host");
     } else if (type === "pricingPrizeIntro") {
-      if (/new car/i.test(text)) playCarFanfare();
-      else if(state.pricingGame?.type==="shellGame"&&state.pricingAnnouncement?.id===state.pricingGame?.bonusPrize?.id)playShowcaseCelebration();
+      const isNewCar=/new car/i.test(text);
+      if(!isNewCar&&state.pricingGame?.type==="shellGame"&&state.pricingAnnouncement?.id===state.pricingGame?.bonusPrize?.id)playShowcaseCelebration();
       const bellDelay=state.pricingGame?.type==="clockGame"&&state.pricingGame?.lastOutcome?.kind==="success"?4000:650;
-      setTimeout(() => current(() => playTTS(ann, text, () => safely(() => beginPricingGame(code)), config.announcerVoice || "cedar", "announcer")), bellDelay);
+      const describe=()=>current(()=>playTTS(ann,isNewCar?text.replace(/^.*?new car[!\s.]*/i,"").trim():text,()=>safely(()=>beginPricingGame(code)),config.announcerVoice||"cedar","announcer"));
+      setTimeout(()=>current(()=>isNewCar?playRecorded(clip,newCarIntroUrl,describe):describe()),bellDelay);
     } else if (type === "pricingRevealCue") {
       playTTS(el, text, () => safely(() => revealPricingPrice(code)), voice, "host");
     } else if (type === "pricingPriceShown") {
@@ -337,8 +346,6 @@ function HostViewInner({ code }) {
       playTTS(el,text,()=>current(()=>{const f=state.finalShowcase;const id=f?.stage==="choice"?f.contestants[0].id:f?.assignments?.[f.stage==="firstBid"?0:1];if(f?.contestants?.find(c=>c.id===id)?.isAI)safely(()=>resolveShowcaseAI(code));}),voice);
     } else if (type === "showcaseResult") {
       playTTS(el,text,()=>current(()=>{playShowcaseCelebration();setTimeout(()=>safely(()=>advanceShowcase(code)),2600);}),voice);
-    } else if(type==="endHost"){
-      playTTS(el,text,()=>safely(()=>advanceShowcase(code)),voice,"host");
     } else if(type==="endCreditsTrack"){
       // The supplied recording owns this sequence, including Rod Roddy's
       // sign-off. No synthesized announcer voice should overlap it.
@@ -421,6 +428,7 @@ function HostViewInner({ code }) {
       {/* Audio elements always in DOM */}
       <audio ref={audioRef} style={{ display: "none" }} />
       <audio ref={announcerRef} style={{ display: "none" }} />
+      <audio ref={gameClipRef} style={{ display: "none" }} />
       <audio ref={cliffYodelRef} src={cliffYodelUrl} preload="none" style={{ display: "none" }} />
       {kissBurst&&<div key={`kiss-${kissBurst.seq}`} className="pir-kiss-burst" aria-live="polite"><span>💋</span><span>😘</span><span>💖</span><b>{kissBurst.playerName} kissed the host!</b><span>💋</span><span>💕</span></div>}
       {shirtBurst&&<div key={`shirt-${shirtBurst.seq}`} className="pir-shirt-burst" aria-live="polite"><span>✨</span><div><small>{shirtBurst.playerName}'s T-shirt</small><div className="pir-shirt"><div className="pir-shirt-copy">{shirtBurst.message}</div></div></div><span>🎉</span><span>👏</span></div>}
@@ -470,7 +478,7 @@ function HostViewInner({ code }) {
                   onNewPlayers={action(() => restartGame(code, "newPlayers"))} />
               )}
               {(state.phase === "pricingIntro" || state.phase === "pricingPrizeIntro" || state.phase === "pricingGame" || state.phase === "pricingRevealCue" || state.phase === "pricingPriceShown") && (
-                <PricingGameView game={state.pricingGame} spotlight={state.phase === "pricingPrizeIntro" ? state.pricingAnnouncement : null} rulesOnly={state.phase === "pricingIntro"} onSkipRules={state.phase==="pricingIntro"?forceAction(()=>beginPricingGame(code)):null} />
+                <PricingGameView game={state.pricingGame} poolWarnings={state.prizePoolWarnings} spotlight={state.phase === "pricingPrizeIntro" ? state.pricingAnnouncement : null} rulesOnly={state.phase === "pricingIntro"} onSkipRules={state.phase==="pricingIntro"?forceAction(()=>beginPricingGame(code)):null} />
               )}
               {state.phase === "showcaseShowdown" && <WheelView showdown={state.showdown} />}
               {(state.phase.startsWith("showcase")||state.phase.startsWith("credits")) && state.finalShowcase && (state.phase.startsWith("credits")?<EndCredits state={state} config={config}/>:<FinalShowcaseView state={state} />)}
@@ -520,7 +528,6 @@ function EndCredits({state,config}){
     audio.play().catch(()=>{fallback=setTimeout(()=>setTrackEnded(true),89000);});
     return()=>{clearTimeout(fallback);audio.pause();audio.currentTime=0;audio.onended=null;};
   },[state.phase]);
-  if(state.phase==="creditsHost")return <div className="pir-end-credits pir-credits-host"><div className="pir-credit-logo">THE PRICE IS RIGHT</div><div className="pir-credits-host-goodbye"><small>A WORD FROM YOUR HOST</small><strong>{state.hostLine.text}</strong></div></div>;
   return <div className={`pir-end-credits ${trackEnded?"finished":"playing"}`}><div className="pir-credit-logo">THE PRICE IS RIGHT</div>{trackEnded?<div className="pir-final-winnings"><small>FINAL WINNINGS</small>{standings.map((player,index)=><div key={`${player.id||player.name}-${index}`}><b>{index+1}. {player.name}</b><span>${Number(player.totalWinnings||0).toLocaleString("en-CA")}</span></div>)}</div>:<div className="pir-credit-roll"><section><small>YOUR HOST</small><strong>Bob Barker</strong></section><section><small>ANNOUNCER</small><strong>{config.announcerName||"Rod Roddy"}</strong></section><section><small>TODAY'S CONTESTANTS</small><strong>{names}</strong></section><section><small>PRICING GAMES · BIG WHEEL · SHOWCASES</small><strong>Made for Family Game Night</strong></section><section><small>THANK YOU FOR WATCHING</small><strong>See you next time on The Price Is Right!</strong></section></div>}</div>;
 }
 
@@ -724,7 +731,7 @@ function MoneyBag({ value, selected = false, automatic = false, onScale = false 
   </div>;
 }
 
-export function PricingGameView({ game, spotlight = null, rulesOnly = false, onSkipRules = null }) {
+export function PricingGameView({ game, poolWarnings = [], spotlight = null, rulesOnly = false, onSkipRules = null }) {
   if (!game) return <div className="pir-loading">Loading pricing game…</div>;
   if (rulesOnly) return <div className={`pir-pricing-board pir-game-${game.type} pir-rules-only ${game.type==="plinko"?"pir-plinko-intro":""}`}>{game.type==="plinko"&&<><div className="pir-plinko-logo">PLINKO!</div><div className="pir-plinko-jackpot">A CHANCE TO WIN<br/><strong>$50,000!!!</strong></div></>}<div className="pir-pricing-kicker">HOW TO PLAY</div>{game.type!=="plinko"&&<h2 className="pir-pricing-title">{game.title}</h2>}<p className="pir-pricing-rules">{game.instructions}</p>{game.type==="cliffHangers"&&<CliffBoard game={game} /> }<div className="pir-pricing-prompt">Listen to the rules…</div>{onSkipRules&&<button className="pir-btn pir-skip-rules" onClick={onSkipRules}>SKIP RULES — LET'S PLAY!</button>}</div>;
   if (spotlight) { const isCar=/IT'S A NEW CAR/i.test(spotlight.announcerText||""),isGrand=!isCar&&(spotlight.id===game.bonusPrize?.id||Boolean(game.featuredIntroCount)); return <div className={`pir-pricing-board pir-game-${game.type} pir-model-presentation ${isCar?"pir-new-car-stage":""} ${isGrand?"pir-shell-grand-intro":""}`}><div className="pir-pricing-kicker">PRIZE INTRODUCTION</div>{isCar&&<div className="pir-new-car-flash">IT'S A NEW CAR!!!</div>}{isGrand&&<div className="pir-shell-grand-flash">PLAYING FOR THIS GRAND PRIZE!</div>}<h2 className="pir-pricing-title">{game.title}</h2><img className="pir-prize-models" src={prizeModelsUrl} alt="Prize models presenting the prize"/><div className="pir-model-prize"><GameCards items={[spotlight]} /></div><div className="pir-pricing-prompt">Listen to the announcer…</div></div>; }
@@ -787,6 +794,7 @@ export function PricingGameView({ game, spotlight = null, rulesOnly = false, onS
       {!!game.clue && <div className="pir-pricing-clue">{game.clue}</div>}
       {!!game.history?.length && <div className="pir-game-history">{game.history.slice(-4).map((line,i)=><div key={i}>{line}</div>)}</div>}
       {game.status !== "playing" && <div className="pir-helptext">The next item up for bids is loading…</div>}
+      {game.status !== "playing" && !!poolWarnings.length && <div className="pir-pool-warning"><b>PRIZE POOL NOTICE</b>{poolWarnings.map((warning,index)=><span key={index}>{warning}</span>)}</div>}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, expandedBiddingCatalog, playPricingGame, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
+import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, expandedBiddingCatalog, pickAPairPoolStatus, playPricingGame, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
 
 const player = { id: "human-1", name: "Test Player" };
 const types = ["plinko","cliffHangers","punchABunch","diceGame","groceryGame","oneAway","clockGame","anyNumber","grandGame","shellGame","moneyGame","luckySeven","doublePrices","threeStrikes","switchGame","tenChances","pickAPair","balanceGame"];
@@ -116,6 +116,21 @@ test("Pick-a-Pair creates three pairs and offers one keep-and-repick chance",()=
   const match=g._prices.findIndex((price,index)=>index!==first&&price===g._prices[first]);
   playPricingGame(g,{choice:g.options.find(option=>option.startsWith(`${match+1}.`))});
   assert.equal(g.status,"won");assert.equal(g.winnings,g._bonusPrice);
+});
+
+test("Pick-a-Pair has a deep reserve and automatically remains playable after exhaustion",()=>{
+  const initial=pickAPairPoolStatus();
+  assert.ok(initial.completeGames>=10,`expected at least ten complete games, got ${initial.completeGames}`);
+  const excluded=[];
+  for(let run=0;run<25;run+=1){
+    const game=createPricingGameForType("pickAPair",player,excluded);
+    assert.equal(game.items.length,6);
+    assert.equal(new Set(game._prices).size,3);
+    excluded.push(...game.items.map(item=>item.name));
+  }
+  const exhausted=pickAPairPoolStatus(excluded);
+  assert.equal(exhausted.low,true);
+  assert.equal(exhausted.autoRefill,true);
 });
 
 test("Balance Game has exactly one winning pair and awards the grand prize",()=>{

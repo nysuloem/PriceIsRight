@@ -102,6 +102,29 @@ const GROCERIES = [
   { name: "Mouthwash", brand: "Listerine", description: "A large bottle of antiseptic mouthwash.", price: 8.29, image: "https://images.unsplash.com/photo-1607613009820-a29f7bb81c04?auto=format&fit=crop&w=600&q=80" },
 ];
 
+// Deep reserve for Pick-a-Pair. Every price occurs four times, providing two
+// distinct pairs per price and enough nationally familiar Canadian products
+// for many complete shows before the live feed is even needed.
+const PAIR_IMAGE={pantry:"https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80",frozen:"https://images.unsplash.com/photo-1580915411954-282cb1b0d780?auto=format&fit=crop&w=600&q=80",care:"https://images.unsplash.com/photo-1556228578-0d85b1a4d571?auto=format&fit=crop&w=600&q=80",clean:"https://images.unsplash.com/photo-1584305574647-0cc949a2bb9f?auto=format&fit=crop&w=600&q=80"};
+const PICK_A_PAIR_RESERVE=[
+  [2.99,"Heinz","Tomato Ketchup","A bottle of classic tomato ketchup.","pantry"],[2.99,"French's","Prepared Mustard","A squeeze bottle of classic yellow mustard.","pantry"],[2.99,"Campbell's","Chicken Noodle Soup","A can of condensed chicken noodle soup.","pantry"],[2.99,"Del Monte","Canned Peaches","A can of sliced peaches in juice.","pantry"],
+  [3.29,"Barilla","Spaghetti","A package of classic dry spaghetti.","pantry"],[3.29,"Unico","Diced Tomatoes","A can of diced tomatoes.","pantry"],[3.29,"Clover Leaf","Flaked Tuna","A can of flaked light tuna.","pantry"],[3.29,"Habitant","Pea Soup","A can of traditional pea soup.","pantry"],
+  [3.79,"Quaker","Instant Oatmeal","A box of original instant oatmeal.","pantry"],[3.79,"Jell-O","Chocolate Pudding","A package of chocolate pudding mix.","pantry"],[3.79,"St. Hubert","Poutine Gravy","A package of poutine gravy mix.","pantry"],[3.79,"Knorr","Sidekicks Pasta","A package of creamy side-dish pasta.","pantry"],
+  [4.19,"Christie","Premium Crackers","A box of salted soda crackers.","pantry"],[4.19,"Betty Crocker","Brownie Mix","A box of chocolate brownie mix.","pantry"],[4.19,"Old El Paso","Taco Shells","A box of crunchy taco shells.","pantry"],[4.19,"Club House","Taco Seasoning","A multipack of taco seasoning.","pantry"],
+  [4.69,"Dempster's","Whole Wheat Bread","A loaf of whole-wheat sandwich bread.","pantry"],[4.69,"Wonder","White Bread","A loaf of classic white sandwich bread.","pantry"],[4.69,"Oreo","Chocolate Cookies","A package of chocolate sandwich cookies.","pantry"],[4.69,"Chips Ahoy!","Chocolate Chip Cookies","A package of chocolate-chip cookies.","pantry"],
+  [5.19,"Heinz","Baked Beans","A can of baked beans in tomato sauce.","pantry"],[5.19,"Classico","Four Cheese Sauce","A jar of four-cheese pasta sauce.","pantry"],[5.19,"Tostitos","Restaurant Style Salsa","A jar of medium restaurant-style salsa.","pantry"],[5.19,"VH","Soy Sauce","A bottle of traditional soy sauce.","pantry"],
+  [5.69,"Kellogg's","Corn Flakes","A family-size box of corn flakes.","pantry"],[5.69,"Post","Shreddies Cereal","A box of whole-grain wheat cereal.","pantry"],[5.69,"Nature Valley","Granola Bars","A box of crunchy granola bars.","pantry"],[5.69,"Rice Krispies","Marshmallow Squares","A box of crispy marshmallow bars.","pantry"],
+  [6.19,"Janes","Chicken Strips","A package of frozen breaded chicken strips.","frozen"],[6.19,"McCain","French Fries","A bag of frozen straight-cut fries.","frozen"],[6.19,"Green Giant","Frozen Vegetables","A bag of mixed frozen vegetables.","frozen"],[6.19,"Dr. Oetker","Ristorante Pizza","A thin-crust frozen pizza.","frozen"],
+  [6.69,"Black Diamond","Cheese Slices","A package of cheddar cheese slices.","pantry"],[6.69,"Astro","Original Yogurt","A tub of plain Balkan-style yogurt.","pantry"],[6.69,"Gay Lea","Sour Cream","A tub of full-fat sour cream.","pantry"],[6.69,"Lactantia","Salted Butter","A package of salted Canadian butter.","pantry"],
+  [7.19,"Tropicana","Orange Juice","A carton of pulp-free orange juice.","pantry"],[7.19,"Ocean Spray","Cranberry Cocktail","A bottle of cranberry fruit cocktail.","pantry"],[7.19,"Minute Maid","Apple Juice","A carton of apple juice.","pantry"],[7.19,"V8","Vegetable Cocktail","A bottle of vegetable cocktail.","pantry"],
+  [7.69,"Kraft","Smooth Peanut Butter","A jar of smooth peanut butter.","pantry"],[7.69,"Nutella","Hazelnut Spread","A jar of cocoa hazelnut spread.","pantry"],[7.69,"Smucker's","Strawberry Jam","A jar of strawberry jam.","pantry"],[7.69,"Bonne Maman","Raspberry Spread","A jar of raspberry fruit spread.","pantry"],
+  [8.19,"Crest","Fluoride Toothpaste","A multipack of fluoride toothpaste.","care"],[8.19,"Colgate","Total Toothpaste","A multipack of mint toothpaste.","care"],[8.19,"Listerine","Antiseptic Mouthwash","A bottle of antiseptic mouthwash.","care"],[8.19,"Oral-B","Manual Toothbrushes","A multipack of manual toothbrushes.","care"],
+  [8.69,"Dove","Body Wash","A bottle of moisturizing body wash.","care"],[8.69,"Head & Shoulders","Dandruff Shampoo","A bottle of anti-dandruff shampoo.","care"],[8.69,"Pantene","Daily Conditioner","A bottle of daily moisture conditioner.","care"],[8.69,"Nivea","Body Lotion","A bottle of moisturizing body lotion.","care"],
+  [9.19,"Tide","Laundry Detergent","A bottle of liquid laundry detergent.","clean"],[9.19,"Cascade","Dishwasher Detergent","A package of dishwasher detergent tabs.","clean"],[9.19,"Lysol","Disinfecting Wipes","A canister of disinfecting wipes.","clean"],[9.19,"Mr. Clean","Multi-Surface Cleaner","A bottle of multi-surface cleaner.","clean"],
+  [9.69,"Royale","Bathroom Tissue","A multipack of bathroom tissue rolls.","clean"],[9.69,"SpongeTowels","Paper Towels","A multipack of paper towel rolls.","clean"],[9.69,"Scotties","Facial Tissues","A multipack of facial tissues.","clean"],[9.69,"Glad","Kitchen Garbage Bags","A box of kitchen garbage bags.","clean"],
+].map(([price,brand,name,description,kind])=>({name,brand,description,price,image:PAIR_IMAGE[kind],category:"National grocery and drugstore brands"}));
+const PICK_A_PAIR_CATALOG=[...GROCERIES,...PICK_A_PAIR_RESERVE];
+
 GROCERIES.push(
   { name: "Tomato Ketchup", brand: "Heinz", description: "A squeeze bottle of classic tomato ketchup.", price: 5.49, image: "https://images.unsplash.com/photo-1599950755346-a3e58f84ca63?auto=format&fit=crop&w=600&q=80" },
   { name: "Pub Style Chicken Strips", brand: "Janes", description: "A family-size box of crunchy breaded white-meat chicken strips.", price: 14.99, image: "https://images.unsplash.com/photo-1562967914-608f82629710?auto=format&fit=crop&w=600&q=80" },
@@ -269,15 +292,21 @@ function separatedPrizePair(candidates,minDifference=1500){const pool=shuffle(ca
 function makeSwitch(player,excluded=[],liveItems=[]){const raw=separatedPrizePair(requireItems(grandPrizeCandidates(excluded,liveItems),2,"Switch? prize bank")),items=raw.map(prizeIntro),actual=raw.map(p=>p.price),shown=Math.random()<.5?actual:[actual[1],actual[0]];return {...base("switchGame","SWITCH?",player,"The two prize prices may already be correct, or they may be switched. Leave the prices where they are or switch them to win both prizes.",items),featuredIntroCount:2,items,_prices:actual,shownPrices:shown,prompt:"Should the prices stay, or should they switch?",mode:"choice",options:["Leave them","Switch them"]};}
 function pickPairOption(item,index,prefix=""){return `${prefix}${index+1}. ${item.brand} ${item.name}`;}
 function matchingGroceryPairs(excluded=[],liveItems=[]){
-  const blocked=new Set(excluded),makeGroups=products=>{const groups=new Map();for(const product of products){const key=Number(product.price).toFixed(2);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(product);}return [...groups.entries()].filter(([,products])=>products.length>=2);};
-  const available=familiarGroceries(excluded);
+  const makeGroups=products=>{const groups=new Map();for(const product of products){const key=Number(product.price).toFixed(2);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(product);}return [...groups.entries()].filter(([,products])=>products.length>=2);};
+  const liveGroceries=liveItems.filter(item=>Number(item.price)>=1&&Number(item.price)<=10&&item.image);
+  const available=fresh([...PICK_A_PAIR_CATALOG,...liveGroceries],excluded);
   const groups=makeGroups(available);
-  if(groups.length<3)throw new Error(`Pick-a-Pair needs three fresh equal-price pairs, but only ${groups.length} remain.`);
+  // The reserve is deliberately deep. In the extreme case where a very old
+  // volume has retired it all and the live feed is offline, keep the game
+  // playable with fresh products from the current catalogue instead of
+  // aborting the entire family show.
+  if(groups.length<3)return shuffle(makeGroups(PICK_A_PAIR_CATALOG)).slice(0,3).flatMap(([price,products])=>shuffle(products).slice(0,2).map(product=>({product,price:Number(price)})));
   return shuffle(groups).slice(0,3).flatMap(([price,products])=>shuffle(products).slice(0,2).map(product=>({product,price:Number(price)})));
 }
+export function pickAPairPoolStatus(excluded=[],liveItems=[]){const groups=new Map();for(const item of fresh([...PICK_A_PAIR_CATALOG,...liveItems.filter(x=>Number(x.price)>=1&&Number(x.price)<=10&&x.image)],excluded)){const price=Number(item.price).toFixed(2);groups.set(price,(groups.get(price)||0)+1);}const usablePairs=[...groups.values()].reduce((sum,count)=>sum+Math.floor(count/2),0);return {usablePairs,completeGames:Math.floor(usablePairs/3),low:usablePairs<6,autoRefill:true};}
 function makePickAPair(player,excluded=[],liveItems=[]){
   const entries=shuffle(matchingGroceryPairs(excluded,liveItems)),assignments=entries.map(entry=>entry.price);
-  const items=entries.map((entry,index)=>({...prizeIntro(entry.product),id:`pick-pair-${index}`,displayNumber:index+1,selected:false,used:false,revealedPrice:null}));
+  const items=entries.map((entry,index)=>({...prizeIntro(entry.product),id:`pick-pair-${prizeIdentity(entry.product)}`,displayNumber:index+1,selected:false,used:false,revealedPrice:null}));
   const rawBonus=pick(requireItems(grandPrizeCandidates(excluded,liveItems),1,"Pick-a-Pair grand-prize bank")),bonusPrize={...prizeIntro(rawBonus),announcerText:prizeAnnouncementText(rawBonus,"Match two grocery prices and you could win this fabulous prize! It's")};
   return {...base("pickAPair","PICK-A-PAIR",player,"Six grocery products hide three matching pairs of prices. Pick two products. If their prices match, you win the grand prize. If they do not match, keep either product and choose one more for a second chance.",[bonusPrize]),featuredIntroCount:1,bonusPrize,_bonusPrice:rawBonus.price,items,_prices:assignments,selectedIndices:[],keptIndex:null,stage:"first",prompt:"Pick your first grocery product.",mode:"choice",options:items.map((item,index)=>pickPairOption(item,index))};
 }

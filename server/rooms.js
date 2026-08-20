@@ -2,12 +2,12 @@ import { randomUUID } from "crypto";
 import {
   buildLineup, computeAIBid, computeWinners, shuffle,
 } from "./gameLogic.js";
-import { getPrizePool, pickRandomItem, retirePrize } from "./prizeSource.js";
-import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, initialPrizeAnnouncements, playPricingGame, pricingPrizeNames, pricingPrizes, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
+import { getPrizePool, pickRandomItem, prizeBankStats, retirePrize } from "./prizeSource.js";
+import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, PRICING_GAME_TYPES, clearDeferredPrice, createPricingGameForType, initialPrizeAnnouncements, pickAPairPoolStatus, playPricingGame, pricingPrizeNames, pricingPrizes, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
 import { retirePricingPrizes, retiredPricingPrizeNamesList } from "./pricingPrizeBank.js";
-import { getSmallPrizePool } from "./smallPrizeSource.js";
+import { getSmallPrizePool, smallPrizePoolStats } from "./smallPrizeSource.js";
+import { markPricingGamePlayed, pricingGameCandidates, pricingGameRotationStatus } from "./gameRotation.js";
 import { advanceShowcase, createFinalShowcase, createShowdown, publicFinalShowcase, publicShowdown, resolveShowcaseAI, resolveWheelAI, settleWheel, showcaseAction, wheelAction } from "./showFlow.js";
-import { generateClosingLine } from "./tts.js";
 
 const rooms = new Map();
 const ROOM_TTL_MS = 4 * 60 * 60 * 1000;
@@ -77,6 +77,8 @@ export function createRoom() {
     pricingGameSchedule: makePricingGameSchedule(),
     usedPricingPrizeNames: [],
     pricingGame: null,
+    prizePoolWarnings: [],
+    pricingGameRotation: pricingGameRotationStatus(),
     pricingAnnouncement: null,
     pricingAnnouncementQueue: [],
     shirtReveal: null,
@@ -92,7 +94,6 @@ export function createRoom() {
     kissEvent: null,
     shirtEvent: null,
     celebrationSeq: 0,
-    closingLine: "Keep smiling, keep cheering, and take good care of each other!",
     hostLine: { seq: 0, text: "", type: "welcome" },
   };
   rooms.set(code, room);
@@ -182,6 +183,8 @@ export function publicState(room) {
     demoGameType: room.demoGameType || null,
     kissEvent: room.kissEvent,
     shirtEvent: room.shirtEvent,
+    prizePoolWarnings: room.prizePoolWarnings,
+    pricingGameRotation: room.pricingGameRotation,
   };
 }
 
@@ -258,8 +261,6 @@ export async function startGame(room) {
   room.showdown = null;
   room.finalShowcase = null;
   room.shirtReveal = null;
-  room.closingLine = "Keep smiling, keep cheering, and take good care of each other!";
-  void generateClosingLine().then(line=>{room.closingLine=line;}).catch(()=>{});
   room.phase = "calling";
   setHostLine(room, "Let's meet today's contestants!", "welcome");
 }
@@ -339,13 +340,24 @@ export async function startPricingGame(room) {
   const category=room.pricingGameSchedule[room.completedRounds]||"nonCar";
   const allowedTypes=category==="car"?CAR_PRICING_GAME_TYPES:NON_CAR_PRICING_GAME_TYPES;
   const retiredPricingNames = retiredPricingPrizeNamesList();
-  room.pricingGame = createPricingGame(winner, room.playedPricingGames, [...new Set([...room.usedPricingPrizeNames,...recentPricingPrizeNames,...retiredPricingNames])],livePricingItems,allowedTypes);
+  const excluded=[...new Set([...room.usedPricingPrizeNames,...recentPricingPrizeNames,...retiredPricingNames])];
+  const candidates=pricingGameCandidates(allowedTypes,PRICING_GAME_TYPES).sort((a,b)=>Number(room.playedPricingGames.includes(a))-Number(room.playedPricingGames.includes(b)));
+  const failures=[];
+  room.pricingGame=null;
+  for(const type of candidates){try{room.pricingGame=createPricingGameForType(type,winner,excluded,livePricingItems);break;}catch(error){failures.push(`${type}: ${error.message}`);}}
+  if(!room.pricingGame)throw new Error(`No pricing game could be prepared. ${failures.join(" | ")}`);
   room.playedPricingGames.push(room.pricingGame.type);
+  room.pricingGameRotation=markPricingGamePlayed(room.pricingGame.type);
   const selectedPricingPrizeNames = pricingPrizeNames(room.pricingGame);
   const selectedPricingPrizes = pricingPrizes(room.pricingGame);
   room.usedPricingPrizeNames.push(...selectedPricingPrizeNames);
   rememberPricingPrizes(selectedPricingPrizeNames);
   retirePricingPrizes(selectedPricingPrizes);
+  const nextExcluded=[...new Set([...excluded,...selectedPricingPrizeNames,...retiredPricingPrizeNamesList()])],pairStatus=pickAPairPoolStatus(nextExcluded,livePricingItems),bidding=prizeBankStats(),small=smallPrizePoolStats();
+  room.prizePoolWarnings=[];
+  if(pairStatus.low)room.prizePoolWarnings.push(`Pick-a-Pair has only ${pairStatus.usablePairs} fresh pairs (${pairStatus.completeGames} complete game${pairStatus.completeGames===1?"":"s"}) remaining after automatic refill.`);
+  if(bidding.available<bidding.threshold)room.prizePoolWarnings.push(`The bidding-prize pool is refilling automatically: ${bidding.available} prizes remain.`);
+  if(small.available<120)room.prizePoolWarnings.push(`The live small-item pool is refilling automatically: ${small.available} items remain.`);
   prepareWinnerPricingIntroduction(room,winner);
 }
 
@@ -589,6 +601,7 @@ export async function restart(room, mode) {
     room.pricingGameSchedule = makePricingGameSchedule();
     room.usedPricingPrizeNames = [];
     room.pricingGame = null;
+    room.prizePoolWarnings = [];
     room.kissEvent = null;
     room.shirtEvent = null;
     room.celebrationSeq = 0;
@@ -711,7 +724,7 @@ export function acknowledgeWheelResult(room){
 export function resolveWheelGameAI(room){const name=room.showdown.participants[room.showdown.currentIndex]?.name;resolveWheelAI(room.showdown);if(room.showdown.stage==="complete")setHostLine(room,room.showdown.result,"wheelResult");else if(["spinning","bonusSpinning"].includes(room.showdown.stage))setHostLine(room,`${name} spins the Big Wheel!`,"wheelSpin");else{const p=room.showdown.participants[room.showdown.currentIndex];setHostLine(room,`${p.name}, you're next!`,"wheelAdvance");}}
 export async function finishShowdown(room){if(room.showdown?.stage!=="complete")throw new Error("The Showcase Showdown is not complete");const winner=room.showdown.participants.find(p=>p.id===room.showdown.winnerId);room.halfWinners.push({...winner,totalWinnings:winner.totalWinnings+winner.bonusCash});if(room.showdown.half===1){room.showdown=null;await prepareReplacement(room);}else{room.finalShowcase=createFinalShowcase(room.halfWinners);room.showdown=null;room.phase="showcaseIntro";const cue=advanceShowcase(room.finalShowcase);room.showcaseAnnouncement=null;setHostLine(room,cue.text,"showcaseTheme");}}
 
-export function advanceShowcasePresentation(room){if(!room.finalShowcase)throw new Error("No Showcase is active");const f=room.finalShowcase;if(f.stage==="complete"){if(room.phase==="showcaseReveal"){room.phase="creditsHost";setHostLine(room,`${room.closingLine} Good bye!`,"endHost");}else if(room.phase==="creditsHost"){room.phase="creditsMusic";setHostLine(room,"","endCreditsTrack");}return;}if(f.stage==="revealFirst"){f.revealCount=2;f.stage="revealSecond";room.phase="showcaseReveal";setHostLine(room,showcaseRevealLine(f,1),"showcaseRevealStep");return;}if(f.stage==="revealSecond"){f.stage="complete";room.phase="showcaseReveal";setHostLine(room,f.result,"showcaseResult");return;}const cue=advanceShowcase(f);if(cue.type==="theme"){room.phase="showcaseIntro";room.showcaseAnnouncement=null;setHostLine(room,cue.text,"showcaseTheme");}else if(cue.type==="prize"){room.phase="showcaseIntro";room.showcaseAnnouncement=cue.prize;setHostLine(room,cue.text,"showcasePrize");}else{room.showcaseAnnouncement=null;room.phase=f.stage==="choice"?"showcaseChoice":"showcaseBid";const id=f.stage==="choice"?f.contestants[0].id:f.assignments[1];const p=f.contestants.find(c=>c.id===id);setHostLine(room,f.stage==="choice"?`${p.name}, would you like to bid on this showcase, or pass it?`:`${p.name}, what is your bid on this showcase?`,f.stage==="choice"?"showcaseChoice":"showcaseBid");}}
+export function advanceShowcasePresentation(room){if(!room.finalShowcase)throw new Error("No Showcase is active");const f=room.finalShowcase;if(f.stage==="complete"){if(room.phase==="showcaseReveal"){room.phase="creditsMusic";setHostLine(room,"","endCreditsTrack");}return;}if(f.stage==="revealFirst"){f.revealCount=2;f.stage="revealSecond";room.phase="showcaseReveal";setHostLine(room,showcaseRevealLine(f,1),"showcaseRevealStep");return;}if(f.stage==="revealSecond"){f.stage="complete";room.phase="showcaseReveal";setHostLine(room,f.result,"showcaseResult");return;}const cue=advanceShowcase(f);if(cue.type==="theme"){room.phase="showcaseIntro";room.showcaseAnnouncement=null;setHostLine(room,cue.text,"showcaseTheme");}else if(cue.type==="prize"){room.phase="showcaseIntro";room.showcaseAnnouncement=cue.prize;setHostLine(room,cue.text,"showcasePrize");}else{room.showcaseAnnouncement=null;room.phase=f.stage==="choice"?"showcaseChoice":"showcaseBid";const id=f.stage==="choice"?f.contestants[0].id:f.assignments[1];const p=f.contestants.find(c=>c.id===id);setHostLine(room,f.stage==="choice"?`${p.name}, would you like to bid on this showcase, or pass it?`:`${p.name}, what is your bid on this showcase?`,f.stage==="choice"?"showcaseChoice":"showcaseBid");}}
 function showcaseRevealLine(f,index){const r=f.results[index],p=f.contestants.find(c=>c.id===r.playerId);return `${p.name} bid $${r.bid.toLocaleString("en-CA")}. The actual retail price of Showcase ${index+1} is $${r.actual.toLocaleString("en-CA")}. ${r.over?"That is an overbid.":`That is a difference of $${r.difference.toLocaleString("en-CA")}.`}`;}
 function beginShowcaseReveal(room,f){room.phase="showcaseReveal";setHostLine(room,showcaseRevealLine(f,0),"showcaseRevealStep");}
 export function finalShowcaseAction(room,playerId,action){showcaseAction(room.finalShowcase,playerId,action);const f=room.finalShowcase;if(f.stage==="firstBid"){room.phase="showcaseBid";const p=f.contestants.find(c=>c.id===f.assignments[0]);setHostLine(room,`${p.name}, what is your bid on the first showcase?`,"showcaseBid");}else if(f.stage==="secondTheme"){room.phase="showcaseIntro";const cue=advanceShowcase(f);setHostLine(room,cue.text,"showcaseTheme");}else if(f.stage==="revealFirst")beginShowcaseReveal(room,f);}
