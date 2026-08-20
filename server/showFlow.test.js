@@ -13,6 +13,8 @@ const players=[
   {id:"c",name:"Carla",totalWinnings:9000,isAI:false},
 ];
 
+test("trip and prepared Showcase banks are doubled",()=>{resetTripBankForTests();assert.equal(tripBankStats().total,70);assert.equal(showcaseBankStats().preparedTotal,48);});
+
 function spinTo(showdown,index){wheelAction(showdown,showdown.participants[showdown.currentIndex].id,"spin");showdown.pendingIndex=index;settleWheel(showdown);}
 
 test("Showcase Showdown runs in winnings order with stay, second spin and dollar bonus",()=>{
@@ -130,6 +132,8 @@ test("every Showcase prize announcement includes brand, item, and description", 
     assert.ok(prize.announcerText.includes(prize.brand));
     assert.ok(prize.announcerText.includes(prize.name));
     assert.ok(prize.announcerText.includes(prize.description));
+    assert.ok(prize.image || prize.visual);
+    if (prize.image) assert.equal(prize.imageVerified, true);
   }
 });
 
@@ -168,12 +172,13 @@ test("a used complete Showcase is permanently replaced",()=>{
 
 test("the complete Showcase bank generates new packages instead of recycling",()=>{
   resetTripBankForTests();
+  const preparedTotal=showcaseBankStats().preparedTotal;
   const ids=[];
-  for(let game=0;game<12;game+=1){
+  for(let game=0;game<preparedTotal/2;game+=1){
     ids.push(...createFinalShowcase([players[0],players[1]]).showcases.map(showcase=>showcase.id));
   }
-  assert.equal(ids.length,24);
-  assert.equal(new Set(ids).size,24);
+  assert.equal(ids.length,preparedTotal);
+  assert.equal(new Set(ids).size,preparedTotal);
   assert.equal(showcaseBankStats().preparedAvailable,0);
   const generated=[];
   for(let game=0;game<8;game+=1)generated.push(...createFinalShowcase([players[0],players[1]]).showcases);
@@ -190,7 +195,8 @@ test("complete Showcase retirement persists after a server reload",()=>{
   try{
     configureTripBankStorageForTests(file);
     resetTripBankForTests({clearStorage:true});
-    for(let game=0;game<12;game+=1)createFinalShowcase([players[0],players[1]]);
+    const preparedTotal=showcaseBankStats().preparedTotal;
+    for(let game=0;game<preparedTotal/2;game+=1)createFinalShowcase([players[0],players[1]]);
     const firstIds=createFinalShowcase([players[0],players[1]]).showcases.map(showcase=>showcase.id);
     configureTripBankStorageForTests(file);
     const secondIds=createFinalShowcase([players[0],players[1]]).showcases.map(showcase=>showcase.id);

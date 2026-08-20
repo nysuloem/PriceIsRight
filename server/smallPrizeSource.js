@@ -3,7 +3,7 @@
 import { exactPrizeKey, prizeFamilyKey } from "./prizeIdentity.js";
 import { retiredKeys } from "./prizeBank.js";
 
-const MIN_PRICE=1,MAX_PRICE=10,TARGET_SIZE=1050,CACHE_MS=30*60*1000,TIMEOUT_MS=15000;
+const MIN_PRICE=1,MAX_PRICE=10,TARGET_SIZE=2100,CACHE_MS=30*60*1000,TIMEOUT_MS=15000;
 const RETAILERS=[
   ["Candy Funhouse","https://www.candyfunhouse.ca","Candy and snacks"],
   ["Goodness Me!","https://www.goodnessme.ca","Grocery and wellness"],
@@ -36,11 +36,11 @@ export function normalizeSmallPrizeProduct(config,product){
     .replace(/\bAmuseables?\b/gi," ").replace(new RegExp(`^${escapedBrand}\\s+`,"i"),"").replace(/\s{2,}/g," ").trim();
   const image=product.images?.[0]?.src||product.image?.src||null;
   const description=clean(product.body_html).replace(/^(?:(?:sold by|available (?:from|at)|from)\s+[^,.;—]+[,.;—]\s*)+/i,"").split(/(?<=[.!?])\s+/)[0].slice(0,145);
-  return {id:`${slug(config.retailer)}-${product.id}-${variant.id||slug(variantName)}`,name,brand,retailer:config.retailer,exactPrice:price,price,roundedPrice:Math.round(price),priceIsLive:true,priceKind:"regular",currency:"CAD",url:`${config.baseUrl}/products/${product.handle}`,image,imageAlt:name,category:clean(product.product_type)||config.category,description,hostDescription:description};
+  return {id:`${slug(config.retailer)}-${product.id}-${variant.id||slug(variantName)}`,name,brand,retailer:config.retailer,exactPrice:price,price,roundedPrice:Math.round(price),priceIsLive:true,priceKind:"regular",currency:"CAD",url:`${config.baseUrl}/products/${product.handle}`,image,imageKind:"product",imageVerified:Boolean(image),imageAlt:name,category:clean(product.product_type)||config.category,description,hostDescription:description};
 }
 async function fetchRetailer(config){
   const items=[],seen=new Set();
-  for(let page=1;page<=5;page+=1){const response=await fetch(`${config.baseUrl}/products.json?limit=250&page=${page}`,{headers,signal:AbortSignal.timeout(TIMEOUT_MS)});if(!response.ok)throw new Error(`HTTP ${response.status}`);const products=(await response.json()).products||[];if(!products.length)break;for(const product of products){if(seen.has(product.id))continue;seen.add(product.id);const item=normalizeSmallPrizeProduct(config,product);if(item)items.push(item);}if(products.length<250)break;}
+  for(let page=1;page<=10;page+=1){const response=await fetch(`${config.baseUrl}/products.json?limit=250&page=${page}`,{headers,signal:AbortSignal.timeout(TIMEOUT_MS)});if(!response.ok)throw new Error(`HTTP ${response.status}`);const products=(await response.json()).products||[];if(!products.length)break;for(const product of products){if(seen.has(product.id))continue;seen.add(product.id);const item=normalizeSmallPrizeProduct(config,product);if(item)items.push(item);}if(products.length<250)break;}
   return items.sort((a,b)=>a.name.localeCompare(b.name));
 }
 function interleave(groups){const result=[],positions=groups.map(()=>0),ids=new Set(),families=new Set();let advanced=true;while(result.length<TARGET_SIZE&&advanced){advanced=false;for(let i=0;i<groups.length&&result.length<TARGET_SIZE;i+=1){const item=groups[i][positions[i]++];if(!item)continue;advanced=true;const exact=exactPrizeKey(item),family=prizeFamilyKey(item);if(ids.has(exact)||families.has(family))continue;ids.add(exact);families.add(family);result.push(item);}}return result;}
@@ -48,5 +48,5 @@ function available(items){const retired=retiredKeys("pricing");return items.filt
 
 export async function fetchSmallPrizePool(){const settled=await Promise.allSettled(RETAILERS.map(fetchRetailer)),groups=settled.map((result,index)=>{if(result.status==="fulfilled")return result.value;console.warn(`[smallPrizeSource] ${RETAILERS[index].retailer}: ${result.reason?.message||result.reason}`);return [];});const items=interleave(groups);if(items.length<250)console.warn(`[smallPrizeSource] Only ${items.length} unique Canadian small-item families were available.`);return available(items);}
 let cache={items:[],fetchedAt:0},refreshPromise=null;
-export async function getSmallPrizePool(force=false){const stale=Date.now()-cache.fetchedAt>CACHE_MS;if(force||stale||cache.items.length<120){if(!refreshPromise)refreshPromise=fetchSmallPrizePool().then(items=>{if(items.length||!cache.items.length)cache={items,fetchedAt:Date.now()};return cache.items;}).finally(()=>{refreshPromise=null;});await refreshPromise;}return available(cache.items);}
-export function smallPrizePoolStats(){return {available:available(cache.items).length,live:cache.items.filter(item=>item.priceIsLive).length,refilling:Boolean(refreshPromise),retailers:RETAILERS.map(item=>item.retailer)};}
+export async function getSmallPrizePool(force=false){const stale=Date.now()-cache.fetchedAt>CACHE_MS;if(force||stale||cache.items.length<240){if(!refreshPromise)refreshPromise=fetchSmallPrizePool().then(items=>{if(items.length||!cache.items.length)cache={items,fetchedAt:Date.now()};return cache.items;}).finally(()=>{refreshPromise=null;});await refreshPromise;}return available(cache.items);}
+export function smallPrizePoolStats(){return {available:available(cache.items).length,live:cache.items.filter(item=>item.priceIsLive).length,target:TARGET_SIZE,threshold:240,refilling:Boolean(refreshPromise),retailers:RETAILERS.map(item=>item.retailer)};}

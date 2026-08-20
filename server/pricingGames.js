@@ -1,4 +1,5 @@
 import { exactPrizeKey, prizeFamilyKey } from "./prizeIdentity.js";
+import { ADDITIONAL_CARS, ADDITIONAL_GRAND_PRIZES, ADDITIONAL_GROCERIES, ADDITIONAL_PRICING_SMALL_ITEMS } from "./prizePoolExpansion.js";
 
 const SMALL_ITEMS = [
   { name: "Electric kettle", brand: "Hamilton Beach", description: "A compact stainless-steel electric kettle.", price: 55, image: "https://images.unsplash.com/photo-1594213114663-d94db9b17125?auto=format&fit=crop&w=600&q=80" },
@@ -57,7 +58,7 @@ const EXTRA_SMALL_ITEMS = [
   ["Acoustic guitar starter kit","Yamaha",249,"A full-size guitar with bag and accessories.","hobby"],["Instant-print camera kit","Fujifilm",159,"A colourful camera with film and album.","hobby"],["Deluxe art set","Faber-Castell",119,"A wooden case filled with artist materials.","hobby"],["Telescope","Celestron",189,"A portable beginner astronomical telescope.","hobby"],["Record player","Audio-Technica",199,"An automatic belt-drive turntable.","hobby"],["LEGO architecture set","LEGO",159,"A detailed landmark building collection.","hobby"],["Sewing machine","Brother",229,"A computerized machine with utility stitches.","hobby"],["Digital piano keyboard","Casio",219,"A portable sixty-one-key musical keyboard.","hobby"],["Board game library","Hasbro",99,"A collection of six classic family games.","hobby"],["Birdwatching kit","Nikon",179,"Binoculars, field guide, and carrying harness.","hobby"],
 ].map(([name,brand,price,description,category])=>({name,brand,price,description,category}));
 
-const PRICING_SMALL_ITEMS=[...SMALL_ITEMS,...EXTRA_SMALL_ITEMS];
+const PRICING_SMALL_ITEMS=[...SMALL_ITEMS,...EXTRA_SMALL_ITEMS,...ADDITIONAL_PRICING_SMALL_ITEMS];
 
 const GROCERIES = [
   { name: "Vanilla Ice Cream", brand: "Chapman's", description: "Four litres of Canadian-made vanilla ice cream.", price: 8.99, image: "https://www.chapmans.ca/wp-content/uploads/2022/11/Original-Vanilla-4L.png" },
@@ -123,8 +124,6 @@ const PICK_A_PAIR_RESERVE=[
   [9.19,"Tide","Laundry Detergent","A bottle of liquid laundry detergent.","clean"],[9.19,"Cascade","Dishwasher Detergent","A package of dishwasher detergent tabs.","clean"],[9.19,"Lysol","Disinfecting Wipes","A canister of disinfecting wipes.","clean"],[9.19,"Mr. Clean","Multi-Surface Cleaner","A bottle of multi-surface cleaner.","clean"],
   [9.69,"Royale","Bathroom Tissue","A multipack of bathroom tissue rolls.","clean"],[9.69,"SpongeTowels","Paper Towels","A multipack of paper towel rolls.","clean"],[9.69,"Scotties","Facial Tissues","A multipack of facial tissues.","clean"],[9.69,"Glad","Kitchen Garbage Bags","A box of kitchen garbage bags.","clean"],
 ].map(([price,brand,name,description,kind])=>({name,brand,description,price,image:PAIR_IMAGE[kind],category:"National grocery and drugstore brands"}));
-const PICK_A_PAIR_CATALOG=[...GROCERIES,...PICK_A_PAIR_RESERVE];
-
 GROCERIES.push(
   { name: "Tomato Ketchup", brand: "Heinz", description: "A squeeze bottle of classic tomato ketchup.", price: 5.49, image: "https://images.unsplash.com/photo-1599950755346-a3e58f84ca63?auto=format&fit=crop&w=600&q=80" },
   { name: "Pub Style Chicken Strips", brand: "Janes", description: "A family-size box of crunchy breaded white-meat chicken strips.", price: 14.99, image: "https://images.unsplash.com/photo-1562967914-608f82629710?auto=format&fit=crop&w=600&q=80" },
@@ -136,7 +135,9 @@ GROCERIES.push(
   { name: "Sliced Bacon", brand: "Maple Leaf", description: "A package of classic sliced bacon.", price: 8.99, image: "https://images.unsplash.com/photo-1528607929212-2636ec44253e?auto=format&fit=crop&w=600&q=80" },
   { name: "Frozen Lasagna", brand: "Stouffer's", description: "A family-size tray of frozen meat lasagna.", price: 14.99, image: "https://images.unsplash.com/photo-1574894709920-11b28e7367e3?auto=format&fit=crop&w=600&q=80" },
   { name: "Oatmeal Cereal", brand: "Quaker", description: "A family-size box of toasted oat cereal.", price: 6.79, image: "https://images.unsplash.com/photo-1521483451569-e33803c0330c?auto=format&fit=crop&w=600&q=80" },
+  ...ADDITIONAL_GROCERIES,
 );
+const PICK_A_PAIR_CATALOG=[...GROCERIES,...PICK_A_PAIR_RESERVE];
 
 const CARS = [
   { name: "2026 Hyundai Elantra Essential", brand: "Hyundai", description: "A compact sedan with an automatic transmission, heated front seats, and modern safety technology.", price: 26135, image: "https://images.unsplash.com/photo-1619767886558-efdc259cde1a?auto=format&fit=crop&w=1200&q=85" },
@@ -163,6 +164,7 @@ const CARS = [
   { name: "2026 Volkswagen Taos Trendline", brand: "Volkswagen", description: "A turbocharged compact SUV with 4MOTION all-wheel drive.", price: 38170, image: "https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=1200&q=85" },
   { name: "2026 Subaru Crosstrek Convenience", brand: "Subaru", description: "A rugged hatchback with standard all-wheel drive.", price: 36790, image: "https://images.unsplash.com/photo-1629897048514-3dd7414fe72a?auto=format&fit=crop&w=1200&q=85" },
   { name: "2026 Ford Escape Active", brand: "Ford", description: "A versatile SUV with selectable drive modes and a power liftgate.", price: 38750, image: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1200&q=85" },
+  ...ADDITIONAL_CARS,
 ];
 
 const ANY_NUMBER_PRIZES = [
@@ -172,6 +174,7 @@ const ANY_NUMBER_PRIZES = [
   {name:"Stand mixer",brand:"KitchenAid",description:"A colourful tilt-head stand mixer with accessories.",image:"https://images.unsplash.com/photo-1594385208974-2e75f8d7bb48?auto=format&fit=crop&w=800&q=85"},
   {name:"Patio furniture set",brand:"CANVAS",description:"A comfortable outdoor conversation set for four.",image:"https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=800&q=85"},
   {name:"Electric fireplace",brand:"Dimplex",description:"A freestanding electric fireplace with realistic flames.",image:"https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=800&q=85"},
+  ...ADDITIONAL_GRAND_PRIZES.slice(0,6),
 ];
 
 const SHELL_BONUS_PRIZES = [
@@ -185,6 +188,7 @@ const SHELL_BONUS_PRIZES = [
   { name:"Caribbean cruise",brand:"Celebrity Cruises",description:"A seven-night balcony cruise for two with airfare and an onboard credit.",price:6835,image:"https://images.unsplash.com/photo-1548574505-5e239809ee19?auto=format&fit=crop&w=1200&q=85" },
   { name:"Professional kitchen appliance package",brand:"KitchenAid",description:"A French-door refrigerator, range, dishwasher, and microwave.",price:8260,image:"https://images.unsplash.com/photo-1556912167-f556f1f39fdf?auto=format&fit=crop&w=1200&q=85" },
   { name:"Backyard spa retreat",brand:"Hydropool",description:"A self-cleaning hot tub with delivery, steps, cover, and patio furniture.",price:9750,image:"https://images.unsplash.com/photo-1572331165267-854da2b10ccc?auto=format&fit=crop&w=1200&q=85" },
+  ...ADDITIONAL_GRAND_PRIZES,
 ];
 
 const GAME_NAMES = ["plinko", "cliffHangers", "punchABunch", "diceGame", "groceryGame", "oneAway", "clockGame", "anyNumber", "grandGame", "shellGame", "moneyGame", "luckySeven", "doublePrices", "threeStrikes", "switchGame", "tenChances", "pickAPair", "balanceGame", "holeInOne"];
@@ -198,8 +202,10 @@ const itemCategory = (x) => x.category || (/kettle|blender|toaster|fryer|cooker|
 function diverseSmallItems(count,excluded=[],predicate=()=>true,liveItems=[]){const eligibleLive=liveItems.filter(predicate),source=eligibleLive.length>=count?eligibleLive:[...eligibleLive,...PRICING_SMALL_ITEMS.filter(predicate)],pool=source,available=shuffle(fresh(pool,excluded)),chosen=[],categories=new Set();for(const item of available){const category=itemCategory(item);if(categories.has(category))continue;chosen.push(item);categories.add(category);if(chosen.length===count)return chosen;}for(const item of available)if(!chosen.includes(item)){chosen.push(item);if(chosen.length===count)return chosen;}return chosen;}
 const money = (n) => `$${Number(n).toLocaleString("en-CA", { maximumFractionDigits: 2 })}`;
 function productVisual(p){const n=`${p?.name||""} ${p?.description||""}`.toLowerCase(),rules=[["car|sedan|suv|hatchback|pickup","🚗"],["backpack|daypack|duffel|suitcase|travel","🎒"],["camera|photo","📷"],["speaker|headphone|sound|radio|turntable","🔊"],["keyboard|computer|webcam|wi-fi|streaming|smart","💻"],["phone|charger|doorbell","📱"],["lamp|light","💡"],["clock|watch|timer","⏰"],["kettle|coffee|espresso|frother|grinder|french press","☕"],["toaster|waffle|skillet|fryer|cooker|blender|mixer|kitchen|cookware|oven|knife|bakeware|roasting","🍳"],["grill|outdoor kitchen","🔥"],["vacuum|cleaner","🧹"],["drill|tool|socket|level|multimeter|ladder|washer","🛠️"],["blanket|duvet|sheet|pillow|bedroom","🛏️"],["towel|spa|shaver|tooth|hair|skin|makeup|manicure|fragrance","🧴"],["chair|sofa|living room|furniture|rug|mirror|entryway|patio","🛋️"],["bike|bicycle","🚲"],["fitness|yoga|dumbbell|kettlebell|training|boxing|massage|balance","🏋️"],["camp|hiking|telescope|binocular|birdwatch|hammock|cooler|sleeping bag","🏕️"],["golf|pickleball|badminton|basketball","🏅"],["guitar|piano|music","🎵"],["game|lego|art|sewing|hobby","🎨"],["cruise|caribbean|rockies|getaway|trip|adventure","✈️"],["fireplace|fire pit","🔥"],["ice cream|milk|yogurt|cheese","🥛"],["cookie|cereal|granola|pancake","🥣"],["chips|wedges|pizza|tortilla","🍕"],["juice|ale|beer","🥤"],["soup|sauce|salsa|beans|tuna|mustard","🥫"],["soap|detergent|shampoo|toothpaste|tissues|paper towel|mouthwash","🧼"]];for(const [pattern,icon]of rules)if(new RegExp(pattern).test(n))return icon;return {tech:"💻",travel:"🎒",outdoors:"🏕️",cookware:"🍳",home:"🏠",tools:"🛠️",fitness:"🏋️",personal:"🧴",hobby:"🎨",appliance:"🔌"}[itemCategory(p)]||"🎁";}
-export function expandedBiddingCatalog(){return PRICING_SMALL_ITEMS.map((item,index)=>({id:`family-catalog-${index}-${item.name.toLowerCase().replace(/[^a-z0-9]+/g,"-")}`,name:item.name,brand:item.brand,retailer:"Canadian Family Prize Catalogue",exactPrice:item.price,price:Math.round(item.price),priceIsLive:false,priceKind:"regular",currency:"CAD",url:`catalogue:${index}`,image:item.image||null,imageAlt:item.name,visual:productVisual(item),category:item.category||itemCategory(item),hostDescription:`It's a ${item.brand} ${item.name}! ${item.description}`}));}
-const verifiedImage = (p) => Boolean(p.image && p.imageVerified!==false);
+export function expandedBiddingCatalog(){return PRICING_SMALL_ITEMS.map((item,index)=>({id:`family-catalog-${index}-${item.name.toLowerCase().replace(/[^a-z0-9]+/g,"-")}`,name:item.name,brand:item.brand,retailer:"Canadian Family Prize Catalogue",exactPrice:item.price,price:Math.round(item.price),priceIsLive:false,priceKind:"regular",currency:"CAD",url:`catalogue:${index}`,image:item.image||null,imageVerified:Boolean(item.image&&item.imageVerified!==false),imageAlt:item.name,visual:productVisual(item),category:item.category||itemCategory(item),hostDescription:`It's a ${item.brand} ${item.name}! ${item.description}`}));}
+const STATIC_IMAGE_FAMILIES=new Map();
+for(const item of [...PRICING_SMALL_ITEMS,...GROCERIES,...PICK_A_PAIR_RESERVE,...CARS,...ANY_NUMBER_PRIZES,...SHELL_BONUS_PRIZES])if(item.image){const families=STATIC_IMAGE_FAMILIES.get(item.image)||new Set();families.add(prizeFamilyKey(item));STATIC_IMAGE_FAMILIES.set(item.image,families);}
+const verifiedImage = (p) => Boolean(p.image&&p.imageVerified!==false&&(p.priceIsLive||p.imageKind==="product"||(STATIC_IMAGE_FAMILIES.get(p.image)?.size||1)===1));
 const prizeIdentity = (p) => p.id || `${String(p.brand||"prize").toLowerCase().replace(/[^a-z0-9]+/g,"-")}-${String(p.name||"item").toLowerCase().replace(/[^a-z0-9]+/g,"-")}`;
 export const prizeAnnouncementText = (p, prefix="It's") => `${prefix} the ${p.brand} ${p.name}! ${p.description}`.replace(/\s+/g," ").trim();
 const prizeIntro = (p) => {
@@ -350,6 +356,7 @@ function makeTenChances(player,excluded=[],liveItems=[]){const two=requireItems(
 
 const FACTORIES={plinko:makePlinko,cliffHangers:makeCliff,punchABunch:makePunch,diceGame:makeDice,groceryGame:makeGrocery,oneAway:makeOneAway,clockGame:makeClock,anyNumber:makeAnyNumber,grandGame:makeGrand,shellGame:makeShell,moneyGame:makeMoneyGame,luckySeven:makeLuckySeven,doublePrices:makeDoublePrices,threeStrikes:makeThreeStrikes,switchGame:makeSwitch,tenChances:makeTenChances,pickAPair:makePickAPair,balanceGame:makeBalanceGame,holeInOne:makeHoleInOne};
 export const PRICING_GAME_TYPES=[...GAME_NAMES];
+export function pricingCatalogStats(){return {smallPrizes:PRICING_SMALL_ITEMS.length,groceries:GROCERIES.length,pickAPairProducts:PICK_A_PAIR_CATALOG.length,cars:CARS.length,anyNumberPrizes:ANY_NUMBER_PRIZES.length,grandPrizes:SHELL_BONUS_PRIZES.length};}
 export function createPricingGameForType(type,player,excluded=[],liveItems=[]){ if(!FACTORIES[type]) throw new Error(`Unknown pricing game: ${type}`); return FACTORIES[type](player,excluded,liveItems); }
 export function createPricingGame(player,previous=[],excluded=[],liveItems=[],allowedTypes=GAME_NAMES){ const pool=allowedTypes.filter(type=>FACTORIES[type]),a=pool.filter(type=>!previous.includes(type)); return FACTORIES[pick(a.length?a:pool)](player,excluded,liveItems); }
 export function pricingPrizeNames(game){return [...(game?.qualifiers||[]),...(game?.items||[]),...(game?.introPrizes||[])].map(x=>x?.name).filter(Boolean);}

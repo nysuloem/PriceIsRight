@@ -1,9 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, expandedBiddingCatalog, pickAPairPoolStatus, playPricingGame, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
+import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, expandedBiddingCatalog, pickAPairPoolStatus, playPricingGame, pricingCatalogStats, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
 
 const player = { id: "human-1", name: "Test Player" };
 const types = ["plinko","cliffHangers","punchABunch","diceGame","groceryGame","oneAway","clockGame","anyNumber","grandGame","shellGame","moneyGame","luckySeven","doublePrices","threeStrikes","switchGame","tenChances","pickAPair","balanceGame"];
+
+test("every built-in prize catalogue has at least twice its original capacity",()=>{
+  const stats=pricingCatalogStats();
+  assert.ok(stats.smallPrizes>=240);assert.ok(stats.groceries>=120);assert.ok(stats.cars>=48);assert.ok(stats.anyNumberPrizes>=12);assert.ok(stats.grandPrizes>=20);
+  assert.ok(stats.pickAPairProducts>=180);assert.ok(pickAPairPoolStatus().usablePairs>=82);
+});
 
 test("all pricing games can be created without leaking answers", () => {
   for (const type of types) {
@@ -334,4 +340,10 @@ test("live retailer pricing prizes keep the photo from their own product record"
   const g=createPricingGameForType("plinko",player,[],live);
   assert.equal(g.qualifiers.length,4);
   for(const prize of g.qualifiers){const source=live.find(item=>item.name===prize.name);assert.ok(source);assert.equal(prize.id,source.id);assert.equal(prize.image,source.image);assert.equal(prize.imageAlt,source.imageAlt);assert.equal(prize.imageKey,`${source.id}|${source.image}`);assert.equal(prize.imageVerified,true);}
+});
+
+test("unverified or reused stock photos are replaced by matched prize visuals",()=>{
+  const questionable=Array.from({length:6},(_,i)=>({id:`stock-${i}`,name:`Small prize ${i}`,brand:`Brand ${i}`,description:`A useful small prize number ${i}.`,price:50+i,image:"https://stock.example/generic.jpg",imageVerified:false,category:`category-${i}`}));
+  const game=createPricingGameForType("plinko",player,[],questionable);
+  for(const prize of game.qualifiers){assert.equal(prize.image,null);assert.ok(prize.visual);assert.equal(prize.imageVerified,false);}
 });

@@ -1,5 +1,6 @@
 import { exactPrizeKey, prizeFamilyKey } from "./prizeIdentity.js";
 import { configureUnifiedPrizeBankForTests, resetUnifiedPrizeBankForTests, retiredKeys, retireKeys, unifiedPrizeBankStats } from "./prizeBank.js";
+import { ADDITIONAL_SHOWCASE_REPLACEMENTS, ADDITIONAL_SHOWCASE_THEMES, ADDITIONAL_TRIPS } from "./prizePoolExpansion.js";
 
 const TRIP_SLOT = { tripSlot: true };
 
@@ -50,6 +51,7 @@ const TRIP_PRIZES = [
   imageAlt: name,
   isTripPrize: true,
 }));
+TRIP_PRIZES.push(...ADDITIONAL_TRIPS);
 
 const THEMES = [
   {
@@ -251,6 +253,7 @@ THEMES.push(
     ],
   },
 );
+THEMES.push(...ADDITIONAL_SHOWCASE_THEMES.map(theme=>({...theme,prizes:theme.prizes.map(prize=>prize.tripSlot?TRIP_SLOT:prize)})));
 
 // These are replacements, not variants of the theme prizes. Once any prize is
 // shown, its exact identity and broader family are retired across the whole app.
@@ -274,6 +277,12 @@ const SHOWCASE_REPLACEMENTS = [
   ["Family board-game library", "Snakes & Lattes", "Two hundred modern games, custom shelving, a gaming table and a year of café memberships.", 5980, "https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?auto=format&fit=crop&w=1000&q=85"],
   ["Canadian fashion wardrobe", "Simons", "A year-round wardrobe for two featuring Canadian designers, footwear and personal styling.", 9650, "https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=1000&q=85"],
 ].map(([name, brand, description, price, image], index) => ({ id: `showcase-replacement-${index + 1}`, name, brand, retailer: brand, description, price, image, imageAlt: name }));
+SHOWCASE_REPLACEMENTS.push(...ADDITIONAL_SHOWCASE_REPLACEMENTS);
+
+const STATIC_IMAGE_FAMILIES=new Map();
+for(const item of [...TRIP_PRIZES,...THEMES.flatMap(theme=>theme.prizes),...SHOWCASE_REPLACEMENTS])if(item.image){const families=STATIC_IMAGE_FAMILIES.get(item.image)||new Set();families.add(prizeFamilyKey(item));STATIC_IMAGE_FAMILIES.set(item.image,families);}
+function showcaseVisual(prize){const text=`${prize?.name||""} ${prize?.description||""}`.toLowerCase();if(prize?.isTripPrize||/trip|holiday|vacation|journey|escape|adventure|cruise|getaway/.test(text))return "✈️";if(/car|vehicle|sedan|suv|crossover|pickup/.test(text))return "🚗";if(/kitchen|cook|baker|barbecue|grill/.test(text))return "🍳";if(/furniture|living room|bedroom|dining|office|library/.test(text))return "🛋️";if(/fitness|sport|hockey|golf|ski|cycling/.test(text))return "🏅";if(/technology|computer|gaming|cinema|theatre/.test(text))return "💻";if(/camp|canoe|kayak|outdoor|garden|backyard/.test(text))return "🏕️";if(/music|studio|piano|guitar/.test(text))return "🎵";return "🎁";}
+function verifiedShowcasePrize(prize){const imageTrusted=Boolean(prize.image&&prize.imageVerified!==false&&((STATIC_IMAGE_FAMILIES.get(prize.image)?.size||1)===1));return {...prize,image:imageTrusted?prize.image:null,imageVerified:imageTrusted,visual:prize.visual||showcaseVisual(prize),imageAlt:prize.imageAlt||prize.name};}
 
 const shuffle=(a)=>{const c=[...a];for(let i=c.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[c[i],c[j]]=[c[j],c[i]];}return c;};
 const showcaseThemeKey=showcase=>`showcase-theme-${showcase.id}`;
@@ -295,14 +304,6 @@ const GENERATED_FOCUSES=[
 ];
 const GENERATED_SPACES=["living room","chef's kitchen","backyard pavilion","games room","home cinema","library","music room","garden room","fitness studio","home office","craft workshop","four-season sunroom"];
 const GENERATED_MOBILITY=["electric bicycles","touring kayaks","camping trailer","snowmobile pair","all-terrain vehicles","sailboat package","canoe expedition","rail journey","motorcycle pair","ski holiday","road-trip package","island-hopping holiday"];
-const GENERATED_IMAGES=[
-  "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1000&q=85",
-  "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=1000&q=85",
-  "https://images.unsplash.com/photo-1555041469-a586c61ea9bcf?auto=format&fit=crop&w=1000&q=85",
-  "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=1000&q=85",
-  "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=1000&q=85",
-  "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1000&q=85",
-];
 const GENERATED_SIGNATURE_WORDS=["Golden","Maple","Aurora","Cedar","Granite","Harbour","Summit","Wildflower","Starlight","Evergreen","Copper","Silver","Crystal","Horizon","Heritage","Discovery","Jubilee","Northern","Coastal","Prairie","Alpine","Lakeside","Grand","Royal"];
 
 function generationSignature(serial){
@@ -321,9 +322,9 @@ function generatedShowcase(serial){
     intro:`This entirely new Showcase celebrates ${region} style with three prizes created just for today's show!`,
     generated:true,
     prizes:[
-      {id:`generated-${serial}-signature`,name:`${region} ${signature} ${focus[1]}`,brand:focus[2],description:focus[3],price:basePrice+1450,image:GENERATED_IMAGES[index%GENERATED_IMAGES.length]},
-      {id:`generated-${serial}-home`,name:`${region} ${signature} ${space} transformation`,brand:"Canadian Living",description:`A complete ${space} redesign with Canadian furniture, décor, delivery and professional installation.`,price:basePrice+3180,image:GENERATED_IMAGES[(index+2)%GENERATED_IMAGES.length]},
-      {id:`generated-${serial}-adventure`,name:`${region} ${signature} ${mobility}`,brand:"Explore Canada",description:`A premium ${mobility} package for two with equipment, training, transportation and accommodations.`,price:basePrice+6890,image:GENERATED_IMAGES[(index+4)%GENERATED_IMAGES.length]},
+      {id:`generated-${serial}-signature`,name:`${region} ${signature} ${focus[1]}`,brand:focus[2],description:focus[3],price:basePrice+1450,image:null,imageVerified:false},
+      {id:`generated-${serial}-home`,name:`${region} ${signature} ${space} transformation`,brand:"Canadian Living",description:`A complete ${space} redesign with Canadian furniture, décor, delivery and professional installation.`,price:basePrice+3180,image:null,imageVerified:false},
+      {id:`generated-${serial}-adventure`,name:`${region} ${signature} ${mobility}`,brand:"Explore Canada",description:`A premium ${mobility} package for two with equipment, training, transportation and accommodations.`,price:basePrice+6890,image:null,imageVerified:false},
     ],
   };
 }
@@ -340,7 +341,7 @@ function takeFreshTrip(){
   if(!available.length)throw new Error("The Canadian trip pool is exhausted; add genuinely new destinations before continuing.");
   const trip=shuffle(available)[0];
   retireKeys("trips",{exact:[exactPrizeKey(trip)],families:[prizeFamilyKey(trip)]});
-  return {...trip};
+  return verifiedShowcasePrize(trip);
 }
 
 function fillShowcasePrize(prize){
@@ -353,7 +354,7 @@ function fillShowcasePrize(prize){
   const filled=candidates.find(item=>!retired.exact.has(exactPrizeKey(item))&&!retired.families.has(prizeFamilyKey(item)));
   if(!filled)throw new Error("The Canadian showcase pool is exhausted; add a genuinely new prize family before continuing.");
   retireKeys("showcase",{exact:[exactPrizeKey(filled)],families:[prizeFamilyKey(filled)]});
-  return {...filled,announcerText:`It's ${filled.name}, from ${filled.brand}! ${filled.description}`};
+  return {...verifiedShowcasePrize(filled),announcerText:`It's ${filled.name}, from ${filled.brand}! ${filled.description}`};
 }
 
 export function createShowcases(){

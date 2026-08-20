@@ -18,8 +18,8 @@ const FETCH_HEADERS = {
 
 const MIN_PRICE = 20;
 const MAX_PRICE = 25000;
-const TARGET_POOL_SIZE = 1200;
-const PER_RETAILER_TARGET = 200;
+const TARGET_POOL_SIZE = 2400;
+const PER_RETAILER_TARGET = 400;
 const CACHE_TTL_MS = 30 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 15000;
 
@@ -476,7 +476,7 @@ function isDisplayReadyPrize(item) {
   const visible = `${item?.name || ""} ${item?.brand || ""} ${item?.retailer || ""} ${item?.category || ""} ${item?.description || ""}`;
   const description = displayDescription(item || {});
   return (
-    Boolean(item?.image) &&
+    Boolean(item?.image || item?.visual) &&
     cleanProductName(item?.name).length >= 3 &&
     description.length >= 35 &&
     !hasFrenchCopy(visible) &&
@@ -490,6 +490,7 @@ function buildCanadianRetailerCatalog() {
     name, brand, retailer: "Canadian prize catalogue", exactPrice, price: Math.round(exactPrice),
     priceIsLive: false, priceKind: "regular", currency: "CAD", url: `catalogue:six-round/${index + 1}`,
     image, imageKind: "representative", imageAlt: name, description, category,
+    imageVerified: Boolean(image),
     hostDescription: `${brand} ${name}! ${description}`,
   }));
   const departmentPrizes = CANADIAN_RETAILER_PRIZE_BLUEPRINTS.flatMap((section) =>
@@ -501,7 +502,7 @@ function buildCanadianRetailerCatalog() {
         name: baseName[0].toUpperCase() + baseName.slice(1), brand, retailer,
         exactPrice: basePrice, price: Math.round(basePrice), priceIsLive: false,
         priceKind: "regular", currency: "CAD", url: `catalogue:department/${slugify(baseName)}`,
-        image: fallbackImage(baseName, section.category), imageKind: "representative", imageAlt: baseName,
+        image: fallbackImage(baseName, section.category), imageKind: "representative", imageVerified: true, imageAlt: baseName,
         description: `${fallbackFeatureDetails(baseName, section.category)[0].toUpperCase()}${fallbackFeatureDetails(baseName, section.category).slice(1)}.`,
         category: section.category,
       };
@@ -565,6 +566,7 @@ export function normalizeShopifyProduct(config, product) {
     url,
     image,
     imageKind: "product",
+    imageVerified: Boolean(image),
     imageAlt: name,
     description,
     category,
@@ -574,14 +576,15 @@ export function normalizeShopifyProduct(config, product) {
 
 async function fetchShopifyRetailer(config) {
   try {
-    const url = `${config.baseUrl}/products.json?limit=250`;
-    const response = await fetchData(url);
-    const data = await response.json();
-    if (!Array.isArray(data.products)) throw new Error("Invalid product feed");
-    return data.products
-      .map((product) => normalizeShopifyProduct(config, product))
-      .filter(Boolean)
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const items=[];
+    for(let page=1;page<=10&&items.length<PER_RETAILER_TARGET*2;page+=1){
+      const response=await fetchData(`${config.baseUrl}/products.json?limit=250&page=${page}`),data=await response.json();
+      if(!Array.isArray(data.products))throw new Error("Invalid product feed");
+      if(!data.products.length)break;
+      items.push(...data.products.map(product=>normalizeShopifyProduct(config,product)).filter(Boolean));
+      if(data.products.length<250)break;
+    }
+    return deduplicate(items).sort((a,b)=>a.name.localeCompare(b.name));
   } catch (err) {
     console.warn(`[prizeSource] ${config.retailer}: ${err.message}`);
     return [];
@@ -627,6 +630,7 @@ export function normalizeBestBuyProduct(product) {
     url,
     image: product.highResImage || product.thumbnailImage || null,
     imageKind: "product",
+    imageVerified: Boolean(product.highResImage || product.thumbnailImage),
     imageAlt: name,
     description,
     category,
@@ -712,6 +716,7 @@ async function fetchCuratedFallback(candidate) {
     url: candidate.url,
     image,
     imageKind: priceIsLive ? "product" : "representative",
+    imageVerified: Boolean(image),
     imageAlt: cleanProductName(candidate.imageAlt) || cleanProductName(candidate.name),
     description: displayDescription(candidate),
     category: cleanProductName(candidate.category) || "General merchandise",
@@ -751,8 +756,10 @@ export function prizeFamily(item) {
 export function normalizePrizePresentation(item) {
   const brand = cleanSellerName(item.brand, item.retailer);
   const brandPattern = new RegExp(`^${brand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s+`, "i");
-  const enriched = { ...item, brand, name: cleanProductName(item.name).replace(brandPattern, "").trim(), description: displayDescription(item) };
-  return { ...enriched, hostDescription: fullPrizeAnnouncement(enriched), bidCategory: prizeCategory(enriched), prizeFamily: prizeFamily(enriched) };
+  const imageVerified=Boolean(item.image&&item.imageVerified!==false&&(item.imageKind==="product"||item.priceIsLive||item.imageVerified===true));
+  const enriched = { ...item, brand, name: cleanProductName(item.name).replace(brandPattern, "").trim(), description: displayDescription(item),image:imageVerified?item.image:null,imageVerified };
+  const bidCategory=prizeCategory(enriched),visual=item.visual||({Clothing:"👕",Appliances:"🔌",Jewellery:"💎",Recreation:"🏕️",Electronics:"💻",Furniture:"🛋️"}[bidCategory]||"🎁");
+  return { ...enriched,visual, hostDescription: fullPrizeAnnouncement(enriched), bidCategory, prizeFamily: prizeFamily(enriched) };
 }
 
 const enrichPrize = normalizePrizePresentation;
@@ -765,6 +772,12 @@ function reduceSimilarPrizes(items) {
     families.add(family);
     return true;
   });
+}
+
+function removeAmbiguousRepresentativeImages(items){
+  const familiesByImage=new Map();
+  for(const item of items)if(item.image&&item.imageKind!=="product"&&!item.priceIsLive){const families=familiesByImage.get(item.image)||new Set();families.add(prizeFamilyKey(item));familiesByImage.set(item.image,families);}
+  return items.map(item=>item.image&&item.imageKind!=="product"&&(familiesByImage.get(item.image)?.size||0)>1?{...item,image:null,imageVerified:false}:item);
 }
 
 // Interleaving prevents one large retailer from crowding the others out.
@@ -814,7 +827,7 @@ export async function fetchPrizePool() {
   const localCatalog = expandedBiddingCatalog();
   const canadianRetailerCatalog = buildCanadianRetailerCatalog();
   items = reduceSimilarPrizes(
-    deduplicate([...items, ...curated, ...localCatalog, ...canadianRetailerCatalog])
+    removeAmbiguousRepresentativeImages(deduplicate([...items, ...curated, ...localCatalog, ...canadianRetailerCatalog]))
       .map(enrichPrize)
       .filter(isDisplayReadyPrize),
   );
@@ -833,7 +846,7 @@ export async function fetchPrizePool() {
 // background, so a round transition never waits on several slow shop sites.
 const retiredPrizeIds = new Set();
 const retiredPrizeFingerprints = new Set();
-const REFILL_THRESHOLD = 120;
+const REFILL_THRESHOLD = 240;
 let prizeBankFileOverride;
 let retiredPrizeIdsLoaded = false;
 
@@ -862,11 +875,11 @@ function availablePrizes(items) {
 }
 
 const buildLocalFallbackPool = () => reduceSimilarPrizes(
-  [
-    ...CURATED_FALLBACKS.map(enrichPrize),
-    ...expandedBiddingCatalog().map(enrichPrize),
-    ...buildCanadianRetailerCatalog().map(enrichPrize),
-  ].filter(isDisplayReadyPrize),
+  removeAmbiguousRepresentativeImages([
+    ...CURATED_FALLBACKS,
+    ...expandedBiddingCatalog(),
+    ...buildCanadianRetailerCatalog(),
+  ]).map(enrichPrize).filter(isDisplayReadyPrize),
 );
 loadRetiredPrizeIds();
 let cache = { items: availablePrizes(buildLocalFallbackPool()), fetchedAt: 0 };
@@ -921,6 +934,7 @@ export function prizeBankStats() {
     usedFingerprints: retiredPrizeFingerprints.size,
     refilling: Boolean(refreshPromise),
     threshold: REFILL_THRESHOLD,
+    target: TARGET_POOL_SIZE,
     persistent: unifiedPrizeBankStats().persistent,
   };
 }

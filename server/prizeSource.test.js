@@ -92,11 +92,12 @@ test("underwear prizes use specific apparel descriptions instead of generic desi
   assert.equal(bra.description,"Soft fabric, adjustable details, and a supportive fit for lasting comfort.");
 });
 
-test("fallback bidding prizes are display-ready with photos and useful copy", async () => {
+test("fallback bidding prizes use only verified photos or matched visuals", async () => {
   resetPrizeBankForTests();
   const pool = await getPrizePool();
   const visibleCopy = (item) => `${item.name} ${item.brand} ${item.retailer} ${item.category} ${item.description}`;
-  assert.equal(pool.some((item) => !item.image), false);
+  assert.equal(pool.some((item) => !item.image&&!item.visual), false);
+  assert.equal(pool.some((item) => item.image&&!item.imageVerified), false);
   assert.equal(pool.some((item) => !item.description || item.description.length < 35), false);
   assert.equal(pool.some((item) => /^From [^—]+—[^.!]+!?$/i.test(item.description)), false);
   assert.equal(pool.some((item) => /contestants?'? row|substantial|department/i.test(item.description)), false);
@@ -107,6 +108,11 @@ test("fallback bidding prizes are display-ready with photos and useful copy", as
     assert.ok(item.hostDescription.includes(item.name), `${item.name} announcement includes item name`);
     assert.ok(item.hostDescription.includes(item.description), `${item.name} announcement includes description`);
   }
+});
+
+test("bidding feed and refill capacity are doubled",async()=>{
+  resetPrizeBankForTests();const pool=await getPrizePool(),stats=prizeBankStats();
+  assert.ok(pool.length>=300);assert.equal(stats.target,2400);assert.equal(stats.threshold,240);
 });
 
 test("a used bidding prize leaves the available bank permanently", async () => {

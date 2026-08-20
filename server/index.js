@@ -39,7 +39,7 @@ import { getSmallPrizePool, smallPrizePoolStats } from "./smallPrizeSource.js";
 import { pricingPrizeBankStats, retiredPricingPrizeNamesList } from "./pricingPrizeBank.js";
 import { showcaseBankStats, tripBankStats } from "./showcasePrizes.js";
 import { unifiedPrizeBankStats } from "./prizeBank.js";
-import { pickAPairPoolStatus } from "./pricingGames.js";
+import { pickAPairPoolStatus, pricingCatalogStats } from "./pricingGames.js";
 import { pricingGameRotationStatus } from "./gameRotation.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -294,6 +294,7 @@ app.get("/api/prize-banks/status", (req, res) => {
     ledger: unifiedPrizeBankStats(),
     bidding: prizeBankStats(),
     pricing: pricingPrizeBankStats(),
+    catalogs: pricingCatalogStats(),
     smallItems: smallPrizePoolStats(),
     pickAPair: pickAPairPoolStatus(retiredPricingPrizeNamesList()),
     gameRotation: pricingGameRotationStatus(),
