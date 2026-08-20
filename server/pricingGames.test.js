@@ -144,7 +144,7 @@ test("Balance Game has exactly one winning pair and awards the grand prize",()=>
 
 test("Hole in One rewards accurate grocery ordering with an easier putting meter",()=>{
   const g=createPricingGameForType("holeInOne",player),sorted=g.items.map((item,index)=>({id:item.id,price:g._prices[index]})).sort((a,b)=>a.price-b.price);
-  assert.equal(g.title,"HOLE IN ONE");assert.doesNotMatch(g.instructions,/or two/i);
+  assert.equal(g.title,"HOLE IN ONE");assert.doesNotMatch(g.instructions,/or two/i);assert.match(g.instructions,/LEAST expensive first/i);assert.match(g.prompt,/LEAST expensive product first/i);
   playPricingGame(g,{order:sorted.map(entry=>entry.id)});assert.equal(g.stage,"orderReveal");assert.equal(g.revealedCount,0);
   for(let i=0;i<6;i+=1)settlePricingAnimation(g);
   assert.equal(g.stage,"puttReady");assert.equal(g.earnedLines,6);assert.equal(g.distanceLine,1);assert.equal(g.puttWindow.tolerance,20);

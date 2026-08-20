@@ -425,7 +425,7 @@ function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError
   if (game.status !== "playing") return <div className="pir-panel pir-center"><h2>{game.title}</h2><p className="pir-pricing-result">{game.result}</p>{isDemo && <button className="pir-btn" onClick={onBackToGames}>Try Another Game</button>}</div>;
   if (!isPlayer){const suggestions=audienceOptions(game);return <div className="pir-panel pir-center pir-audience-phone"><h2>{game.title}</h2><p><b>{game.playerName}</b> is playing. Help them like the studio audience!</p><div className="pir-audience-buttons">{suggestions.map(option=><button key={option} className="pir-btn secondary" disabled={busy} onClick={()=>send({audienceChoice:option})}>{option}</button>)}</div><small>Your shout will pop up on the big screen.</small></div>;}
   const addOrder = (id) => { if (!order.includes(id)) setOrder([...order, id]); };
-  const orderedNames = order.map(id => game.items?.find(x => x.id === id)?.name).filter(Boolean);
+  const orderedProducts = order.map(id => game.items?.find(x => x.id === id)).filter(Boolean);
   return (
     <div className="pir-panel pir-pricing-phone">
       <h2 className="pir-pricing-title">{game.title}</h2>
@@ -443,8 +443,9 @@ function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError
       {game.mode === "putt" && <PuttAccuracyMeter window={game.puttWindow} disabled={busy||!acceptGuesses} attempt={game.attempts} onPutt={accuracy=>send({accuracy})} />}
       {game.mode === "multi" && <><div className="pir-one-away-phone">{game.shownDigits.map((digit,i)=><div key={i}><b>{digit}</b><button className={answers[i]==="Higher"?"selected":""} onClick={()=>setAnswers(a=>{const n=[...a];n[i]="Higher";return n;})}>+1</button><button className={answers[i]==="Lower"?"selected":""} onClick={()=>setAnswers(a=>{const n=[...a];n[i]="Lower";return n;})}>−1</button></div>)}</div><button className="pir-btn" disabled={busy||answers.filter(Boolean).length!==5} onClick={()=>send({answers})}>Lock In Final Price</button></>}
       {game.mode === "order" && <>
-        <div className="pir-order-list">{orderedNames.map((name,i)=><span key={i}>{i+1}. {name}</span>)}</div>
-        <div className="pir-choice-grid">{game.items.filter(x=>!order.includes(x.id)).map(item=><button key={item.id} className="pir-btn secondary" onClick={()=>addOrder(item.id)}>{item.name}</button>)}</div>
+        {game.type==="holeInOne"&&<div className="pir-hole-order-help"><strong>START WITH THE LEAST EXPENSIVE</strong><span>Each item you tap should be more expensive than the one before it.</span></div>}
+        <div className="pir-order-list">{orderedProducts.map((item,i)=><span key={item.id}><b>{i===0?"1 · LEAST EXPENSIVE":`${i+1} · NEXT MORE EXPENSIVE`}</b>{item.brand} {item.name}</span>)}</div>
+        <div className="pir-choice-grid">{game.items.filter(x=>!order.includes(x.id)).map(item=><button key={item.id} className="pir-btn secondary" onClick={()=>addOrder(item.id)}><small>{item.brand}</small>{item.name}</button>)}</div>
         <div className="pir-actions"><button className="pir-btn secondary" disabled={!order.length} onClick={()=>setOrder([])}>Reset</button><button className="pir-btn" disabled={busy || order.length !== game.items.length} onClick={()=>send({ order })}>Lock In Order</button></div>
       </>}
       {!!game.history?.length && <div className="pir-game-history">{game.history.slice(-4).map((line,i)=><div key={i}>{line}</div>)}</div>}

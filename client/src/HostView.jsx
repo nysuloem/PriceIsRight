@@ -859,11 +859,14 @@ function HolePutt({putt,onStopped}){
 }
 
 function HoleInOneBoard({game,onPuttStopped}){
-  const ordered=game.orderedIds?.length?game.orderedIds.map(id=>game.items.find(item=>item.id===id)).filter(Boolean):game.items,showGreen=["puttReady","putting","orTwoReveal"].includes(game.stage)||game.status!=="playing";
+  const ordered=game.orderedIds?.length?game.orderedIds.map(id=>game.items.find(item=>item.id===id)).filter(Boolean):game.items,orderedLocked=Boolean(game.orderedIds?.length),showGreen=["puttReady","putting","orTwoReveal"].includes(game.stage)||game.status!=="playing",teeLeft=9+(6-(game.distanceLine||6))*8;
   return <div className={`pir-hole-stage ${game.orTwoRevealed?"or-two":""}`}>
     <div className="pir-hole-logo"><span>HOLE IN ONE</span>{game.orTwoRevealed&&<b>OR TWO!</b>}</div>
-    {!showGreen&&<div className="pir-hole-groceries"><GameCards items={ordered.map((item,index)=>({...item,revealedPrice:index<game.revealedCount?item.revealedPrice:null}))} /></div>}
-    {showGreen&&<><div className="pir-hole-prize"><b>PLAYING FOR</b><GameCards items={[game.bonusPrize]} /></div><div className="pir-hole-green"><div className="pir-hole-lines">{[6,5,4,3,2,1].map(line=><i key={line} className={line===game.distanceLine?"active":""}><small>{line}</small></i>)}</div><span className="pir-hole-golfer">🏌️</span><span className="pir-hole-cup">⚑</span>{game.lastPutt&&<HolePutt key={game.lastPutt.id} putt={game.lastPutt} onStopped={game.stage==="putting"?onPuttStopped:null}/>}</div><div className="pir-hole-distance">PUTTING LINE {game.distanceLine} · TARGET ZONE {game.puttWindow?.tolerance?`${game.puttWindow.tolerance*2}% WIDE`:"LOCKED"}</div></>}
+    {!orderedLocked?<><div className="pir-hole-direction">CHOOSE THE LEAST EXPENSIVE PRODUCT FIRST</div><div className="pir-hole-groceries"><GameCards items={ordered} /></div></>:<div className="pir-hole-classic-set">
+      <div className="pir-hole-flags">{ordered.map((item,index)=>{const revealed=index<game.revealedCount;return <div key={item.id} className={`pir-product-flag ${revealed?"revealed":""} ${index===game.revealedCount-1?"current":""}`}><div className="pir-flag-cloth"><small>{item.brand}</small><b>{item.name}</b><strong>{revealed?`$${Number(item.revealedPrice).toFixed(2)}`:"$ ?.??"}</strong></div><span className="pir-flag-pole"/><i>{index===0?"LEAST":index+1}</i></div>;})}</div>
+      <div className="pir-hole-green" style={{"--tee-left":`${teeLeft}%`}}><div className="pir-hole-lines">{[6,5,4,3,2,1].map(line=><i key={line} className={showGreen&&line===game.distanceLine?"active":""}><small>{line}</small></i>)}</div>{showGreen&&<><span className="pir-hole-golfer">🏌️</span><span className="pir-hole-cup">⚑</span>{game.lastPutt&&<HolePutt key={game.lastPutt.id} putt={game.lastPutt} onStopped={game.stage==="putting"?onPuttStopped:null}/>}</>}</div>
+    </div>}
+    {showGreen&&<><div className="pir-hole-prize"><b>PLAYING FOR</b><span>{game.bonusPrize.brand} {game.bonusPrize.name}</span></div><div className="pir-hole-distance">PUTTING LINE {game.distanceLine} · TARGET ZONE {game.puttWindow?.tolerance?`${game.puttWindow.tolerance*2}% WIDE`:"LOCKED"}</div></>}
     {game.stage==="orTwoReveal"&&<div className="pir-or-two-reveal">OR TWO!</div>}
   </div>;
 }
