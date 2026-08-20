@@ -85,7 +85,7 @@ test("grocery games use familiar national brands instead of boutique feed items"
 
 test("all pricing game engines can reach a result", () => {
   let g = createPricingGameForType("plinko", player); while(g.stage === "qualify") { playPricingGame(g,{choice:g._qualifierCorrect[g.qualifierIndex]}); g.pendingPrizeAnnouncement=null; } while(g.status === "playing") { playPricingGame(g,{position:5}); settlePricingAnimation(g); } assert.notEqual(g.status,"playing");
-  g = createPricingGameForType("cliffHangers", player); for (const price of [...g._prices]) { playPricingGame(g,{value:price}); settlePricingAnimation(g); clearDeferredPrice(g); } assert.equal(g.status,"won");
+  g = createPricingGameForType("cliffHangers", player); for (const price of [...g._prices]) { playPricingGame(g,{value:price}); settlePricingAnimation(g); settlePricingAnimation(g); clearDeferredPrice(g); } assert.equal(g.status,"won");
   g = createPricingGameForType("punchABunch", player); while(g.stage === "qualify") { const i=g.qualifierIndex; playPricingGame(g,{choice:g._qualifierPrices[i]>g.qualifiers[i].shownPrice?"Higher":"Lower"}); } playPricingGame(g,{choice:"1"}); if(g.stage === "decision") playPricingGame(g,{choice:"Keep it"}); assert.equal(g.status,"won");
   g = createPricingGameForType("diceGame", player); while(g.status === "playing") { if(g.stage === "roll") playPricingGame(g,{choice:"Roll"}); else if(g.stage === "direction") { const i=g.digitIndex; playPricingGame(g,{choice:g._digits[i]>g.rolls[i]?"Higher":"Lower"}); } else playPricingGame(g,{choice:"Reveal next digit"}); } assert.equal(g.status,"won");
   g = createPricingGameForType("groceryGame", player); playPricingGame(g,{choice:g.options[0]}); playPricingGame(g,{value:20}); assert.notEqual(g.status,"playing");
@@ -244,6 +244,8 @@ test("Clock Game countdown is deadline-driven and expires without another guess"
 test("Cliff Hangers hides the actual price until the climber stops",()=>{
   const g=createPricingGameForType("cliffHangers",player),actual=g._prices[0];
   playPricingGame(g,{value:actual-7});
+  assert.equal(g.stage,"checking");assert.equal(g.climber,0);assert.equal(g.prompt,"Is that the right price?");assert.equal(g.lastClimb.correct,false);
+  settlePricingAnimation(g);
   assert.equal(g.stage,"climbing");assert.equal(g.climber,7);assert.equal(g.priceReveal,undefined);assert.equal(g.lastClimb.from,0);assert.equal(g.lastClimb.to,7);
   assert.equal(g.lastClimb.duration,6300);assert.equal(g.lastClimb.stepDuration,900);
   settlePricingAnimation(g);
@@ -260,7 +262,7 @@ test("Cliff Hangers only uses double-digit small prizes",()=>{
 
 test("a safe third Cliff Hangers climb wins all three prizes before the subtle price reveal",()=>{
   const g=createPricingGameForType("cliffHangers",player);g.itemIndex=2;g.climber=4;const actual=g._prices[2];
-  playPricingGame(g,{value:actual});settlePricingAnimation(g);
+  playPricingGame(g,{value:actual});assert.equal(g.lastClimb.correct,true);settlePricingAnimation(g);settlePricingAnimation(g);
   assert.equal(g.status,"won");assert.equal(g.cliffFinalWin,true);assert.equal(g.winnings,g._prices.reduce((sum,price)=>sum+price,0));assert.equal(g.priceReveal.actual,null);
   revealDeferredPrice(g);assert.equal(g.priceReveal.actual,actual);
 });

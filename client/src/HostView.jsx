@@ -181,6 +181,7 @@ function HostViewInner({ code }) {
     const event = state?.pricingGame?.lastOutcome;
     if (!event || event.seq === lastOutcomeRef.current) return;
     lastOutcomeRef.current = event.seq;
+    if(event.silent)return;
     if (state?.pricingGame?.type==="clockGame"&&(event.kind==="success"||event.kind==="win"))playClockBell();
     else if (event.kind === "success" || event.kind === "win") playSuccess();
     else if (event.kind === "loss") playWomp();
@@ -201,7 +202,7 @@ function HostViewInner({ code }) {
 
   useEffect(()=>{const game=state?.pricingGame,climb=game?.lastClimb;if(game?.type!=="cliffHangers"||game.stage!=="climbing"||!climb)return;const timer=setTimeout(()=>finishCliffClimb(climb.id),(climb.duration||1000)+700);return()=>clearTimeout(timer);},[state?.pricingGame?.lastClimb?.id,state?.pricingGame?.stage,state?.pricingGame?.lastClimb?.duration,finishCliffClimb]);
 
-  useEffect(()=>{const game=state?.pricingGame,climb=game?.lastClimb,audio=cliffYodelRef.current;if(game?.type!=="cliffHangers"||game.stage!=="climbing"||!climb){if(audio){audio.pause();audio.currentTime=0;}return;}if(climb.id===lastYodelClimbRef.current)return;lastYodelClimbRef.current=climb.id;audio.pause();audio.currentTime=0;audio.loop=true;audio.volume=.72;audio.play().catch(()=>{});return()=>{audio.pause();audio.currentTime=0;};},[state?.pricingGame?.lastClimb?.id,state?.pricingGame?.stage]);
+  useEffect(()=>{const game=state?.pricingGame,climb=game?.lastClimb,audio=cliffYodelRef.current;if(game?.type!=="cliffHangers"||game.stage!=="climbing"||!climb||climb.correct){if(audio){audio.pause();audio.currentTime=0;}return;}if(climb.id===lastYodelClimbRef.current)return;lastYodelClimbRef.current=climb.id;audio.pause();audio.currentTime=0;audio.loop=true;audio.volume=.72;audio.play().catch(()=>{});return()=>{audio.pause();audio.currentTime=0;};},[state?.pricingGame?.lastClimb?.id,state?.pricingGame?.stage,state?.pricingGame?.lastClimb?.correct]);
 
   useEffect(()=>{const game=state?.pricingGame,id=game?.lastClimb?.id;if(game?.type!=="cliffHangers"||!game.cliffFinalWin||!id||id===lastCliffCelebrationRef.current)return;lastCliffCelebrationRef.current=id;playShowcaseCelebration();},[state?.pricingGame?.cliffFinalWin,state?.pricingGame?.lastClimb?.id]);
 
@@ -321,6 +322,8 @@ function HostViewInner({ code }) {
       playTTS(el, text, () => safely(() => revealPricingPrice(code)), voice, "host");
     } else if (type === "pricingPriceShown") {
       setTimeout(() => current(() => playTTS(el, text, () => safely(() => continuePricingPrice(code)), voice, "host")), 650);
+    } else if(type==="cliffCheck"){
+      playTTS(el,text,()=>current(()=>{if(state.pricingGame?.lastClimb?.correct)playSuccess();else playBuzzer();setTimeout(()=>safely(()=>settlePricingGame(code)),750);}),voice,"host");
     } else if (type === "pricingGame" || type === "pricingPrompt") {
       const diceReveal=state.pricingGame?.type==="diceGame"&&state.pricingGame?.stage==="reveal";
       if(diceReveal)playTTS(ann,text,()=>{},config.announcerVoice||"cedar","announcer");
@@ -829,7 +832,7 @@ function CliffClimber({position,climb,onStopped}){
 }
 
 function CliffBoard({game,reveal=null,onStopped}){
-  return <div className="pir-cliff"><CliffClimber position={game.climber} climb={game.stage==="climbing"?game.lastClimb:null} onStopped={onStopped}/><div className="pir-cliff-track" /><b>{game.stage==="climbing"?"WATCH HIM CLIMB...":`Step ${game.climber} / 25`}</b>{reveal&&<div className={`pir-cliff-price-pop ${reveal.actual==null?"waiting":game.cliffFinalWin?"subtle":""}`}><small>YOUR GUESS: {reveal.guess}</small>{reveal.actual==null?<span>?</span>:<><em>ACTUAL RETAIL PRICE</em><strong>${Number(reveal.actual).toLocaleString("en-CA")}</strong></>}</div>}</div>;
+  return <div className="pir-cliff"><CliffClimber position={game.climber} climb={game.stage==="climbing"?game.lastClimb:null} onStopped={onStopped}/><div className="pir-cliff-track" /><b>{game.stage==="checking"?"IS THAT THE RIGHT PRICE?":game.stage==="climbing"?(game.lastClimb?.correct?"HE STAYS PUT!":"WATCH HIM CLIMB..."):`Step ${game.climber} / 25`}</b>{reveal&&<div className={`pir-cliff-price-pop ${reveal.actual==null?"waiting":game.cliffFinalWin?"subtle":""}`}><small>YOUR GUESS: {reveal.guess}</small>{reveal.actual==null?<span>?</span>:<><em>ACTUAL RETAIL PRICE</em><strong>${Number(reveal.actual).toLocaleString("en-CA")}</strong></>}</div>}</div>;
 }
 
 function PrizePhoto({item}){

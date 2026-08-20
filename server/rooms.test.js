@@ -66,7 +66,13 @@ test("duplicate Plinko animation completion cannot freeze or double-award a chip
 test("Cliff Hangers apologizes before revealing the losing prize price, then ends silently",()=>{
   const room=createRoom();room.pricingGame=createPricingGameForType("cliffHangers",{id:"p",name:"Player"});room.phase="pricingGame";
   const g=room.pricingGame;g.climber=24;g.itemIndex=0;
-  playPricingGame(g,{value:g._prices[0]+2});
+  pricingGameAction(room,"p",{value:g._prices[0]+2});
+  assert.equal(g.stage,"checking");
+  assert.equal(room.hostLine.type,"cliffCheck");
+  assert.equal(room.hostLine.text,"Is that the right price?");
+  settlePricingGame(room);
+  assert.equal(g.stage,"climbing");
+  assert.equal(room.hostLine.type,"cliffClimb");
   settlePricingGame(room);
   assert.equal(g.cliffOver,true);
   assert.equal(room.phase,"pricingRevealCue");
