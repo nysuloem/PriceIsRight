@@ -384,7 +384,7 @@ function audienceOptions(game){
 
 function PuttAccuracyMeter({window:target,disabled,onPutt,attempt}){
   const [position,setPosition]=useState(0),positionRef=useRef(0),startRef=useRef(0);
-  useEffect(()=>{let frame;startRef.current=performance.now();const animate=now=>{const elapsed=(now-startRef.current)%2800,phase=elapsed/1400,next=phase<=1?phase*100:(2-phase)*100;positionRef.current=next;setPosition(next);frame=requestAnimationFrame(animate);};frame=requestAnimationFrame(animate);return()=>cancelAnimationFrame(frame);},[target?.center,target?.tolerance,attempt]);
+  useEffect(()=>{let frame;startRef.current=performance.now();const cycle=Math.max(1200,target?.cycleMs||2400),half=cycle/2,animate=now=>{const elapsed=(now-startRef.current)%cycle,phase=elapsed/half,next=phase<=1?phase*100:(2-phase)*100;positionRef.current=next;setPosition(next);frame=requestAnimationFrame(animate);};frame=requestAnimationFrame(animate);return()=>cancelAnimationFrame(frame);},[target?.center,target?.tolerance,target?.cycleMs,attempt]);
   if(!target)return <p className="pir-helptext">Watch the main screen while your putting line is prepared.</p>;
   const left=Math.max(0,target.center-target.tolerance),width=Math.min(100-left,target.tolerance*2);
   return <div className="pir-putt-phone"><p><b>{attempt?"SECOND PUTT":"FIRST PUTT"}</b></p><div className="pir-putt-meter"><span className="target" style={{left:`${left}%`,width:`${width}%`}}>SWEET SPOT</span><i style={{left:`${position}%`}} /></div><button className="pir-btn" disabled={disabled} onClick={()=>onPutt(positionRef.current)}>PUTT!</button><small>Tap when the moving marker is inside the green zone.</small></div>;

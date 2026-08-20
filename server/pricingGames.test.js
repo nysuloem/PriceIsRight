@@ -147,13 +147,13 @@ test("Hole in One rewards accurate grocery ordering with an easier putting meter
   assert.equal(g.title,"HOLE IN ONE");assert.doesNotMatch(g.instructions,/or two/i);assert.match(g.instructions,/LEAST expensive first/i);assert.match(g.prompt,/LEAST expensive product first/i);
   playPricingGame(g,{order:sorted.map(entry=>entry.id)});assert.equal(g.stage,"orderReveal");assert.equal(g.revealedCount,0);
   for(let i=0;i<6;i+=1)settlePricingAnimation(g);
-  assert.equal(g.stage,"puttReady");assert.equal(g.earnedLines,6);assert.equal(g.distanceLine,1);assert.equal(g.puttWindow.tolerance,20);
+  assert.equal(g.stage,"puttReady");assert.equal(g.earnedLines,6);assert.equal(g.distanceLine,1);assert.equal(g.puttWindow.tolerance,14);assert.equal(g.puttWindow.cycleMs,2600);
 });
 
 test("Hole in One reveals OR TWO only after a missed first putt",()=>{
   const g=createPricingGameForType("holeInOne",player),reverse=g.items.map((item,index)=>({id:item.id,price:g._prices[index]})).sort((a,b)=>b.price-a.price).map(entry=>entry.id);
   playPricingGame(g,{order:reverse});for(let i=0;i<6;i+=1)settlePricingAnimation(g);
-  assert.equal(g.distanceLine,6);assert.equal(g.puttWindow.tolerance,10);assert.equal(g.orTwoRevealed,false);
+  assert.equal(g.distanceLine,6);assert.equal(g.puttWindow.tolerance,5);assert.equal(g.puttWindow.cycleMs,1800);assert.equal(g.orTwoRevealed,false);
   playPricingGame(g,{accuracy:0});assert.equal(g.stage,"putting");settlePricingAnimation(g);
   assert.equal(g.stage,"orTwoReveal");assert.equal(g.orTwoRevealed,true);assert.match(g.prompt,/OR TWO/i);
   settlePricingAnimation(g);assert.equal(g.stage,"puttReady");assert.equal(g.attempts,1);

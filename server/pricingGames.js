@@ -329,7 +329,17 @@ function holeInOneGroceries(excluded=[],liveItems=[]){
   const reserveByPrice=new Map(),reserveFamilies=new Set();for(const item of shuffle([...PICK_A_PAIR_CATALOG,...GROCERIES])){const key=Number(item.price).toFixed(2),family=prizeFamilyKey(item);if(!reserveByPrice.has(key)&&!reserveFamilies.has(family)){reserveByPrice.set(key,item);reserveFamilies.add(family);}}
   return requireItems([...reserveByPrice.values()],6,"Hole in One grocery bank").slice(0,6);
 }
-function newPuttWindow(earnedLines){return {center:44+Math.floor(Math.random()*13),tolerance:8+Math.max(1,Math.min(6,earnedLines))*2};}
+function newPuttWindow(earnedLines){
+  const line=Math.max(1,Math.min(6,earnedLines)),difficulty={
+    1:{tolerance:5,cycleMs:1800},
+    2:{tolerance:6,cycleMs:1900},
+    3:{tolerance:7.5,cycleMs:2050},
+    4:{tolerance:10,cycleMs:2200},
+    5:{tolerance:12,cycleMs:2300},
+    6:{tolerance:14,cycleMs:2600},
+  }[line];
+  return {center:44+Math.floor(Math.random()*13),...difficulty};
+}
 function makeHoleInOne(player,excluded=[],liveItems=[]){
   const rawItems=holeInOneGroceries(excluded,liveItems),items=shuffle(rawItems).map((item,index)=>({...prizeIntro(item),id:`hole-grocery-${prizeIdentity(item)}`,displayNumber:index+1,revealedPrice:null})),rawPrize=pick(requireItems(grandPrizeCandidates(excluded,liveItems),1,"Hole in One grand-prize bank")),bonusPrize={...prizeIntro(rawPrize),announcerText:prizeAnnouncementText(rawPrize,"Sink your putt and you could win this fabulous prize! It's")};
   return {...base("holeInOne","HOLE IN ONE",player,"Choose the product you think is the LEAST expensive first. Then choose the next-least expensive product, continuing until all six are arranged from least to most expensive. Each correct step moves you closer to the hole. Then stop the moving accuracy meter inside the target zone to sink your putt and win the grand prize.",[bonusPrize]),featuredIntroCount:1,bonusPrize,_bonusPrice:rawPrize.price,items,_prices:items.map(item=>rawItems.find(raw=>`hole-grocery-${prizeIdentity(raw)}`===item.id)?.price),orderedIds:[],revealedCount:0,earnedLines:0,distanceLine:6,orderStillCorrect:true,attempts:0,orTwoRevealed:false,puttWindow:null,lastPutt:null,stage:"order",prompt:"Choose the LEAST expensive product first, then continue from next-least to most expensive.",mode:"order"};
