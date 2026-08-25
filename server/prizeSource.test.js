@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { MAJOR_BIDDING_RETAILERS, majorRetailerBiddingCatalog } from "./majorRetailerBiddingCatalog.js";
 import {
   configurePrizeBankStorageForTests,
   chooseShopifyRegularPrice,
@@ -56,7 +57,8 @@ test("clothing is recognized and excluded from the bidding bank", () => {
   assert.equal(prizeCategory(a), "Clothing");
   assert.equal(isClothingPrize(a),true);
   assert.equal(isBiddingPrizeEligible(a),false);
-  assert.equal(isBiddingPrizeEligible({name:"Cross-country ski package",category:"Outdoor Equipment",description:"Skis, boots and poles for two."}),true);
+  assert.equal(isBiddingPrizeEligible({name:"Cross-country ski package",category:"Outdoor Equipment",retailer:"Sport Chek",description:"Skis, boots and poles for two."}),true);
+  assert.equal(isBiddingPrizeEligible({name:"Cross-country ski package",category:"Outdoor Equipment",retailer:"Boutique Web Shop",description:"Skis, boots and poles for two."}),false);
 });
 
 test("familiar durable goods collapse across brands",()=>{
@@ -75,10 +77,26 @@ test("the fallback bidding bank has 150+ genuinely distinct Canadian families", 
   assert.ok(retailers.has("The Brick"));
   assert.ok(retailers.has("Leon's"));
   assert.ok(retailers.has("RONA"));
+  assert.ok(retailers.has("Best Buy Canada"));
+  assert.ok(retailers.has("Canadian Tire"));
+  assert.ok(retailers.has("Home Depot Canada"));
+  assert.ok(retailers.has("Sport Chek"));
+  assert.ok(retailers.has("Walmart Canada"));
+  assert.equal(pool.every(item => MAJOR_BIDDING_RETAILERS.includes(item.retailer)), true);
+  assert.equal(pool.some(item => /Canadian (?:Family )?Prize Catalogue|Herschel|Saje|Mastermind|Snuggle Bugz/i.test(item.retailer)), false);
   assert.equal(pool.some(isClothingPrize),false);
   for (const category of ["Tools", "Appliances", "Jewellery", "Outdoor Equipment", "Electronics", "Furniture"]) {
-    assert.ok(pool.filter(item => item.bidCategory === category).length >= 10, `${category} needs at least ten fresh families`);
+    assert.ok(pool.filter(item => item.bidCategory === category).length >= 40, `${category} needs at least forty fresh families`);
   }
+});
+
+test("the rebuilt reserve uses only major Canadian retailers and plausible brand departments", () => {
+  const catalog = majorRetailerBiddingCatalog();
+  assert.equal(catalog.length >= 250, true);
+  assert.equal(catalog.every(item => MAJOR_BIDDING_RETAILERS.includes(item.retailer)), true);
+  assert.equal(catalog.some(item => item.brand === "Ninja" && /refrigerator|washer|dryer|freezer/i.test(item.name)), false);
+  assert.equal(catalog.some(item => item.brand === "Citizen" && !/watch|chronograph/i.test(item.name)), false);
+  assert.equal(catalog.some(item => item.brand === "Apple" && /e-reader|printer|camera/i.test(item.name)), false);
 });
 
 test("prize presentation keeps only brand, clean name and concise copy", () => {

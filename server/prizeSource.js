@@ -1,5 +1,5 @@
-// prizeSource.js — builds a 500+ item prize pool from Canadian retailer feeds.
-import { expandedBiddingCatalog } from "./pricingGames.js";
+// prizeSource.js — builds a varied prize pool from major Canadian retailers.
+import { MAJOR_BIDDING_RETAILERS, majorRetailerBiddingCatalog, majorRetailerSellerFor } from "./majorRetailerBiddingCatalog.js";
 import { exactPrizeKey, prizeFamilyKey } from "./prizeIdentity.js";
 import { configureUnifiedPrizeBankForTests, resetUnifiedPrizeBankForTests, retireKeys, retiredKeys, unifiedPrizeBankStats } from "./prizeBank.js";
 //
@@ -28,10 +28,6 @@ const REQUEST_TIMEOUT_MS = 15000;
 const SHOPIFY_RETAILERS = [
   { retailer: "The Brick", baseUrl: "https://www.thebrick.com" },
   { retailer: "Leon's", baseUrl: "https://www.leons.ca" },
-  { retailer: "Herschel Supply Canada", baseUrl: "https://herschel.ca" },
-  { retailer: "Saje Natural Wellness", baseUrl: "https://www.saje.ca" },
-  { retailer: "Mastermind Toys", baseUrl: "https://mastermindtoys.com" },
-  { retailer: "Snuggle Bugz", baseUrl: "https://snugglebugz.ca" },
 ];
 
 // A small set of hand-curated fallbacks is retained so the game still has
@@ -90,7 +86,7 @@ const CANADIAN_RETAILER_PRIZE_BLUEPRINTS = [
     ["coffee table set", 699], ["TV stand with fireplace", 799], ["accent chair pair", 649],
     ["home office desk", 549], ["bookcase wall unit", 899], ["storage ottoman", 299],
   ] },
-  { retailers: ["The Brick", "Leon's", "Canadian Appliance Source"], category: "Appliances", items: [
+  { retailers: ["The Brick", "Leon's", "Best Buy Canada"], category: "Appliances", items: [
     ["French-door refrigerator", 2499], ["front-load washer", 1099], ["electric dryer", 999],
     ["stainless-steel range", 1299], ["built-in dishwasher", 899], ["over-the-range microwave", 449],
     ["chest freezer", 699], ["wine fridge", 549], ["upright freezer", 1099], ["range hood", 399],
@@ -113,7 +109,7 @@ const CANADIAN_RETAILER_PRIZE_BLUEPRINTS = [
     ["noise-cancelling headphones", 329], ["gaming monitor", 399], ["robot vacuum", 599],
     ["smartwatch", 449], ["Bluetooth party speaker", 299], ["streaming camera kit", 229],
   ] },
-  { retailers: ["Sleep Country Canada", "The Brick", "Leon's"], category: "Home & Kitchen", items: [
+  { retailers: ["Costco Canada", "The Brick", "Leon's"], category: "Home & Kitchen", items: [
     ["memory-foam mattress", 1399], ["adjustable bed base", 1199], ["duvet and pillow set", 349],
     ["weighted blanket", 229], ["sheet and towel package", 299], ["air purifier", 399],
     ["espresso machine", 799], ["stand mixer", 549], ["air fryer oven", 279],
@@ -469,14 +465,19 @@ function isDisplayReadyPrize(item) {
 }
 
 function buildCanadianRetailerCatalog() {
-  const sixRound = SIX_ROUND_PRIZE_CATALOG.map(([category, brand, name, description, exactPrice, image], index) => ({
-    id: `six-round-${slugify(category)}-${index + 1}`,
-    name, brand, retailer: "Canadian prize catalogue", exactPrice, price: Math.round(exactPrice),
-    priceIsLive: false, priceKind: "regular", currency: "CAD", url: `catalogue:six-round/${index + 1}`,
-    image, imageKind: "representative", imageAlt: name, description, category,
-    imageVerified: Boolean(image),
-    hostDescription: `${brand} ${name}! ${description}`,
-  }));
+  const sixRound = SIX_ROUND_PRIZE_CATALOG.map(([category, _legacyBrand, name, description, exactPrice], index) => {
+    const [retailer, brand] = majorRetailerSellerFor(category, name, index);
+    return {
+      id: `six-round-${slugify(category)}-${index + 1}`,
+      name, brand, retailer, exactPrice, price: Math.round(exactPrice),
+      priceIsLive: false, priceKind: "regular", currency: "CAD", url: `catalogue:six-round/${index + 1}`,
+      // An emoji is preferable to a merely similar stock photo. Exact live-feed
+      // product photos can replace this reserve record during refresh.
+      image: null, imageKind: "representative", imageAlt: name, description, category,
+      imageVerified: false,
+      hostDescription: `${brand} ${name}! ${description}`,
+    };
+  });
   const departmentPrizes = CANADIAN_RETAILER_PRIZE_BLUEPRINTS.flatMap((section) =>
     section.items.map(([baseName, basePrice], index) => {
       const retailer = section.retailers[index % section.retailers.length];
@@ -492,7 +493,7 @@ function buildCanadianRetailerCatalog() {
       };
     }),
   );
-  return [...sixRound, ...departmentPrizes];
+  return [...majorRetailerBiddingCatalog(), ...departmentPrizes, ...sixRound];
 }
 
 async function fetchData(url) {
@@ -767,7 +768,9 @@ export function prizeFamily(item) {
 }
 
 export function isBiddingPrizeEligible(item) {
-  return !isClothingPrize(item);
+  return MAJOR_BIDDING_RETAILERS.includes(item?.retailer)
+    && !isClothingPrize(item)
+    && ["Tools", "Appliances", "Jewellery", "Outdoor Equipment", "Electronics", "Furniture"].includes(prizeCategory(item));
 }
 
 export function normalizePrizePresentation(item) {
@@ -841,10 +844,9 @@ export async function fetchPrizePool() {
   }
 
   const curated = await Promise.all(CURATED_FALLBACKS.map(fetchCuratedFallback));
-  const localCatalog = expandedBiddingCatalog();
   const canadianRetailerCatalog = buildCanadianRetailerCatalog();
   items = reduceSimilarPrizes(
-    removeAmbiguousRepresentativeImages(deduplicate([...items, ...curated, ...localCatalog, ...canadianRetailerCatalog]))
+    removeAmbiguousRepresentativeImages(deduplicate([...items, ...curated, ...canadianRetailerCatalog]))
       .map(enrichPrize)
       .filter(isBiddingPrizeEligible)
       .filter(isDisplayReadyPrize),
@@ -895,7 +897,6 @@ function availablePrizes(items) {
 const buildLocalFallbackPool = () => reduceSimilarPrizes(
   removeAmbiguousRepresentativeImages([
     ...CURATED_FALLBACKS,
-    ...expandedBiddingCatalog(),
     ...buildCanadianRetailerCatalog(),
   ]).map(enrichPrize).filter(isBiddingPrizeEligible).filter(isDisplayReadyPrize),
 );
