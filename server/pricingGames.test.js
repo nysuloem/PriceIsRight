@@ -255,9 +255,10 @@ test("One Away wins immediately when all five first choices are correct",()=>{
 
 test("Clock Game accepts the exact integer between adjacent clues and allows 90 seconds",()=>{
   const g=createPricingGameForType("clockGame",player);g._startedAt=Date.now();g._prices[0]=66;
-  playPricingGame(g,{value:65});assert.equal(g.clue,"Higher!");assert.equal(g.prompt,"Higher!");
-  playPricingGame(g,{value:67});assert.equal(g.clue,"Lower!");assert.equal(g.prompt,"Lower!");
-  playPricingGame(g,{value:66});assert.equal(g.itemIndex,1);
+  assert.equal(g.currentGuess,null);
+  playPricingGame(g,{value:65});assert.equal(g.clue,"Higher!");assert.equal(g.prompt,"Higher!");assert.equal(g.currentGuess,65);
+  playPricingGame(g,{value:67});assert.equal(g.clue,"Lower!");assert.equal(g.prompt,"Lower!");assert.equal(g.currentGuess,67);
+  playPricingGame(g,{value:66});assert.equal(g.itemIndex,1);assert.equal(g.currentGuess,null);
   assert.ok(g.secondsLeft>=89);
 });
 

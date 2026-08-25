@@ -28,9 +28,6 @@ const REQUEST_TIMEOUT_MS = 15000;
 const SHOPIFY_RETAILERS = [
   { retailer: "The Brick", baseUrl: "https://www.thebrick.com" },
   { retailer: "Leon's", baseUrl: "https://www.leons.ca" },
-  { retailer: "Province of Canada", baseUrl: "https://provinceofcanada.com" },
-  { retailer: "Peace Collective", baseUrl: "https://www.peace-collective.com" },
-  { retailer: "Knix Canada", baseUrl: "https://knix.ca" },
   { retailer: "Herschel Supply Canada", baseUrl: "https://herschel.ca" },
   { retailer: "Saje Natural Wellness", baseUrl: "https://www.saje.ca" },
   { retailer: "Mastermind Toys", baseUrl: "https://mastermindtoys.com" },
@@ -81,19 +78,6 @@ const CURATED_FALLBACKS = [
     hostDescription:
       "From Best Buy Canada — the Nintendo Switch 2! A portable game system with a high-definition display, docked TV play, and magnetic Joy-Con 2 controllers.",
   },
-  {
-    id: "roots-original-sweatpant",
-    type: "static",
-    url: "https://www.roots.com/ca/en/",
-    name: "Roots Organic Original Sweatpant",
-    brand: "Roots",
-    retailer: "Roots Canada",
-    fallbackPrice: 84,
-    image: null,
-    imageAlt: "Roots Organic Original Sweatpant",
-    hostDescription:
-      "From Roots Canada — the Organic Original Sweatpant! Soft organic cotton fleece in a classic Canadian design.",
-  },
 ];
 
 // Large static fallback catalogue inspired by Canadian brick-and-mortar retail.
@@ -141,23 +125,23 @@ const CANADIAN_RETAILER_PRIZE_BLUEPRINTS = [
 // trim variants of the same product. These records are deliberately one item
 // per product family and use the manufacturer as the brand.
 const SIX_ROUND_PRIZE_CATALOG = [
-  ["Clothing", "Roots", "Cabin fleece hoodie", "A warm cotton-fleece hoodie with a soft brushed interior.", 98, "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=900&q=80"],
-  ["Clothing", "Canada Goose", "Down vest", "A lightweight insulated vest designed for cool Canadian weather.", 595, "https://images.unsplash.com/photo-1548883354-7622d03aca27?auto=format&fit=crop&w=900&q=80"],
-  ["Clothing", "Lululemon", "Training jacket", "A breathable zip-front jacket for workouts and everyday wear.", 168, "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=900&q=80"],
-  ["Clothing", "Arc'teryx", "Waterproof shell", "A weatherproof shell jacket with an adjustable hood.", 500, "https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?auto=format&fit=crop&w=900&q=80"],
-  ["Clothing", "Levi's", "Denim jacket", "A classic trucker-style denim jacket with button pockets.", 129, "https://images.unsplash.com/photo-1523205771623-e0faa4d2813d?auto=format&fit=crop&w=900&q=80"],
-  ["Clothing", "Columbia", "Winter parka", "An insulated parka with a water-resistant outer shell.", 279, "https://images.unsplash.com/photo-1539533018447-63fcce2678e3?auto=format&fit=crop&w=900&q=80"],
-  ["Clothing", "RW&CO", "Tailored suit", "A coordinated tailored suit with professional fitting.", 498, "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=900&q=80"],
-  ["Clothing", "Reitmans", "Wrap dress", "A versatile wrap dress with a softly draped silhouette.", 90, "https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=900&q=80"],
-  ["Clothing", "Simons", "Dress shirt collection", "Four crisp cotton dress shirts in classic colours.", 240, "https://images.unsplash.com/photo-1603252109303-2751441dd157?auto=format&fit=crop&w=900&q=80"],
-  ["Clothing", "Aritzia", "Wool skirt", "A tailored wool skirt with a clean, modern cut.", 148, "https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?auto=format&fit=crop&w=900&q=80"],
-  ["Clothing", "Blundstone", "Chelsea boots", "A durable pair of leather pull-on boots for year-round wear.", 265, "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=80"],
-  ["Clothing", "Nike", "Running shoes", "Lightweight cushioned running shoes for everyday training.", 190, "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=80"],
-  ["Clothing", "SAXX", "Underwear collection", "A collection of comfortable Canadian-designed everyday underwear.", 180, "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?auto=format&fit=crop&w=900&q=80"],
-  ["Clothing", "Smartwool", "Merino sock collection", "Six pairs of soft merino-wool socks for work and outdoor wear.", 168, "https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?auto=format&fit=crop&w=900&q=80"],
-  ["Clothing", "Joe Fresh", "Cotton pyjama set", "A comfortable cotton sleepwear set with matching robe.", 75, "https://images.unsplash.com/photo-1617952385804-7b31f8c2e7e2?auto=format&fit=crop&w=900&q=80"],
-  ["Clothing", "Adidas", "Track suit", "A coordinated zip jacket and athletic pant set.", 180, "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&w=900&q=80"],
-  ["Clothing", "The Bay", "Plush bathrobe", "A soft cotton bathrobe with deep pockets and a shawl collar.", 110, "https://images.unsplash.com/photo-1618220179428-22790b461013?auto=format&fit=crop&w=900&q=80"],
+  ["Tools", "DeWalt", "Rotary hammer kit", "A cordless rotary hammer with batteries, charger, bits and carrying case.", 699, null],
+  ["Tools", "Makita", "Air compressor", "A portable jobsite compressor with hose and pneumatic accessory kit.", 549, null],
+  ["Tools", "Lincoln Electric", "Welding machine", "A multiprocess welder with helmet, gloves and starter supplies.", 999, null],
+  ["Tools", "Milwaukee", "Cordless framing nailer", "A battery-powered framing nailer with charger and protective case.", 749, null],
+  ["Tools", "Mastercraft", "Mechanic tool cabinet", "A rolling cabinet filled with sockets, wrenches, pliers and drivers.", 1199, null],
+  ["Tools", "Ridgid", "Drain cleaning machine", "A powered drain auger with interchangeable cutters and work gloves.", 829, null],
+  ["Tools", "Lee Valley", "Maple workbench", "A solid maple workshop bench with vises, bench dogs and storage.", 1499, null],
+  ["Tools", "Knipex", "Professional pliers collection", "A fitted case of precision gripping, cutting and electrical pliers.", 649, null],
+  ["Tools", "Fluke", "Electrical testing kit", "A professional multimeter, clamp meter, voltage tester and carrying case.", 899, null],
+  ["Tools", "Wagner", "Airless paint sprayer", "A high-efficiency paint sprayer with hose, gun and extension wand.", 599, null],
+  ["Outdoor Equipment", "Nova Craft Canoe", "Canadian canoe package", "A Canadian-made canoe with paddles, personal flotation devices and roof carrier.", 2899, null],
+  ["Outdoor Equipment", "Garmin", "Trail navigation package", "A handheld satellite navigator with Canadian maps, emergency communicator and case.", 1099, null],
+  ["Outdoor Equipment", "Woods", "Ice-fishing shelter", "An insulated pop-up fishing shelter with heater, chairs and transport sled.", 899, null],
+  ["Outdoor Equipment", "Atlas", "Snowshoe package", "Two pairs of trail snowshoes with poles, gaiters and carrying bags.", 649, null],
+  ["Outdoor Equipment", "Jackery", "Portable power station", "A high-capacity outdoor power station with folding solar panels and cables.", 1799, null],
+  ["Outdoor Equipment", "Yardistry", "Backyard greenhouse", "A cedar greenhouse with shelving, ventilation and professional assembly.", 3999, null],
+  ["Outdoor Equipment", "Rossignol", "Cross-country ski package", "Skis, boots, poles, wax and roof carrier for two Canadian skiers.", 1899, null],
   ["Appliances", "KitchenAid", "Stand mixer", "A tilt-head stand mixer with a stainless-steel bowl and attachments.", 549, "https://images.unsplash.com/photo-1594385208974-2e75f8d7bb48?auto=format&fit=crop&w=900&q=80"],
   ["Appliances", "Dyson", "Cordless vacuum", "A powerful cordless vacuum with whole-machine filtration.", 799, "https://images.unsplash.com/photo-1558317374-067fb5f30001?auto=format&fit=crop&w=900&q=80"],
   ["Appliances", "Breville", "Espresso machine", "A stainless-steel espresso machine with an integrated steam wand.", 899, "https://images.unsplash.com/photo-1517668808822-9ebb02f2a0e6?auto=format&fit=crop&w=900&q=80"],
@@ -176,12 +160,12 @@ const SIX_ROUND_PRIZE_CATALOG = [
   ["Jewellery", "Swarovski", "Crystal brooch", "A sculpted crystal brooch with a polished metal setting.", 220, "https://images.unsplash.com/photo-1617038260897-41a1f14a8ca0?auto=format&fit=crop&w=900&q=80"],
   ["Jewellery", "Hugo Boss", "Cufflink set", "A pair of polished metal cufflinks in a presentation case.", 195, "https://images.unsplash.com/photo-1599643477877-530eb83abc8e?auto=format&fit=crop&w=900&q=80"],
   ["Jewellery", "Mikimoto", "Pearl pendant", "A cultured pearl pendant on a fine white-gold chain.", 1450, "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=900&q=80"],
-  ["Recreation", "Pelican", "Recreational kayak", "A stable sit-in kayak with paddle and personal flotation device.", 699, "https://images.unsplash.com/photo-1544551763-46a013bb70d5f?auto=format&fit=crop&w=900&q=80"],
-  ["Recreation", "CCM", "Hockey equipment set", "Skates, helmet, gloves and protective equipment for the rink.", 849, "https://images.unsplash.com/photo-1580748141549-71748dbe0bdc?auto=format&fit=crop&w=900&q=80"],
-  ["Recreation", "Coleman", "Camping package", "A family tent, sleeping bags, camp stove and rechargeable lanterns.", 629, "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=900&q=80"],
-  ["Recreation", "Trek", "Hybrid bicycle", "A versatile bicycle for city paths, fitness rides and weekend trails.", 1099, "https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=900&q=80"],
-  ["Recreation", "Callaway", "Golf club set", "A complete set of clubs with a cart bag and head covers.", 1299, "https://images.unsplash.com/photo-1535131749006-b7f58c99034b?auto=format&fit=crop&w=900&q=80"],
-  ["Recreation", "Napoleon", "Propane barbecue", "A Canadian-designed barbecue with side burner and folding shelves.", 999, "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=900&q=80"],
+  ["Outdoor Equipment", "Pelican", "Recreational kayak", "A stable sit-in kayak with paddle and personal flotation device.", 699, "https://images.unsplash.com/photo-1544551763-46a013bb70d5f?auto=format&fit=crop&w=900&q=80"],
+  ["Outdoor Equipment", "CCM", "Hockey equipment set", "Skates, helmet, gloves and protective equipment for the rink.", 849, "https://images.unsplash.com/photo-1580748141549-71748dbe0bdc?auto=format&fit=crop&w=900&q=80"],
+  ["Outdoor Equipment", "Coleman", "Camping package", "A family tent, sleeping bags, camp stove and rechargeable lanterns.", 629, "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=900&q=80"],
+  ["Outdoor Equipment", "Trek", "Hybrid bicycle", "A versatile bicycle for city paths, fitness rides and weekend trails.", 1099, "https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=900&q=80"],
+  ["Outdoor Equipment", "Callaway", "Golf club set", "A complete set of clubs with a cart bag and head covers.", 1299, "https://images.unsplash.com/photo-1535131749006-b7f58c99034b?auto=format&fit=crop&w=900&q=80"],
+  ["Outdoor Equipment", "Napoleon", "Propane barbecue", "A Canadian-designed barbecue with side burner and folding shelves.", 999, "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=900&q=80"],
   ["Electronics", "Sony", "OLED television", "A large 4K television with vivid colour and smart streaming apps.", 2199, "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&w=900&q=80"],
   ["Electronics", "Apple", "Tablet", "A lightweight tablet with a sharp display and all-day battery life.", 799, "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?auto=format&fit=crop&w=900&q=80"],
   ["Electronics", "Nintendo", "Video game console", "A home and portable game system with two wireless controllers.", 629, "https://images.unsplash.com/photo-1486401899868-0e435ed85128?auto=format&fit=crop&w=900&q=80"],
@@ -735,22 +719,55 @@ function deduplicate(items) {
   });
 }
 
+const CLOTHING_PATTERN = /\b(shirt|tee|t-shirt|hoodie|sweater|sweatshirt|pant|jogger|legging|dress|skirt|suit|tracksuit|track suit|pyjama|pajama|robe|boots?|shoes?|bra|underwear|sock|jacket|coat|parka|vest|apparel|clothing|fashion|footwear)\b/i;
+const TOOL_PATTERN = /\b(tools?|home improvement|workshop|drill|saw|socket|wrench|hammer|compressor|welder|nailer|tool cabinet|auger|workbench|pliers?|multimeter|voltage tester|paint sprayer|shop vacuum|laser level|pressure washer|ladder)\b/i;
+const OUTDOOR_PATTERN = /\b(outdoor equipment|outdoor living|recreation|camp|tent|kayak|canoe|paddleboard|bike|bicycle|sport|fitness|golf|hockey|barbecue|scooter|snowshoe|ski|fishing|trail|greenhouse|patio|gazebo|lawn mower|snow blower|fire pit|garden shed|power station)\b/i;
+
+export function isClothingPrize(item) {
+  return CLOTHING_PATTERN.test(`${item?.category || ""} ${item?.name || ""}`);
+}
+
 export function prizeCategory(item) {
   const text = `${item.category || ""} ${item.name || ""}`.toLowerCase();
+  if (isClothingPrize(item)) return "Clothing";
+  if (TOOL_PATTERN.test(text)) return "Tools";
+  if (OUTDOOR_PATTERN.test(text)) return "Outdoor Equipment";
   if (/\b(jewellery|jewelry|necklace|earrings?|bracelet|pendant|diamond|gold hoop|wristwatch|ring|bangle|anklet|brooch|cufflinks?|pearl)\b/.test(text)) return "Jewellery";
   if (/\b(furniture|sofa|sectional|recliner|lounge chair|dining room|bedroom|office chair|mattress|bookcase|ottoman|desk)\b/.test(text)) return "Furniture";
   if (/\b(appliances?|refrigerator|freezer|washer|dryer|dishwasher|range|microwave|vacuum|mixer|espresso|multi-cooker|air fryer)\b/.test(text)) return "Appliances";
   if (/\b(tv|television|laptop|computer|tablet|phone|camera|speaker|headphone|console|gaming|electronics?)\b/.test(text)) return "Electronics";
-  if (/\b(recreation|outdoor|camp|kayak|bike|bicycle|sport|fitness|golf|hockey|barbecue|scooter)\b/.test(text)) return "Recreation";
-  if (/\b(shirt|tee|t-shirt|hoodie|sweater|sweatshirt|pant|jogger|legging|dress|skirt|suit|tracksuit|track suit|pyjama|pajama|robe|boots?|shoes?|bra|underwear|sock|jacket|coat|parka|vest|apparel|clothing)\b/.test(text)) return "Clothing";
   return "Other";
 }
 
-// Deliberately broad: once a T-shirt has appeared in a room, another T-shirt
-// is not considered a fresh experience merely because its colour or logo is
-// different.
+const BIDDING_EXPERIENCE_FAMILIES = [
+  ["television", /\b(tv|television)\b/i], ["computer", /\b(laptop|computer|chromebook)\b/i],
+  ["tablet", /\btablet\b/i], ["headphones", /\b(headphone|earbud|headset)\b/i],
+  ["camera", /\bcamera\b/i], ["speaker", /\b(speaker|sound bar)\b/i],
+  ["sofa", /\b(sofa|sectional|loveseat)\b/i], ["recliner", /\b(recliner|lounge chair|accent chair)\b/i],
+  ["dining-set", /\bdining (room )?(set|table)\b/i], ["bedroom-suite", /\bbedroom (suite|collection)\b/i],
+  ["refrigerator", /\b(refrigerator|fridge)\b/i], ["washer", /\b(washer|washing machine)\b/i],
+  ["dryer", /\bdryer\b/i], ["dishwasher", /\bdishwasher\b/i], ["range", /\b(range|stove|cooktop)\b/i],
+  ["drill", /\bdrill\b/i], ["saw", /\b(mitre|circular|table) saw\b/i], ["tool-cabinet", /\b(tool chest|tool cabinet)\b/i],
+  ["socket-set", /\bsocket( and wrench)? set\b/i], ["laser-level", /\blaser level\b/i],
+  ["shop-vacuum", /\b(wet-dry|shop) vacuum\b/i], ["work-light", /\b(portable )?work light\b/i],
+  ["step-ladder", /\bstep ladder\b/i], ["tool-set", /\b(tool set|tool collection|tool kit)\b/i],
+  ["barbecue", /\b(barbecue|grill|smoker)\b/i], ["patio-set", /\bpatio .*set|outdoor .*set\b/i],
+  ["fire-pit", /\bfire pit\b/i], ["garden-shed", /\b(garden|outdoor) shed\b/i],
+  ["bicycle", /\b(bike|bicycle)\b/i], ["camping-package", /\bcamping package\b/i], ["kayak", /\bkayak\b/i],
+  ["yoga-mat", /\byoga mat\b/i], ["basketball", /\bbasketball\b/i],
+];
+
+// Treat a familiar prize type as one audience experience even when the brand
+// changes. A second television or drill is not fresh merely because its logo is.
 export function prizeFamily(item) {
+  const text = `${item?.category || ""} ${item?.name || ""}`;
+  const experience = BIDDING_EXPERIENCE_FAMILIES.find(([, pattern]) => pattern.test(text));
+  if (experience) return experience[0];
   return prizeFamilyKey(item);
+}
+
+export function isBiddingPrizeEligible(item) {
+  return !isClothingPrize(item);
 }
 
 export function normalizePrizePresentation(item) {
@@ -758,7 +775,7 @@ export function normalizePrizePresentation(item) {
   const brandPattern = new RegExp(`^${brand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s+`, "i");
   const imageVerified=Boolean(item.image&&item.imageVerified!==false&&(item.imageKind==="product"||item.priceIsLive||item.imageVerified===true));
   const enriched = { ...item, brand, name: cleanProductName(item.name).replace(brandPattern, "").trim(), description: displayDescription(item),image:imageVerified?item.image:null,imageVerified };
-  const bidCategory=prizeCategory(enriched),visual=item.visual||({Clothing:"👕",Appliances:"🔌",Jewellery:"💎",Recreation:"🏕️",Electronics:"💻",Furniture:"🛋️"}[bidCategory]||"🎁");
+  const bidCategory=prizeCategory(enriched),visual=item.visual||({Tools:"🛠️",Appliances:"🔌",Jewellery:"💎","Outdoor Equipment":"🏕️",Electronics:"💻",Furniture:"🛋️"}[bidCategory]||"🎁");
   return { ...enriched,visual, hostDescription: fullPrizeAnnouncement(enriched), bidCategory, prizeFamily: prizeFamily(enriched) };
 }
 
@@ -767,7 +784,7 @@ const enrichPrize = normalizePrizePresentation;
 function reduceSimilarPrizes(items) {
   const families = new Set();
   return items.filter(item => {
-    const family = prizeFamilyKey(item);
+    const family = prizeFamily(item);
     if (families.has(family)) return false;
     families.add(family);
     return true;
@@ -776,7 +793,7 @@ function reduceSimilarPrizes(items) {
 
 function removeAmbiguousRepresentativeImages(items){
   const familiesByImage=new Map();
-  for(const item of items)if(item.image&&item.imageKind!=="product"&&!item.priceIsLive){const families=familiesByImage.get(item.image)||new Set();families.add(prizeFamilyKey(item));familiesByImage.set(item.image,families);}
+  for(const item of items)if(item.image&&item.imageKind!=="product"&&!item.priceIsLive){const families=familiesByImage.get(item.image)||new Set();families.add(prizeFamily(item));familiesByImage.set(item.image,families);}
   return items.map(item=>item.image&&item.imageKind!=="product"&&(familiesByImage.get(item.image)?.size||0)>1?{...item,image:null,imageVerified:false}:item);
 }
 
@@ -829,6 +846,7 @@ export async function fetchPrizePool() {
   items = reduceSimilarPrizes(
     removeAmbiguousRepresentativeImages(deduplicate([...items, ...curated, ...localCatalog, ...canadianRetailerCatalog]))
       .map(enrichPrize)
+      .filter(isBiddingPrizeEligible)
       .filter(isDisplayReadyPrize),
   );
 
@@ -851,7 +869,7 @@ let prizeBankFileOverride;
 let retiredPrizeIdsLoaded = false;
 
 function prizeFingerprint(item) {
-  return prizeFamilyKey(item);
+  return prizeFamily(item);
 }
 
 function loadRetiredPrizeIds() {
@@ -879,7 +897,7 @@ const buildLocalFallbackPool = () => reduceSimilarPrizes(
     ...CURATED_FALLBACKS,
     ...expandedBiddingCatalog(),
     ...buildCanadianRetailerCatalog(),
-  ]).map(enrichPrize).filter(isDisplayReadyPrize),
+  ]).map(enrichPrize).filter(isBiddingPrizeEligible).filter(isDisplayReadyPrize),
 );
 loadRetiredPrizeIds();
 let cache = { items: availablePrizes(buildLocalFallbackPool()), fetchedAt: 0 };

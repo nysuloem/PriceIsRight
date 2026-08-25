@@ -15,7 +15,7 @@ test("each half schedules exactly one car game and two non-car games",()=>{
 });
 
 test("the six bidding rounds visit six different prize departments",()=>{
-  assert.deepEqual(BIDDING_CATEGORY_SCHEDULE,["Clothing","Appliances","Jewellery","Recreation","Electronics","Furniture"]);
+  assert.deepEqual(BIDDING_CATEGORY_SCHEDULE,["Tools","Appliances","Jewellery","Outdoor Equipment","Electronics","Furniture"]);
   assert.deepEqual(Array.from({length:6},(_,round)=>biddingCategoryForRound(round)),BIDDING_CATEGORY_SCHEDULE);
   assert.equal(new Set(BIDDING_CATEGORY_SCHEDULE).size,6);
 });

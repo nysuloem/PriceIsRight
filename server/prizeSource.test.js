@@ -8,6 +8,8 @@ import {
   chooseShopifyRegularPrice,
   essentialProductName,
   getPrizePool,
+  isBiddingPrizeEligible,
+  isClothingPrize,
   normalizePrizePresentation,
   normalizeBestBuyProduct,
   prizeBankStats,
@@ -46,12 +48,22 @@ test("live bidding feeds reject Last Call, clearance, and discounted variants", 
   assert.equal(chooseShopifyRegularPrice({ ...regular, variants: [{ available: true, price: "49.00", compare_at_price: "79.00" }] }), null);
 });
 
-test("similar shirts collapse into the same bidding family", () => {
+test("clothing is recognized and excluded from the bidding bank", () => {
   const a = { name: "Men's Classic Blue Logo T-Shirt", category: "Apparel" };
   const b = { name: "Women's Red Toronto Tee", category: "Clothing" };
   assert.equal(prizeFamily(a), "t-shirt");
   assert.equal(prizeFamily(b), "t-shirt");
   assert.equal(prizeCategory(a), "Clothing");
+  assert.equal(isClothingPrize(a),true);
+  assert.equal(isBiddingPrizeEligible(a),false);
+  assert.equal(isBiddingPrizeEligible({name:"Cross-country ski package",category:"Outdoor Equipment",description:"Skis, boots and poles for two."}),true);
+});
+
+test("familiar durable goods collapse across brands",()=>{
+  assert.equal(prizeFamily({name:"Sony 65-inch OLED television",brand:"Sony",category:"Electronics"}),"television");
+  assert.equal(prizeFamily({name:"Samsung 55-inch smart television",brand:"Samsung",category:"Electronics"}),"television");
+  assert.equal(prizeFamily({name:"Bosch laser level kit",brand:"Bosch",category:"Tools"}),"laser-level");
+  assert.equal(prizeFamily({name:"DeWalt laser level",brand:"DeWalt",category:"Tools"}),"laser-level");
 });
 
 test("the fallback bidding bank has 150+ genuinely distinct Canadian families", async () => {
@@ -63,7 +75,8 @@ test("the fallback bidding bank has 150+ genuinely distinct Canadian families", 
   assert.ok(retailers.has("The Brick"));
   assert.ok(retailers.has("Leon's"));
   assert.ok(retailers.has("RONA"));
-  for (const category of ["Clothing", "Appliances", "Jewellery", "Recreation", "Electronics", "Furniture"]) {
+  assert.equal(pool.some(isClothingPrize),false);
+  for (const category of ["Tools", "Appliances", "Jewellery", "Outdoor Equipment", "Electronics", "Furniture"]) {
     assert.ok(pool.filter(item => item.bidCategory === category).length >= 10, `${category} needs at least ten fresh families`);
   }
 });
