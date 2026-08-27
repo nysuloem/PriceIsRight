@@ -30,6 +30,58 @@ const SHOPIFY_RETAILERS = [
   { retailer: "Leon's", baseUrl: "https://www.leons.ca" },
 ];
 
+const homeDepotTool = (sku, id, name, brand, fallbackPrice, hostDescription) => ({
+  id, type: "homeDepot",
+  url: `https://www.homedepot.ca/product/${id}/${sku}`,
+  name, brand, retailer: "Home Depot Canada", fallbackPrice,
+  image: `https://images.homedepot.ca/productimages/p_${sku}.jpg?product-images=l`,
+  imageKind: "product", imageVerified: true, imageAlt: `${brand} ${name}`,
+  category: "Tools", hostDescription,
+});
+
+const COSTCO_JEWELLERY_IMAGES = {
+  "100508169": "https://cdn.bfldr.com/U447IH35/as/47q8cft3npwxvs6t7643t3sh/100508169-894_whitegold_1?auto=webp&format=jpg&width=350",
+  "4000380428": "https://cdn.bfldr.com/U447IH35/as/qz7zhfnsx3gv73hp767rstb5/4000380428-894__1?auto=webp&format=jpg&width=350",
+  "100454697": "https://cdn.bfldr.com/U447IH35/as/8vk6p47b6jrqsj69f975xtn/100454697-894__1?auto=webp&format=jpg&width=350",
+  "4000402626": "https://cdn.bfldr.com/U447IH35/as/jmv4bvh3ck9r5zhz9jsqvjbb/4000402626-894__1?auto=webp&format=jpg&width=350",
+  "4000386978": "https://cdn.bfldr.com/U447IH35/as/5z7xqvnt74tpprm78xs86/4000386978-894__1?auto=webp&format=jpg&width=350",
+  "100107984": "https://cdn.bfldr.com/U447IH35/as/7kkwx5bkgvh5n9px879cr956/389557-894__1?auto=webp&format=jpg&width=350",
+  "4000336317": "https://cdn.bfldr.com/U447IH35/as/rzrbw84k28pgcv4rqn663c/4000336317-894__1?auto=webp&format=jpg&width=350",
+  "4000377926": "https://cdn.bfldr.com/U447IH35/as/55563ttqnvw7xb3tpq5pkgj9/4000377926-894__1?auto=webp&format=jpg&width=350",
+};
+
+const costcoJewellery = (productNumber, slug, name, fallbackPrice, hostDescription) => ({
+  id: `costco-${productNumber}`,
+  type: "costco",
+  url: `https://www.costco.ca/p/-/${slug}/${productNumber}`,
+  name,
+  brand: "Costco Diamond Collection",
+  retailer: "Costco Canada",
+  fallbackPrice,
+  image: COSTCO_JEWELLERY_IMAGES[productNumber],
+  imageKind: "product",
+  imageVerified: true,
+  imageAlt: name,
+  category: "Jewellery",
+  hostDescription,
+});
+
+const costcoCitizenWatch = {
+  id: "costco-4000196084",
+  type: "costco",
+  url: "https://www.costco.ca/p/-/citizen-sport-black-dial-mens-watch/4000196084",
+  name: "Sport black-dial watch",
+  brand: "Citizen",
+  retailer: "Costco Canada",
+  fallbackPrice: 599,
+  image: "https://cdn.bfldr.com/U447IH35/as/9jm33zhchpx7w6w4w46h6j/1754072-894__1?auto=webp&format=jpg&width=350",
+  imageKind: "product",
+  imageVerified: true,
+  imageAlt: "Citizen Sport black-dial men's watch",
+  category: "Jewellery",
+  hostDescription: "A stainless-steel Citizen watch with a black dial, luminous hands and bracelet band.",
+};
+
 // A small set of hand-curated fallbacks is retained so the game still has
 // prizes if every live retailer is temporarily unavailable.
 const CURATED_FALLBACKS = [
@@ -74,6 +126,39 @@ const CURATED_FALLBACKS = [
     hostDescription:
       "From Best Buy Canada — the Nintendo Switch 2! A portable game system with a high-definition display, docked TV play, and magnetic Joy-Con 2 controllers.",
   },
+  homeDepotTool("1000851782", "dewalt-drill-impact-combo", "Cordless drill and impact-driver kit", "DeWalt", 419,
+    "A brushless cordless drill and impact driver with two batteries, charger and carrying bag."),
+  homeDepotTool("1001805204", "dewalt-flexvolt-mitre-saw", "Cordless sliding mitre saw kit", "DeWalt", 999,
+    "A twelve-inch sliding mitre saw with battery, charger and precise cut-line system."),
+  homeDepotTool("1000484118", "ridgid-thickness-planer", "Thickness planer", "Ridgid", 749,
+    "A thirteen-inch planer with a three-blade cutter head and adjustable depth stops."),
+  homeDepotTool("1001353208", "milwaukee-framing-nailer", "Cordless framing nailer kit", "Milwaukee", 799,
+    "A brushless framing nailer with battery and charger that drives three nails per second."),
+  homeDepotTool("1000846514", "flir-thermal-camera", "Thermal imaging camera", "FLIR", 699,
+    "A compact infrared camera with a colour display and saved-image documentation."),
+  homeDepotTool("1001023042", "bosch-rotary-laser", "Rotary laser level kit", "Bosch", 899,
+    "A self-levelling rotary laser with receiver, tripod, grade rod and hard carrying case."),
+  homeDepotTool("1000478084", "makita-air-compressor", "Portable air compressor", "Makita", 649,
+    "A twin-stack jobsite compressor with enough output to operate two pneumatic nailers."),
+  homeDepotTool("1001963072", "ridgid-drain-cleaner", "Drain cleaning machine", "Ridgid", 1299,
+    "A powered drain-cleaning machine with automatic cable feed, tool set and work gloves."),
+  costcoJewellery("100508169", "round-diamond-stud-earrings-100-ctw", "One-carat diamond stud earrings", 3999,
+    "One carat total weight of round diamonds set in fourteen-karat white gold."),
+  costcoJewellery("4000380428", "high-polish-infinity-link-bracelet-in-yellow-gold", "Gold infinity-link bracelet", 1199,
+    "A polished fourteen-karat yellow-gold bracelet with infinity links and a lobster clasp."),
+  costcoJewellery("100454697", "round-brilliant-diamond-solitaire-ring-100-ct", "One-carat diamond solitaire ring", 4999,
+    "A one-carat round brilliant diamond in a classic platinum solitaire setting."),
+  costcoJewellery("4000402626", "ninave-pendant-necklace-in-24-kt-yellow-gold", "Ninave gold pendant necklace", 2499,
+    "A twenty-four-karat yellow-gold pendant on an eighteen-inch chain."),
+  costcoJewellery("4000386978", "diamond-cut-j-shaped-earrings-in-two-tone-gold", "Two-tone gold earrings", 799,
+    "Diamond-cut J-shaped earrings in fourteen-karat yellow and white gold."),
+  costcoJewellery("100107984", "mens-diamond-ring-030-ctw", "Men's diamond ring", 2299,
+    "A fourteen-karat white-gold ring set with eleven round brilliant diamonds."),
+  costcoJewellery("4000336317", "diamond-cut-graduated-necklace-in-yellow-gold", "Gold graduated necklace", 999,
+    "A diamond-cut fourteen-karat yellow-gold cable necklace with an adjustable length."),
+  costcoJewellery("4000377926", "diamond-cut-round-heart-pendant-necklace-in-two-tone-gold", "Two-tone heart pendant necklace", 1299,
+    "A diamond-cut heart pendant in fourteen-karat yellow and white gold on an eighteen-inch chain."),
+  costcoCitizenWatch,
 ];
 
 // Large static fallback catalogue inspired by Canadian brick-and-mortar retail.
@@ -666,6 +751,18 @@ function extractRegularPrice(html) {
   return null;
 }
 
+function extractProductImage(html) {
+  const patterns = [
+    /<meta[^>]+(?:property|name)=["']og:image["'][^>]+content=["']([^"']+)/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']og:image["']/i,
+  ];
+  for (const pattern of patterns) {
+    const image = html.match(pattern)?.[1]?.replaceAll("&amp;", "&");
+    if (image && /^https:\/\//i.test(image) && !/\b(icon|logo)\b/i.test(image)) return image;
+  }
+  return null;
+}
+
 async function fetchCuratedFallback(candidate) {
   let exactPrice = candidate.fallbackPrice;
   let priceIsLive = false;
@@ -679,6 +776,7 @@ async function fetchCuratedFallback(candidate) {
         exactPrice = regularPrice;
         priceIsLive = true;
       }
+      image ||= extractProductImage(html);
     }
     if (candidate.type === "bestBuy" && candidate.webCode && !image) {
       const code = candidate.webCode;
@@ -700,7 +798,7 @@ async function fetchCuratedFallback(candidate) {
     currency: "CAD",
     url: candidate.url,
     image,
-    imageKind: priceIsLive ? "product" : "representative",
+    imageKind: candidate.imageKind || (image ? "product" : "representative"),
     imageVerified: Boolean(image),
     imageAlt: cleanProductName(candidate.imageAlt) || cleanProductName(candidate.name),
     description: displayDescription(candidate),
@@ -730,10 +828,12 @@ export function isClothingPrize(item) {
 
 export function prizeCategory(item) {
   const text = `${item.category || ""} ${item.name || ""}`.toLowerCase();
+  const category = `${item.category || ""}`.toLowerCase();
   if (isClothingPrize(item)) return "Clothing";
+  if (/\b(jewellery|jewelry)\b/.test(category)) return "Jewellery";
   if (TOOL_PATTERN.test(text)) return "Tools";
   if (OUTDOOR_PATTERN.test(text)) return "Outdoor Equipment";
-  if (/\b(jewellery|jewelry|necklace|earrings?|bracelet|pendant|diamond|gold hoop|wristwatch|ring|bangle|anklet|brooch|cufflinks?|pearl)\b/.test(text)) return "Jewellery";
+  if (/\b(necklace|earrings?|bracelet|diamond|gold hoops?|wristwatch|rings?|bangle|anklet|brooch|cufflinks?|pearls?)\b/.test(text)) return "Jewellery";
   if (/\b(furniture|sofa|sectional|recliner|lounge chair|dining room|bedroom|office chair|mattress|bookcase|ottoman|desk)\b/.test(text)) return "Furniture";
   if (/\b(appliances?|refrigerator|freezer|washer|dryer|dishwasher|range|microwave|vacuum|mixer|espresso|multi-cooker|air fryer)\b/.test(text)) return "Appliances";
   if (/\b(tv|television|laptop|computer|tablet|phone|camera|speaker|headphone|console|gaming|electronics?)\b/.test(text)) return "Electronics";
@@ -926,6 +1026,19 @@ export async function getPrizePool(forceRefresh = false) {
   if (forceRefresh) return refreshPrizePool();
   if (stale || cache.items.length < REFILL_THRESHOLD) void refreshPrizePool();
   return cache.items;
+}
+
+export function warmPrizePool() {
+  void refreshPrizePool();
+}
+
+export async function waitForPrizePoolWarmup() {
+  return refreshPromise || getPrizePool();
+}
+
+export function pickBiddingPrize(candidates) {
+  const verifiedPhotos = candidates.filter(item => item.image && item.imageVerified && item.imageKind !== "representative");
+  return pickRandomItem(verifiedPhotos.length ? verifiedPhotos : candidates);
 }
 
 // Mirrors Trivial Pursuit's used-question bank: a selected prize immediately

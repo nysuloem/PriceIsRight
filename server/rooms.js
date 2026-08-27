@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import {
   buildLineup, computeAIBid, computeWinners, shuffle,
 } from "./gameLogic.js";
-import { getPrizePool, pickRandomItem, prizeBankStats, retirePrize } from "./prizeSource.js";
+import { getPrizePool, pickBiddingPrize, prizeBankStats, retirePrize, waitForPrizePoolWarmup } from "./prizeSource.js";
 import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, PRICING_GAME_TYPES, clearDeferredPrice, createPricingGameForType, initialPrizeAnnouncements, pickAPairPoolStatus, playPricingGame, pricingPrizeNames, pricingPrizes, publicPricingGame, recordPricingAction, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
 import { retirePricingPrizes, retiredPricingPrizeNamesList } from "./pricingPrizeBank.js";
 import { getSmallPrizePool, smallPrizePoolStats } from "./smallPrizeSource.js";
@@ -193,7 +193,7 @@ export function publicState(room) {
 }
 
 async function selectFreshPrize(room) {
-  let pool = await getPrizePool();
+  let pool = await waitForPrizePoolWarmup();
   let unused = pool.filter(item => !room.usedPrizeIds.includes(item.id));
   if (!unused.length) {
     pool = await getPrizePool(true);
@@ -205,8 +205,7 @@ async function selectFreshPrize(room) {
   const requiredCategory = biddingCategoryForRound(room.completedRounds);
   const candidates = unused.filter(item => item.bidCategory === requiredCategory);
   if (!candidates.length) throw new Error(`The ${requiredCategory} bidding bank is empty; used prizes will not be recycled.`);
-  const livePhotoCandidates = candidates.filter(item => item.priceIsLive && item.image && item.imageKind !== "representative");
-  const item = pickRandomItem(livePhotoCandidates.length >= 8 ? livePhotoCandidates : candidates);
+  const item = pickBiddingPrize(candidates);
   if (!item) throw new Error("No prizes are currently available");
   room.usedPrizeIds.push(item.id);
   retirePrize(item.id);

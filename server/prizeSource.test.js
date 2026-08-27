@@ -13,6 +13,7 @@ import {
   isClothingPrize,
   normalizePrizePresentation,
   normalizeBestBuyProduct,
+  pickBiddingPrize,
   prizeBankStats,
   prizeCategory,
   prizeFamily,
@@ -139,6 +140,33 @@ test("fallback bidding prizes use only verified photos or matched visuals", asyn
     assert.ok(item.hostDescription.includes(item.name), `${item.name} announcement includes item name`);
     assert.ok(item.hostDescription.includes(item.description), `${item.name} announcement includes description`);
   }
+});
+
+test("the tool reserve has eight exact major-retailer product photographs",async()=>{
+  resetPrizeBankForTests();
+  const pool=await getPrizePool();
+  const tools=pool.filter(item=>item.bidCategory==="Tools"&&item.image&&item.imageVerified&&item.imageKind==="product");
+  assert.ok(tools.length>=8,"Tools needs eight exact product photographs");
+  assert.equal(tools.every(item=>item.retailer==="Home Depot Canada"&&item.image.includes("images.homedepot.ca")),true);
+});
+
+test("the jewellery reserve has varied exact Costco product photographs",async()=>{
+  resetPrizeBankForTests();
+  const pool=await getPrizePool();
+  const jewellery=pool.filter(item=>item.bidCategory==="Jewellery"&&item.image&&item.imageVerified&&item.imageKind==="product");
+  assert.ok(jewellery.length>=8,"Jewellery needs eight exact product photographs");
+  assert.equal(jewellery.every(item=>item.retailer==="Costco Canada"&&item.image.includes("cdn.bfldr.com")),true);
+});
+
+test("a lighting pendant is not mistaken for jewellery",()=>{
+  assert.notEqual(prizeCategory({name:"Robinson pendant",category:"Pendant Lighting"}),"Jewellery");
+  assert.equal(prizeCategory({name:"Heart pendant necklace",category:"Jewellery"}),"Jewellery");
+});
+
+test("a verified exact product photo always outranks an icon-only reserve",()=>{
+  const icon={id:"icon",name:"Icon prize",visual:"🎁"};
+  const photo={id:"photo",name:"Photo prize",image:"https://example.com/photo.jpg",imageVerified:true,imageKind:"product"};
+  for(let attempt=0;attempt<20;attempt+=1)assert.equal(pickBiddingPrize([icon,photo]),photo);
 });
 
 test("bidding feed and refill capacity are doubled",async()=>{

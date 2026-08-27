@@ -34,7 +34,7 @@ import {
   resolveFinalShowcaseAI,
 } from "./rooms.js";
 import { getTTS } from "./tts.js";
-import { getPrizePool, prizeBankStats } from "./prizeSource.js";
+import { getPrizePool, prizeBankStats, warmPrizePool } from "./prizeSource.js";
 import { getSmallPrizePool, smallPrizePoolStats } from "./smallPrizeSource.js";
 import { pricingPrizeBankStats, retiredPricingPrizeNamesList } from "./pricingPrizeBank.js";
 import { showcaseBankStats, tripBankStats } from "./showcasePrizes.js";
@@ -74,6 +74,7 @@ app.post(
   "/api/rooms",
   wrap(async (req, res) => {
     const room = createRoom(req.body?.mode);
+    warmPrizePool();
     res.json({ code: room.code });
   })
 );
