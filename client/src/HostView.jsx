@@ -790,6 +790,36 @@ function LuckySevenBoard({game}){
 function ContestantAction({game}){
   return game.lastAction?<div key={game.lastAction.seq} className="pir-contestant-action" aria-live="polite"><small>{game.lastAction.playerName}</small><strong>{game.lastAction.text}</strong></div>:null;
 }
+function DiceFace({value,rolling=false}){
+  const dots={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]}[value]||[];
+  return <div className={`pir-tv-die ${rolling?"rolling":""}`} aria-label={value?`Die showing ${value}`:"Die not rolled"}>
+    {Array.from({length:9},(_,index)=><i key={index} className={dots.includes(index)?"dot":""}/>) }
+  </div>;
+}
+function DiceGameBoard({game}){
+  return <div className="pir-dice-stage">
+    <div className="pir-dice-car"><small>PLAYING FOR</small><GameCards items={[game.car]}/></div>
+    <div className="pir-dice-tv-board">
+      <div className="pir-dice-logo"><span>DICE</span><b>GAME</b></div>
+      <div className="pir-dice-price" aria-label="Car price">
+        <em>$</em><strong className="given">{game.firstDigit}</strong>
+        {game.revealed.map((digit,index)=><strong key={index} className={`${digit==null?"hidden":"revealed"} ${game.correct[index]===true?"right":game.correct[index]===false?"wrong":""}`}><span>{digit??""}</span></strong>)}
+      </div>
+      <div className="pir-dice-playfield">
+        {game.rolls.map((roll,index)=>{
+          const choice=game.choices[index],active=index===game.digitIndex&&(game.stage==="roll"||game.stage==="direction"),result=game.correct[index];
+          return <div key={index} className={`pir-dice-lane ${active?"active":""} ${result===true?"right":result===false?"wrong":""}`}>
+            <div className={`pir-dice-direction higher ${choice==="Higher"?"chosen":""}`}><i>▲</i><b>HIGHER</b></div>
+            <DiceFace value={roll} rolling={active&&game.stage==="roll"}/>
+            <div className={`pir-dice-direction lower ${choice==="Lower"?"chosen":""}`}><b>LOWER</b><i>▼</i></div>
+            <small>{choice==="Exact"?"EXACT!":choice?`${choice.toUpperCase()} LOCKED`:roll!=null?"CHOOSE":"ROLL"}</small>
+          </div>;
+        })}
+      </div>
+      <div className="pir-dice-status">{game.stage==="reveal"?"REVEALING THE ACTUAL PRICE…":game.stage==="direction"?`IS THE NEXT DIGIT HIGHER OR LOWER THAN ${game.rolls[game.digitIndex]}?`:"ROLL THE DICE!"}</div>
+    </div>
+  </div>;
+}
 function MasterKeyBoard({game}){
   const qualifier=game.qualifiers[Math.min(game.pricingIndex,game.qualifiers.length-1)];
   return <div className="pir-master-stage">
@@ -837,7 +867,7 @@ export function PricingGameView({ game, poolWarnings = [], spotlight = null, rul
       )}
       {game.type === "cliffHangers" && <><GameCards items={[game.items[game.itemIndex]].filter(Boolean)} /><CliffBoard game={game} onStopped={()=>onCliffStopped?.(game.lastClimb?.id)} /></>}
       {game.type === "punchABunch" && <><div className="pir-punch-status">PUNCHES EARNED: {game.punches}</div>{game.stage === "qualify" ? <GameCards items={[game.qualifiers[game.qualifierIndex]].filter(Boolean)} /> : <div className="pir-punch-grid">{Array.from({length:50},(_,i)=><span key={i} className={game.punched?.includes(i)?"punched":""}>{game.punched?.includes(i)?"💥":i+1}</span>)}</div>}</>}
-      {game.type === "diceGame" && <><GameCards items={[game.car]} /><div className="pir-dice-board"><div className="pir-price-digits"><span>{game.firstDigit}</span>{game.revealed.map((n,i)=><span key={i} className={game.correct[i]===false?"wrong":game.correct[i]===true?"right":""}>{n ?? "?"}</span>)}</div><div className="pir-dice-columns">{game.rolls.map((roll,i)=><div key={i}><div className={`pir-die ${i===game.digitIndex&&game.stage==="roll"?"rolling":""}`}>{roll ?? "–"}</div><b>{game.choices[i] || "WAITING"}</b><small>{game.correct[i]===true?"✓ RIGHT":game.correct[i]===false?"✕ WRONG":"LOCKED"}</small></div>)}</div></div></>}
+      {game.type === "diceGame" && <DiceGameBoard game={game}/>}
       {game.type === "groceryGame" && <><div className="pir-grocery-grand"><b>PLAYING FOR</b><GameCards items={[game.bonusPrize].filter(Boolean)} /></div><div className="pir-register">TOTAL ${game.total.toFixed(2)}</div><GameCards items={game.items} /></>}
       {game.type === "oneAway" && <><GameCards items={[game.car]} /><div className="pir-price-digits">{game.shownDigits.map((n,i)=><span key={i}>{game.answers[i] ? n+(game.answers[i]==="Higher"?1:-1) : n}</span>)}</div>{game.rightCount != null && <div className="pir-pricing-clue">{game.rightCount} RIGHT</div>}</>}
       {game.type === "clockGame" && <><div className="pir-clock-play"><ClockDisplay endsAt={game.clockEndsAt} fallback={game.secondsLeft} running={game.status==="playing"}/><div className={`pir-clock-guess ${game.currentGuess==null?"waiting":"active"}`} aria-live="polite"><small>CONTESTANT'S GUESS</small><strong>{game.currentGuess==null?"—":`$${Number(game.currentGuess).toLocaleString("en-CA")}`}</strong></div></div><GameCards items={[game.items[game.itemIndex]?{...game.items[game.itemIndex],revealedPrice:game.timeoutPrice}:null].filter(Boolean)} /></>}
