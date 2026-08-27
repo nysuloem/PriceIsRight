@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { BIDDING_CATEGORY_SCHEDULE, acknowledgeWheelResult, advance, advanceShowcasePresentation, beginPricingGame, biddingCategoryForRound, continuePricingPrice, createPricingGameDemo, createRoom, joinRoom, kissHost, showShirt, makePricingGameSchedule, nextTurn, prepareWinnerPricingIntroduction, pricingGameAction, publicState, restart, revealPricingPrice, revealReplacement, settlePricingGame, settleWheelGame, submitBid, wheelGameAction } from "./rooms.js";
+import { BIDDING_CATEGORY_SCHEDULE, acknowledgeWheelResult, advance, advanceShowcasePresentation, beginPricingGame, biddingCategoryForRound, continuePricingPrice, createPricingGameDemo, createRoom, hugBob, joinRoom, kissHost, showShirt, makePricingGameSchedule, nextTurn, prepareWinnerPricingIntroduction, pricingGameAction, publicState, restart, revealPricingPrice, revealReplacement, settlePricingGame, settleWheelGame, submitBid, wheelGameAction } from "./rooms.js";
 import { createShowdown } from "./showFlow.js";
 import { createPricingGameForType, playPricingGame } from "./pricingGames.js";
 
@@ -331,6 +331,17 @@ test("only a human bidding winner can trigger the host-kiss celebration",()=>{
   assert.equal(kissHost(room,"winner").seq,4,"the buttons remain live during the introduction");
   assert.equal(showShirt(room,"winner").seq,5);
   assert.throws(()=>kissHost(room,"other"),/winning contestant/i);
+});
+
+test("a pricing-game winner can hug Bob after every win",()=>{
+  const room=createRoom(),winner={id:"winner",name:"Jamie",isAI:false};
+  room.players=[winner];room.contestants=[winner];room.pricingGame=createPricingGameForType("doublePrices",winner);room.phase="pricingGame";
+  assert.throws(()=>hugBob(room,"winner"),/after winning a pricing game/i);
+  room.pricingGame.status="won";
+  assert.equal(hugBob(room,"winner").playerName,"Jamie");
+  assert.equal(publicState(room).hugEvent.seq,1);
+  assert.equal(hugBob(room,"winner").seq,2,"repeat hugs create fresh events");
+  assert.throws(()=>hugBob(room,"other"),/after winning a pricing game/i);
 });
 
 test("winner shirt is optional and never pauses the pricing-game introduction",()=>{

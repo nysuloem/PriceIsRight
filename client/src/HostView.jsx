@@ -147,6 +147,7 @@ function HostViewInner({ code, remoteMode = false, controller = true, embedded =
   const [error, setError] = useState("");
   const [config, setConfig] = useState({ hostName: "Bob Barker", announcerName: "Rod Roddy", announcerVoice: "cedar", hostVoice: "coral" });
   const [kissBurst,setKissBurst]=useState(null);
+  const [hugBurst,setHugBurst]=useState(null);
   const [shirtBurst,setShirtBurst]=useState(null);
   const [audienceBurst,setAudienceBurst]=useState(null);
   const lastSeqRef = useRef(-1);
@@ -164,6 +165,7 @@ function HostViewInner({ code, remoteMode = false, controller = true, embedded =
   const lastSettledWheelRef = useRef("");
   const lastAIWheelActionRef = useRef("");
   const lastKissRef=useRef(0);
+  const lastHugRef=useRef(0);
   const lastShirtRef=useRef(0);
   const lastAudienceRef=useRef(0);
   const openingSeenRef=useRef(false);
@@ -192,6 +194,7 @@ function HostViewInner({ code, remoteMode = false, controller = true, embedded =
   }, [state?.pricingGame?.lastOutcome]);
 
   useEffect(()=>{const event=state?.kissEvent;if(!event||event.seq===lastKissRef.current)return;lastKissRef.current=event.seq;setKissBurst(event);const timer=setTimeout(()=>setKissBurst(current=>current?.seq===event.seq?null:current),2600);return()=>clearTimeout(timer);},[state?.kissEvent?.seq]);
+  useEffect(()=>{const event=state?.hugEvent;if(!event||event.seq===lastHugRef.current)return;lastHugRef.current=event.seq;setHugBurst(event);const timer=setTimeout(()=>setHugBurst(current=>current?.seq===event.seq?null:current),2800);return()=>clearTimeout(timer);},[state?.hugEvent?.seq]);
   useEffect(()=>{const event=state?.shirtEvent;if(!event||event.seq===lastShirtRef.current)return;lastShirtRef.current=event.seq;setShirtBurst(event);const timer=setTimeout(()=>setShirtBurst(current=>current?.seq===event.seq?null:current),3000);return()=>clearTimeout(timer);},[state?.shirtEvent?.seq]);
   useEffect(()=>{const suggestions=state?.pricingGame?.audienceSuggestions;if(!suggestions?.latest||suggestions.seq===lastAudienceRef.current)return;lastAudienceRef.current=suggestions.seq;setAudienceBurst({...suggestions.latest,count:suggestions.counts?.[suggestions.latest.choice]||1});const timer=setTimeout(()=>setAudienceBurst(null),2200);return()=>clearTimeout(timer);},[state?.pricingGame?.audienceSuggestions?.seq]);
 
@@ -356,7 +359,9 @@ function HostViewInner({ code, remoteMode = false, controller = true, embedded =
       if(diceReveal)playTTS(ann,text,()=>{},config.announcerVoice||"cedar","announcer");
       else playTTS(el, text, () => {}, voice);
     } else if (type === "pricingResult") {
-      const finish=()=>playTTS(el, text, () => { if (!state.isDemo) safely(() => restartGame(code, "sameLineup")); }, voice);
+      const finish=()=>playTTS(el, text, () => {
+        if (!state.isDemo) setTimeout(()=>safely(() => restartGame(code, "sameLineup")),state.pricingGame?.status==="won"?4500:0);
+      }, voice);
       if(state.pricingGame?.type==="clockGame"&&state.pricingGame?.status==="won")setTimeout(()=>current(finish),4000);else finish();
     } else if (type === "wheelIntro" || type === "wheelPrompt" || type === "wheelAdvance") {
       playTTS(el,text,()=>{},voice);
@@ -464,7 +469,8 @@ function HostViewInner({ code, remoteMode = false, controller = true, embedded =
       <audio ref={announcerRef} style={{ display: "none" }} />
       <audio ref={gameClipRef} style={{ display: "none" }} />
       <audio ref={cliffYodelRef} src={cliffYodelUrl} preload="none" style={{ display: "none" }} />
-      {kissBurst&&<div key={`kiss-${kissBurst.seq}`} className="pir-kiss-burst" aria-live="polite"><span>💋</span><span>😘</span><span>💖</span><b>{kissBurst.playerName} kissed the host!</b><span>💋</span><span>💕</span></div>}
+      {kissBurst&&<div key={`kiss-${kissBurst.seq}`} className="pir-kiss-burst" aria-live="polite"><span>💋</span><span>😘</span><span>💖</span><b>{kissBurst.playerName} kissed Bob!</b><span>💋</span><span>💕</span></div>}
+      {hugBurst&&<div key={`hug-${hugBurst.seq}`} className="pir-hug-burst" aria-live="polite"><span>🤗</span><span>💛</span><b>{hugBurst.playerName} hugged Bob!</b><span>🫂</span><span>🎉</span></div>}
       {shirtBurst&&<div key={`shirt-${shirtBurst.seq}`} className="pir-shirt-burst" aria-live="polite"><span>✨</span><div><small>{shirtBurst.playerName}'s T-shirt</small><div className="pir-shirt"><div className="pir-shirt-copy">{shirtBurst.message}</div></div></div><span>🎉</span><span>👏</span></div>}
       {audienceBurst&&<div className="pir-audience-burst" aria-live="polite"><small>{audienceBurst.playerName} shouts</small><strong>{audienceBurst.choice}!</strong>{audienceBurst.count>1&&<b>{audienceBurst.count} audience votes</b>}</div>}
 

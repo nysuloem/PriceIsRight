@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Bot, Trophy, Camera, Upload, X, Check, Mic, MicOff } from "lucide-react";
-import { getState, joinRoom, submitBid, kissHost, showShirt, beginPricingGame, pricingGameAction, showcaseAction, wheelAction } from "./api.js";
+import { getState, joinRoom, submitBid, kissBob, hugBob, showShirt, beginPricingGame, pricingGameAction, showcaseAction, wheelAction } from "./api.js";
 
 const POLL_MS = 500;
 
@@ -236,7 +236,7 @@ export default function PlayerView({ code, navigate, embedded = false, remoteMod
   const me = state.contestants[myIndex];
   const pricingWinner = state.pricingGame?.playerId === playerId ? me : null;
   const celebrate = async (kind) => {
-    try { await (kind === "kiss" ? kissHost(code, playerId) : showShirt(code, playerId)); }
+    try { await (kind === "kiss" ? kissBob(code, playerId) : kind === "hug" ? hugBob(code, playerId) : showShirt(code, playerId)); }
     catch (e) { setError(e.message); }
   };
   const myName = me?.name || localStorage.getItem(`pir_name_${code}`) || "You";
@@ -312,6 +312,8 @@ export default function PlayerView({ code, navigate, embedded = false, remoteMod
           <PricingGamePhone game={state.pricingGame} playerId={playerId} code={code}
             isDemo={state.isDemo} onBackToGames={() => navigate?.("/games")}
             remoteMode={remoteMode}
+            celebrationPlayer={pricingWinner}
+            onCelebrate={celebrate}
             acceptGuesses={state.phase === "pricingGame"}
             onError={(message) => setError(message)} />
         </>
@@ -392,7 +394,7 @@ function PuttAccuracyMeter({window:target,disabled,onPutt,attempt,remoteMode=fal
   return <div className="pir-putt-phone"><p><b>{attempt?"SECOND PUTT":"FIRST PUTT"}</b></p><div className="pir-putt-meter"><span className="target" style={{left:`${left}%`,width:`${width}%`}}>SWEET SPOT</span><i style={{left:`${position}%`}} /></div><button className="pir-btn" disabled={disabled} onClick={()=>onPutt(positionRef.current)}>PUTT!</button><small>Tap when the moving marker is inside the green zone.</small></div>;
 }
 
-function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError, acceptGuesses = true, remoteMode = false }) {
+function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError, onCelebrate, celebrationPlayer, acceptGuesses = true, remoteMode = false }) {
   const [number, setNumber] = useState("");
   const [order, setOrder] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -424,7 +426,7 @@ function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError
     recognition.onresult=async e=>{const result=e.results?.[e.resultIndex],transcript=result?.[0]?.transcript||"";if(!acceptGuessesRef.current)return;const value=parseSpokenNumber(transcript);setHeard(transcript);if(value==null){onError(`I heard “${transcript},” but not a number. Please try again.`);return;}if(micSendingRef.current)return;micSendingRef.current=true;setNumber(String(value));await send({value});micSendingRef.current=false;};
     recognition.start();
   };
-  if (game.status !== "playing") return <div className="pir-panel pir-center"><h2>{game.title}</h2><p className="pir-pricing-result">{game.result}</p>{isDemo && <button className="pir-btn" onClick={onBackToGames}>Try Another Game</button>}</div>;
+  if (game.status !== "playing") return <div className="pir-panel pir-center"><h2>{game.title}</h2><p className="pir-pricing-result">{game.result}</p>{game.status==="won"&&<WinnerCelebrationButtons player={celebrationPlayer} onCelebrate={onCelebrate} allowHug />}{isDemo && <button className="pir-btn" onClick={onBackToGames}>Try Another Game</button>}</div>;
   if (!isPlayer){const suggestions=audienceOptions(game);return <div className="pir-panel pir-center pir-audience-phone"><h2>{game.title}</h2><p><b>{game.playerName}</b> is playing. Help them like the studio audience!</p><div className="pir-audience-buttons">{suggestions.map(option=><button key={option} className="pir-btn secondary" disabled={busy} onClick={()=>send({audienceChoice:option})}>{option}</button>)}</div><small>Your shout will pop up in the {remoteMode?"show above":"big screen"}.</small></div>;}
   const addOrder = (id) => { if (!order.includes(id)) setOrder([...order, id]); };
   const orderedProducts = order.map(id => game.items?.find(x => x.id === id)).filter(Boolean);
@@ -502,9 +504,9 @@ function BiddingPhase({ state, playerId, bidDraft, setBidDraft, onSubmit }) {
   );
 }
 
-function WinnerCelebrationButtons({player,onCelebrate}) {
+function WinnerCelebrationButtons({player,onCelebrate,allowHug=false}) {
   if(!player||player.isAI)return null;
-  return <div className="pir-winner-celebrations"><button className="pir-btn pir-kiss-btn" onClick={()=>onCelebrate("kiss")}>💋 KISS THE HOST</button>{player.shirtMessage&&<button className="pir-btn pir-shirt-btn" onClick={()=>onCelebrate("shirt")}>👕 SHOW MY T-SHIRT</button>}</div>;
+  return <div className="pir-winner-celebrations"><button className="pir-btn pir-kiss-btn" onClick={()=>onCelebrate("kiss")}>💋 KISS BOB</button>{allowHug&&<button className="pir-btn pir-hug-btn" onClick={()=>onCelebrate("hug")}>🤗 HUG BOB</button>}{player.shirtMessage&&<button className="pir-btn pir-shirt-btn" onClick={()=>onCelebrate("shirt")}>👕 SHOW MY T-SHIRT</button>}</div>;
 }
 
 function RevealPhase({ state, myIndex, onCelebrate }) {

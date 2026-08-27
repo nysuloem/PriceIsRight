@@ -93,6 +93,7 @@ export function createRoom(playMode = "sharedScreen") {
     replacementVisible: false,
     isDemo: false,
     kissEvent: null,
+    hugEvent: null,
     shirtEvent: null,
     celebrationSeq: 0,
     hostLine: { seq: 0, text: "", type: "welcome" },
@@ -184,6 +185,7 @@ export function publicState(room) {
     isDemo: room.isDemo,
     demoGameType: room.demoGameType || null,
     kissEvent: room.kissEvent,
+    hugEvent: room.hugEvent,
     shirtEvent: room.shirtEvent,
     prizePoolWarnings: room.prizePoolWarnings,
     pricingGameRotation: room.pricingGameRotation,
@@ -545,6 +547,7 @@ export function revealReplacement(room) {
 
 export function submitBid(room, playerId, amount) {
   if(amount==="__kiss_host__"){kissHost(room,playerId);return;}
+  if(amount==="__hug_bob__"){hugBob(room,playerId);return;}
   if(amount==="__show_shirt__"){showShirt(room,playerId);return;}
   if (room.phase !== "bidding") throw new Error("Bidding isn't open");
   const c = room.contestants[room.turn];
@@ -579,10 +582,19 @@ function celebrationWinner(room,playerId){
 
 export function kissHost(room,playerId){
   const winner=celebrationWinner(room,playerId);
-  if(!winner)throw new Error("Only the current winning contestant can kiss the host");
+  if(!winner)throw new Error("Only the current winning contestant can kiss Bob");
   room.celebrationSeq+=1;
   room.kissEvent={seq:room.celebrationSeq,playerName:winner.name};
   return room.kissEvent;
+}
+
+export function hugBob(room,playerId){
+  const wonPricingGame=room.phase==="pricingGame"&&room.pricingGame?.status==="won"&&room.pricingGame.playerId===playerId;
+  if(!wonPricingGame)throw new Error("Hug Bob is available after winning a pricing game");
+  const winner=room.contestants.find(c=>contestantKey(c)===playerId)||{name:room.pricingGame.playerName};
+  room.celebrationSeq+=1;
+  room.hugEvent={seq:room.celebrationSeq,playerName:winner.name};
+  return room.hugEvent;
 }
 
 export function showShirt(room,playerId){
@@ -650,6 +662,7 @@ export async function restart(room, mode) {
     room.pricingGame = null;
     room.prizePoolWarnings = [];
     room.kissEvent = null;
+    room.hugEvent = null;
     room.shirtEvent = null;
     room.celebrationSeq = 0;
     room.showcaseContestants = [];

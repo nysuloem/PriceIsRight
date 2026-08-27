@@ -41,7 +41,8 @@ export const submitBid = (code, playerId, amount) =>
     body: JSON.stringify({ playerId, amount }),
   });
 
-export const kissHost = (code, playerId) => submitBid(code, playerId, "__kiss_host__");
+export const kissBob = (code, playerId) => submitBid(code, playerId, "__kiss_host__");
+export const hugBob = (code, playerId) => submitBid(code, playerId, "__hug_bob__");
 export const showShirt = (code, playerId) => submitBid(code, playerId, "__show_shirt__");
 
 export const resolveAITurn = (code) =>
