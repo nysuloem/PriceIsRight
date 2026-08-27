@@ -12,6 +12,7 @@ import {
   settleWheel, acknowledgeWheel, resolveWheelAI, finishShowdown, advanceShowcase, resolveShowcaseAI,
 } from "./api.js";
 import OpeningSequence from "./OpeningSequence.jsx";
+import { playAudioReliably } from "./mediaPlayback.js";
 const cliffYodelUrl="/media/cliff-hangers-yodel.mp3";
 const clockBellUrl="/media/clock-game-bell.mp3";
 const clockGotItUrl="/media/clock-game-got-it.mp3";
@@ -27,6 +28,9 @@ function audioContext(){
   if(sharedAudioContext.state==="suspended")sharedAudioContext.resume().catch(()=>{});
   return sharedAudioContext;
 }
+export function unlockSoundEffects(){
+  try{audioContext();}catch{}
+}
 
 // ---------------------------------------------------------------------------
 // playTTS — fetch audio from the server and play it.
@@ -34,31 +38,11 @@ function audioContext(){
 // ---------------------------------------------------------------------------
 function playTTS(audioEl, text, onDone, voice, style = "host") {
   if (!text) { onDone(); return; }
-  let fired = false;
-  let hardStop;
-  const fire = () => { if (fired) return; fired = true; clearTimeout(hardStop); onDone(); };
-  audioEl.pause();
-  audioEl.currentTime = 0;
-  audioEl.src = ttsUrl(text, voice, style);
-  audioEl.onended = fire;
-  // Once speech has actually begun, never let the network watchdog cut it off.
-  audioEl.onplaying = () => clearTimeout(hardStop);
-  audioEl.onerror = () => setTimeout(fire, 350);
-  // If the TTS request hangs, cancel the audio resource before advancing.
-  // Clearing src is important: a late response can no longer begin speaking
-  // over the next phase.
-  hardStop = setTimeout(() => {
-    if (fired) return;
-    audioEl.pause();
-    audioEl.removeAttribute("src");
-    audioEl.load();
-    fire();
-  }, 12000);
-  audioEl.play().catch(() => setTimeout(fire, 350));
+  playAudioReliably(audioEl, ttsUrl(text, voice, style), onDone);
 }
 
 function playRecorded(audioEl,src,onDone){
-  if(!audioEl){onDone();return;}let fired=false;const fire=()=>{if(fired)return;fired=true;onDone();};audioEl.pause();audioEl.currentTime=0;audioEl.src=src;audioEl.onended=fire;audioEl.onerror=fire;audioEl.play().catch(fire);
+  playAudioReliably(audioEl,src,onDone,{errorDelay:0});
 }
 
 // ---------------------------------------------------------------------------
@@ -181,7 +165,6 @@ function HostViewInner({ code, remoteMode = false, controller = true, embedded =
   const lastShirtRef=useRef(0);
   const lastAudienceRef=useRef(0);
   const openingSeenRef=useRef(false);
-  const soundUnlockedRef=useRef(false);
   const isDriver=!remoteMode||controller;
   const finishPlinkoDrop=useCallback((dropId)=>{if(!isDriver||!dropId||dropId===lastSettledDropRef.current)return;lastSettledDropRef.current=dropId;settlePricingGame(code).catch(e=>{lastSettledDropRef.current=0;setError(e.message);});},[code,isDriver]);
   const finishCliffClimb=useCallback((climbId)=>{if(!isDriver||!climbId||climbId===lastSettledClimbRef.current)return;lastSettledClimbRef.current=climbId;settlePricingGame(code).catch(e=>{lastSettledClimbRef.current=0;setError(e.message);});},[code,isDriver]);
@@ -194,26 +177,6 @@ function HostViewInner({ code, remoteMode = false, controller = true, embedded =
     openingSeenRef.current=true;
     setPhase("opening");
   },[remoteMode,phase,state?.phase]);
-
-  useEffect(()=>{
-    if(!remoteMode)return;
-    const unlock=()=>{
-      if(soundUnlockedRef.current)return;
-      soundUnlockedRef.current=true;
-      // Never use the host, announcer, or game-clip elements for the browser's
-      // one-time mobile audio unlock. Replacing one of their sources while a
-      // finger begins to scroll cancels its `ended` callback—and that callback
-      // is often what advances the show to the next state.
-      try{
-        const silent=new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
-        silent.volume=.01;
-        silent.play().then(()=>{silent.pause();silent.removeAttribute("src");}).catch(()=>{soundUnlockedRef.current=false;});
-      }catch{soundUnlockedRef.current=false;}
-      try{audioContext();}catch{}
-    };
-    window.addEventListener("pir:unlock-audio",unlock);
-    return()=>window.removeEventListener("pir:unlock-audio",unlock);
-  },[remoteMode]);
 
   useEffect(() => {
     const event = state?.pricingGame?.lastOutcome;

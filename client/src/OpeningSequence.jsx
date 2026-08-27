@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ttsUrl, playerPhotoUrl } from "./api.js";
+import { playAudioReliably } from "./mediaPlayback.js";
 
 // ---------------------------------------------------------------------------
 // OpeningSequence
@@ -47,13 +48,8 @@ export default function OpeningSequence({
     return new Promise((resolve) => {
       const el = announcerRef.current;
       if (!el) { resolve(); return; }
-      let fired = false;
-      const fire = () => { if (fired) return; fired = true; resolve(); };
-      el.src = ttsUrl(text, voice, style);
       el.volume = 1.0;
-      el.onended = fire;
-      el.onerror = () => setTimeout(fire, 1500);
-      el.play().catch(() => setTimeout(fire, 1500));
+      playAudioReliably(el, ttsUrl(text, voice, style), resolve, { errorDelay: 1500 });
     });
   }
 
@@ -63,16 +59,13 @@ export default function OpeningSequence({
     return new Promise((resolve) => {
       const el = clipRef.current;
       if (!el) { resolve(); return; }
-      let fired = false;
-      const fire = () => { if (fired) return; fired = true; resolve(); };
-      el.src = src;
       el.volume = 1;
-      el.ontimeupdate = revealBobAtEnd ? () => {
-        if (Number.isFinite(el.duration) && el.duration > 0 && el.currentTime >= el.duration - 9) setShowBob(true);
-      } : null;
-      el.onended = fire;
-      el.onerror = fire;
-      el.play().catch(fire);
+      playAudioReliably(el, src, resolve, {
+        errorDelay: 0,
+        onTimeUpdate: revealBobAtEnd ? (audio) => {
+          if (Number.isFinite(audio.duration) && audio.duration > 0 && audio.currentTime >= audio.duration - 9) setShowBob(true);
+        } : undefined,
+      });
     });
   }
 
