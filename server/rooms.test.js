@@ -31,6 +31,41 @@ test("remote households join one authoritative room state",()=>{
   assert.equal(state.code,room.code);
 });
 
+test("a solo remote bid immediately completes the bidding round",()=>{
+  const room=createRoom("remote");
+  const player=joinRoom(room,"Ottawa");
+  room.contestants=[{...player,isAI:false,bid:null}];
+  room.item={id:"solo-prize",name:"Tool chest",price:850};
+  room.phase="bidding";
+  room.turn=0;
+
+  submitBid(room,player.id,700);
+
+  const state=publicState(room);
+  assert.equal(state.phase,"reveal");
+  assert.deepEqual(state.winnerIndices,[0]);
+  assert.equal(state.revealType,"reveal");
+  assert.match(state.hostLine.text,/Ottawa bids \$700!/);
+  assert.match(state.hostLine.text,/actual retail price is \$850/i);
+});
+
+test("a solo exact bid completes immediately and keeps the exact-bid award",()=>{
+  const room=createRoom("remote");
+  const player=joinRoom(room,"London");
+  room.contestants=[{...player,isAI:false,bid:null}];
+  room.item={id:"solo-exact-prize",name:"Patio heater",price:999};
+  room.phase="bidding";
+  room.turn=0;
+
+  submitBid(room,player.id,999);
+
+  assert.equal(room.phase,"reveal");
+  assert.deepEqual(room.winnerIndices,[0]);
+  assert.equal(room.revealType,"exactBid");
+  assert.match(room.hostLine.text,/London bids \$999!/);
+  assert.match(room.hostLine.text,/extra one hundred dollars/i);
+});
+
 test("the six bidding rounds visit six different prize departments",()=>{
   assert.deepEqual(BIDDING_CATEGORY_SCHEDULE,["Tools","Appliances","Jewellery","Outdoor Equipment","Electronics","Furniture"]);
   assert.deepEqual(Array.from({length:6},(_,round)=>biddingCategoryForRound(round)),BIDDING_CATEGORY_SCHEDULE);

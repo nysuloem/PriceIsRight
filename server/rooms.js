@@ -553,6 +553,18 @@ export function submitBid(room, playerId, amount) {
   const bid = Math.max(1, Math.min(9999, Math.round(Number(amount) || 0)));
   if (room.contestants.some(other => other.bid === bid)) throw new Error("That bid has already been used");
   c.bid = bid;
+  // A one-contestant room has no next bidder. Finish Contestants' Row in the
+  // same server transaction instead of depending on a host audio callback to
+  // request the reveal. This is especially important in remote play, where a
+  // mobile browser may suspend an audio completion event.
+  if (room.contestants.length === 1) {
+    room.phase = "reveal";
+    room.winnerIndices = computeWinners(room.contestants, room.item.price);
+    const reveal = revealLine(room);
+    room.revealType = reveal.type;
+    setHostLine(room, `${c.name} bids $${c.bid}! ${reveal.text}`, reveal.type);
+    return;
+  }
   setHostLine(room, `${c.name} bids $${c.bid}!`, "bidResult");
 }
 
