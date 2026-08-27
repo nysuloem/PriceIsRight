@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, expandedBiddingCatalog, isSingleGrandPrize, pickAPairPoolStatus, playPricingGame, pricingCatalogStats, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
+import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, expandedBiddingCatalog, hasMinimumPriceSpread, isSingleGrandPrize, pickAPairPoolStatus, playPricingGame, pricingCatalogStats, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
 import { ADDITIONAL_GRAND_PRIZES } from "./prizePoolExpansion.js";
 
 const player = { id: "human-1", name: "Test Player" };
@@ -243,6 +243,24 @@ test("higher/lower small prizes and displayed prices are always double digit",()
       assert.ok(actual.every(price=>price>=10),`${type} actual prices must be double digit`);
       assert.ok(items.every(item=>item.shownPrice>=10),`${type} shown prices must be double digit`);
     }
+  }
+});
+
+test("two-price and higher/lower clues differ from the real price by at least 20 percent",()=>{
+  assert.equal(hasMinimumPriceSpread(138,130),false);
+  assert.equal(hasMinimumPriceSpread(68,66),false);
+  assert.equal(hasMinimumPriceSpread(68,54),true);
+  for(let run=0;run<100;run+=1){
+    for(const type of ["punchABunch","shellGame"]){
+      const game=createPricingGameForType(type,player),items=type==="punchABunch"?game.qualifiers:game.items,actual=type==="punchABunch"?game._qualifierPrices:game._prices;
+      items.forEach((item,index)=>assert.ok(hasMinimumPriceSpread(actual[index],item.shownPrice),`${type}: ${actual[index]} versus ${item.shownPrice}`));
+    }
+    const secret=createPricingGameForType("secretX",player);
+    secret.qualifiers.forEach((item,index)=>{const actual=secret._qualifierPrices[index],wrong=item.possiblePrices.find(price=>price!==actual);assert.ok(hasMinimumPriceSpread(actual,wrong),`Secret X: ${actual} versus ${wrong}`);});
+    const master=createPricingGameForType("masterKey",player);
+    master.qualifiers.forEach((item,index)=>{const actual=master._qualifierPrices[index],wrong=item.choices.find(price=>price!==actual);assert.ok(hasMinimumPriceSpread(actual,wrong),`Master Key: ${actual} versus ${wrong}`);});
+    const doublePrices=createPricingGameForType("doublePrices",player),wrong=doublePrices.prices.find(price=>price!==doublePrices._actual);
+    assert.ok(hasMinimumPriceSpread(doublePrices._actual,wrong),`Double Prices: ${doublePrices._actual} versus ${wrong}`);
   }
 });
 

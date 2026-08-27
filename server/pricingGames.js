@@ -226,9 +226,17 @@ function wrongTwoDigit(actual) {
   return { shownPrice:Number(shown), correctDigit:s[correctPosition], correctPosition };
 }
 
+export function hasMinimumPriceSpread(actual,clue,minimum=0.2) {
+  const real=Number(actual),shown=Number(clue);
+  return Number.isFinite(real)&&real>0&&Number.isFinite(shown)&&Math.abs(real-shown)/real>=minimum-1e-9;
+}
+
 function wrongHigherLowerPrice(actual,index=0) {
-  const price=Math.max(10,Math.round(Number(actual)||0)),offset=[7,9,12,15][index%4];
-  return price-offset>=10&&index%2===0?price-offset:price+offset;
+  const real=Math.max(10,Number(actual)||0),price=Math.round(real),unit=real>=25?5:1;
+  let gap=Math.max(unit,Math.ceil(real*0.2/unit)*unit);
+  while(!hasMinimumPriceSpread(real,price-gap)||!hasMinimumPriceSpread(real,price+gap))gap+=unit;
+  const lower=price-gap,higher=price+gap;
+  return lower>=10&&index%2===0?lower:higher;
 }
 
 function plinkoPath(start){
@@ -357,10 +365,16 @@ function makeHoleInOne(player,excluded=[],liveItems=[]){
   return {...base("holeInOne","HOLE IN ONE",player,"Choose the product you think is the LEAST expensive first. Then choose the next-least expensive product, continuing until all six are arranged from least to most expensive. Each correct step moves you closer to the hole. Then stop the moving accuracy meter inside the target zone to sink your putt and win the grand prize.",[bonusPrize]),featuredIntroCount:1,bonusPrize,_bonusPrice:rawPrize.price,items,_prices:items.map(item=>rawItems.find(raw=>`hole-grocery-${prizeIdentity(raw)}`===item.id)?.price),orderedIds:[],revealedCount:0,earnedLines:0,distanceLine:6,orderStillCorrect:true,attempts:0,orTwoRevealed:false,puttWindow:null,lastPutt:null,stage:"order",prompt:"Choose the LEAST expensive product first, then continue from next-least to most expensive.",mode:"order"};
 }
 function masterKeyPriceCode(actual){
-  const price=String(Math.round(actual)).padStart(2,"0"),firstCorrect=price[1]!=="0"&&Math.random()<.5;let extra=String(1+Math.floor(Math.random()*9));
-  while((firstCorrect?price[1]+extra:extra+price[0])===price||Number(firstCorrect?price[1]+extra:extra+price[0])<10)extra=String(1+Math.floor(Math.random()*9));
-  const code=firstCorrect?`${price}${extra}`:`${extra}${price}`,choices=[Number(code.slice(0,2)),Number(code.slice(1))];
-  return {code,choices,correct:Math.round(actual)};
+  const correct=Math.round(actual),price=String(correct).padStart(2,"0"),candidates=[];
+  for(let digit=1;digit<=9;digit+=1){
+    const extra=String(digit),firstCode=`${price}${extra}`,firstChoices=[Number(firstCode.slice(0,2)),Number(firstCode.slice(1))];
+    if(firstChoices[1]>=10&&hasMinimumPriceSpread(correct,firstChoices[1]))candidates.push({code:firstCode,choices:firstChoices});
+    const lastCode=`${extra}${price}`,lastChoices=[Number(lastCode.slice(0,2)),Number(lastCode.slice(1))];
+    if(lastChoices[0]>=10&&hasMinimumPriceSpread(correct,lastChoices[0]))candidates.push({code:lastCode,choices:lastChoices});
+  }
+  const clue=pick(candidates);
+  if(!clue)throw new Error(`Master Key could not build a fair price clue for ${correct}`);
+  return {...clue,correct};
 }
 function prepareMasterKeyUnlock(game){
   if(!game.earnedKeys.length)return finish(game,false,"No keys were earned, so none of the prize locks can be opened.",game.smallWinnings);
