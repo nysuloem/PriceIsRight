@@ -77,6 +77,8 @@ test("Dice Game locks phone controls while its digits reveal automatically",()=>
   assert.equal(g.stage,"reveal");
   assert.equal(g.mode,"wait");
   assert.deepEqual(g.options,[]);
+  assert.deepEqual(g.revealed,[null,null,null,null]);
+  assert.deepEqual(g.correct,[null,null,null,null]);
 });
 
 test("pricing-game selection respects a scheduled car or non-car category",()=>{
