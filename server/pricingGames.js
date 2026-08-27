@@ -191,8 +191,8 @@ const SHELL_BONUS_PRIZES = [
   ...ADDITIONAL_GRAND_PRIZES,
 ];
 
-const GAME_NAMES = ["plinko", "cliffHangers", "punchABunch", "diceGame", "groceryGame", "oneAway", "clockGame", "anyNumber", "grandGame", "shellGame", "moneyGame", "luckySeven", "doublePrices", "threeStrikes", "switchGame", "tenChances", "pickAPair", "balanceGame", "holeInOne"];
-export const CAR_PRICING_GAME_TYPES = ["diceGame", "oneAway", "anyNumber", "moneyGame", "luckySeven", "threeStrikes", "tenChances"];
+const GAME_NAMES = ["plinko", "cliffHangers", "punchABunch", "diceGame", "groceryGame", "oneAway", "clockGame", "anyNumber", "grandGame", "shellGame", "moneyGame", "luckySeven", "doublePrices", "threeStrikes", "switchGame", "tenChances", "pickAPair", "balanceGame", "holeInOne", "masterKey", "secretX"];
+export const CAR_PRICING_GAME_TYPES = ["diceGame", "oneAway", "anyNumber", "moneyGame", "luckySeven", "threeStrikes", "tenChances", "masterKey"];
 export const NON_CAR_PRICING_GAME_TYPES = GAME_NAMES.filter(type=>!CAR_PRICING_GAME_TYPES.includes(type));
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const shuffle = (a) => { const c = [...a]; for (let i=c.length-1;i>0;i-=1) { const j=Math.floor(Math.random()*(i+1)); [c[i],c[j]]=[c[j],c[i]]; } return c; };
@@ -352,11 +352,41 @@ function makeHoleInOne(player,excluded=[],liveItems=[]){
   const rawItems=holeInOneGroceries(excluded,liveItems),items=shuffle(rawItems).map((item,index)=>({...prizeIntro(item),id:`hole-grocery-${prizeIdentity(item)}`,displayNumber:index+1,revealedPrice:null})),rawPrize=pick(requireItems(grandPrizeCandidates(excluded,liveItems),1,"Hole in One grand-prize bank")),bonusPrize={...prizeIntro(rawPrize),announcerText:prizeAnnouncementText(rawPrize,"Sink your putt and you could win this fabulous prize! It's")};
   return {...base("holeInOne","HOLE IN ONE",player,"Choose the product you think is the LEAST expensive first. Then choose the next-least expensive product, continuing until all six are arranged from least to most expensive. Each correct step moves you closer to the hole. Then stop the moving accuracy meter inside the target zone to sink your putt and win the grand prize.",[bonusPrize]),featuredIntroCount:1,bonusPrize,_bonusPrice:rawPrize.price,items,_prices:items.map(item=>rawItems.find(raw=>`hole-grocery-${prizeIdentity(raw)}`===item.id)?.price),orderedIds:[],revealedCount:0,earnedLines:0,distanceLine:6,orderStillCorrect:true,attempts:0,orTwoRevealed:false,puttWindow:null,lastPutt:null,stage:"order",prompt:"Choose the LEAST expensive product first, then continue from next-least to most expensive.",mode:"order"};
 }
+function masterKeyPriceCode(actual){
+  const price=String(Math.round(actual)).padStart(2,"0"),firstCorrect=price[1]!=="0"&&Math.random()<.5;let extra=String(1+Math.floor(Math.random()*9));
+  while((firstCorrect?price[1]+extra:extra+price[0])===price||Number(firstCorrect?price[1]+extra:extra+price[0])<10)extra=String(1+Math.floor(Math.random()*9));
+  const code=firstCorrect?`${price}${extra}`:`${extra}${price}`,choices=[Number(code.slice(0,2)),Number(code.slice(1))];
+  return {code,choices,correct:Math.round(actual)};
+}
+function prepareMasterKeyUnlock(game){
+  if(!game.earnedKeys.length)return finish(game,false,"No keys were earned, so none of the prize locks can be opened.",game.smallWinnings);
+  game.stage="chooseKey";game.mode="choice";game.options=game.earnedKeys.filter(key=>!key.used).map(key=>`Try Key ${key.number}`);game.prompt="Choose an earned key to try in the three prize locks.";
+}
+function beginMasterKeyTurn(game){
+  const targetId=game.unlockQueue[0];
+  if(!targetId)throw new Error("No Master Key lock is waiting");
+  game.stage="keyTurning";game.mode="wait";game.keyTurnSeq+=1;game.lastKeyTurn={id:game.keyTurnSeq,keyNumber:game.activeKey.number,targetId,result:null};game._pendingKeyTurn={id:game.keyTurnSeq,keyNumber:game.activeKey.number,targetId};game.prompt=`Key ${game.activeKey.number} is turning in the ${game.targets.find(target=>target.id===targetId)?.label} lock...`;
+}
+function finishMasterKeyOrContinue(game){
+  game.activeKey=null;game.unlockQueue=[];
+  const remaining=game.earnedKeys.filter(key=>!key.used);
+  if(remaining.length){game.stage="chooseKey";game.mode="choice";game.options=remaining.map(key=>`Try Key ${key.number}`);game.prompt="Choose another earned key.";return game;}
+  const unlocked=game.targets.filter(target=>target.unlocked),names=unlocked.map(target=>target.name);
+  return finish(game,unlocked.length>0,unlocked.length?`Your keys opened ${names.join(", ")}!`:`None of your keys opened a prize lock.`,game.smallWinnings+unlocked.reduce((sum,target)=>sum+target.value,0));
+}
+function makeMasterKey(player,excluded=[],liveItems=[]){
+  const carRaw=freshCar(excluded,()=>true,"Master Key car bank"),largeRaw=shuffle(requireItems(grandPrizeCandidates([...excluded,carRaw.name],liveItems),2,"Master Key large-prize bank")).slice(0,2),smallRaw=requireItems(diverseSmallItems(2,[...excluded,carRaw.name,...largeRaw.map(prize=>prize.name)],item=>item.price>=10&&item.price<=99,liveItems),2,"Master Key small-prize bank"),qualifiers=smallRaw.map((item,index)=>({...prizeIntro(item),...masterKeyPriceCode(item.price),index,revealedPrice:null})),targets=[{...carIntro(carRaw),id:"master-target-car",label:"NEW CAR",value:carRaw.price,unlocked:false},{...prizeIntro(largeRaw[0]),id:"master-target-one",label:"PRIZE 1",value:largeRaw[0].price,unlocked:false},{...prizeIntro(largeRaw[1]),id:"master-target-two",label:"PRIZE 2",value:largeRaw[1].price,unlocked:false}],keyTypes=shuffle(["car","prize1","prize2","master","blank"]),keys=keyTypes.map((_,index)=>({number:index+1,selected:false}));
+  return {...base("masterKey","MASTER KEY",player,"Price two small prizes by choosing the first two or last two digits shown. Each correct price lets you select one of five keys. Then try your keys in three giant locks. One key opens the car, one opens each additional prize, one opens nothing, and the Master Key opens all three.",[targets[0],targets[1],targets[2],qualifiers[0]]),featuredIntroCount:3,car:targets[0],targets,qualifiers,_qualifierPrices:smallRaw.map(item=>Math.round(item.price)),_keyTypes:keyTypes,pricingIndex:0,keys,earnedKeys:[],smallWinnings:0,activeKey:null,unlockQueue:[],lastKeyTurn:null,keyTurnSeq:0,stage:"pricing",prompt:`Choose the correct price of the ${qualifiers[0].name}.`,mode:"choice",options:qualifiers[0].choices.map(money)};
+}
+function makeSecretX(player,excluded=[],liveItems=[]){
+  const rawBonus=pick(requireItems(grandPrizeCandidates(excluded,liveItems),1,"Secret X grand-prize bank")),bonusPrize={...prizeIntro(rawBonus),announcerText:prizeAnnouncementText(rawBonus,"Complete a line of X's and you could win this fabulous prize! It's")},smallRaw=requireItems(diverseSmallItems(2,[...excluded,rawBonus.name],item=>item.price>=20&&item.price<=500,liveItems),2,"Secret X small-prize bank"),actual=smallRaw.map(item=>Math.round(item.price)),possiblePrices=actual.map((price,index)=>shuffle([price,wrongHigherLowerPrice(price,index)])),qualifiers=smallRaw.map((item,index)=>({...prizeIntro(item),possiblePrices:possiblePrices[index],actualPrice:null}));
+  return {...base("secretX","SECRET X",player,"Place one free X in the left or right column. Price two small prizes by choosing the correct of two prices; every correct choice earns another X that you place immediately. A secret X is hidden behind one square in the centre column. Complete a horizontal or diagonal line when it is revealed to win the grand prize.",[bonusPrize]),featuredIntroCount:1,bonusPrize,_bonusPrice:rawBonus.price,qualifiers,_qualifierPrices:actual,qualifierIndex:0,earnedXs:0,xsToPlace:1,placementContext:"free",placedXs:[],board:Array(9).fill(null),_secretIndex:pick([1,4,7]),secretRevealed:false,smallWinnings:0,stage:"placing",prompt:"Place your free X in any open square in the left or right column.",mode:"xPlacement",options:["0","2","3","5","6","8"]};
+}
 function tenChanceDigits(price,count){const digits=[...new Set(String(price).split(""))];for(const d of shuffle(["0","1","2","3","4","5","6","7","8","9"]))if(!digits.includes(d)){digits.push(d);if(digits.length===count)break;}return shuffle(digits);}
 function shuffledCarDigits(price){const answer=String(price).split(""),shuffled=shuffle(answer);return shuffled.join("")===answer.join("")?[...answer.slice(1),answer[0]]:shuffled;}
 function makeTenChances(player,excluded=[],liveItems=[]){const two=requireItems(diverseSmallItems(1,excluded,p=>p.price>=10&&p.price<=99&&new Set(String(Math.round(p.price))).size===2,liveItems),1,"10 Chances two-digit bank")[0],three=requireItems(diverseSmallItems(1,[...excluded,two.name],p=>p.price>=100&&p.price<=999&&new Set(String(Math.round(p.price))).size===3,liveItems),1,"10 Chances three-digit bank")[0],car=freshCar(excluded,c=>new Set(String(c.price)).size===5,"10 Chances car bank"),raw=[two,three,car],prizes=[prizeIntro(two),prizeIntro(three),carIntro(car)],prices=raw.map(p=>Math.round(p.price)),digitSets=[tenChanceDigits(prices[0],3),tenChanceDigits(prices[1],4),shuffledCarDigits(prices[2])];return {...base("tenChances","10 CHANCES",player,"You have ten chances total to price three prizes: first a two-digit prize, then a three-digit prize, and finally a new car. Build each price using only the digits shown, without repeating a digit. Correctly price a prize to move to the next one.",prizes),prizes,_prices:prices,digitSets,prizeIndex:0,chancesLeft:10,guesses:[],winnings:0,prompt:`Use two of the digits shown to price the ${two.name}.`,mode:"number"};}
 
-const FACTORIES={plinko:makePlinko,cliffHangers:makeCliff,punchABunch:makePunch,diceGame:makeDice,groceryGame:makeGrocery,oneAway:makeOneAway,clockGame:makeClock,anyNumber:makeAnyNumber,grandGame:makeGrand,shellGame:makeShell,moneyGame:makeMoneyGame,luckySeven:makeLuckySeven,doublePrices:makeDoublePrices,threeStrikes:makeThreeStrikes,switchGame:makeSwitch,tenChances:makeTenChances,pickAPair:makePickAPair,balanceGame:makeBalanceGame,holeInOne:makeHoleInOne};
+const FACTORIES={plinko:makePlinko,cliffHangers:makeCliff,punchABunch:makePunch,diceGame:makeDice,groceryGame:makeGrocery,oneAway:makeOneAway,clockGame:makeClock,anyNumber:makeAnyNumber,grandGame:makeGrand,shellGame:makeShell,moneyGame:makeMoneyGame,luckySeven:makeLuckySeven,doublePrices:makeDoublePrices,threeStrikes:makeThreeStrikes,switchGame:makeSwitch,tenChances:makeTenChances,pickAPair:makePickAPair,balanceGame:makeBalanceGame,holeInOne:makeHoleInOne,masterKey:makeMasterKey,secretX:makeSecretX};
 export const PRICING_GAME_TYPES=[...GAME_NAMES];
 export function pricingCatalogStats(){return {smallPrizes:PRICING_SMALL_ITEMS.length,groceries:GROCERIES.length,pickAPairProducts:PICK_A_PAIR_CATALOG.length,cars:CARS.length,anyNumberPrizes:ANY_NUMBER_PRIZES.length,grandPrizes:SHELL_BONUS_PRIZES.length};}
 export function createPricingGameForType(type,player,excluded=[],liveItems=[]){ if(!FACTORIES[type]) throw new Error(`Unknown pricing game: ${type}`); return FACTORIES[type](player,excluded,liveItems); }
@@ -374,7 +404,7 @@ export function recordPricingAction(game,action={}){
     const digits=game.shownDigits?.map((digit,index)=>digit+(String(action.answers[index]).toLowerCase()==="higher"?1:-1));
     text=digits?.length?`LOCKED IN ${digits.join("")}`:"LOCKED IN THE FINAL CHOICES";
   }else if(action.accuracy!=null)text="TOOK THE PUTT";
-  else if(action.position!=null)text=`DROPPED AT POSITION ${Number(action.position)}`;
+  else if(action.position!=null)text=game.type==="secretX"?`PLACED AN X IN SQUARE ${Number(action.position)+1}`:`DROPPED AT POSITION ${Number(action.position)}`;
   else if(action.value!=null){
     const value=Number(action.value);
     text=game.type==="groceryGame"?`CHOSE ${value} ITEM${value===1?"":"S"}`:`GUESSED ${money(value)}`;
@@ -466,6 +496,40 @@ export function playPricingGame(g,action={}) {
       const delta=accuracy-window.center,won=Math.abs(delta)<=window.tolerance;g.stage="putting";g.mode="wait";g.lastPutt={id:(g.lastPutt?.id||0)+1,attempt:g.attempts+1,accuracy,center:window.center,tolerance:window.tolerance,won,missDirection:delta<0?"short":"long",distanceLine:g.distanceLine,duration:2600};g.prompt="The ball is rolling...";
     }else throw new Error("Wait for the current Hole in One sequence to finish");
   }
+  else if(g.type==="masterKey"){
+    if(g.stage==="pricing"){
+      const beforeSeq=g.eventSeq,beforeOutcome=g.lastOutcome,i=g.pricingIndex,selected=Number(choice.replace(/[$,]/g,"")),actual=g._qualifierPrices[i],correct=selected===actual,prize=g.qualifiers[i];
+      if(!prize.choices.includes(selected))throw new Error("Choose one of the two displayed prices");
+      if(correct){g.smallWinnings+=actual;outcome(g,"success",`Correct! You won the ${prize.name} and may choose a key.`);}else outcome(g,"failure",`The correct price was ${money(actual)}. No key for this prize.`);
+      const heldOutcome=g.lastOutcome;g.pricingIndex+=1;
+      if(correct){g.stage="keySelect";g.mode="choice";g.options=g.keys.filter(key=>!key.selected).map(key=>`Key ${key.number}`);g.prompt="Choose one key from the rack.";}
+      else if(g.pricingIndex<g.qualifiers.length){const next=g.qualifiers[g.pricingIndex];g.options=next.choices.map(money);g.prompt=`Choose the correct price of the ${next.name}.`;introduceNext(g,next);}
+      else prepareMasterKeyUnlock(g);
+      holdPriceReveal(g,beforeSeq,beforeOutcome,prize,money(selected),actual,heldOutcome);
+    }else if(g.stage==="keySelect"){
+      const number=Number(choice.match(/\d+/)?.[0]),key=g.keys.find(entry=>entry.number===number&&!entry.selected);if(!key)throw new Error("That key is not available");key.selected=true;g.earnedKeys.push({number,used:false});outcome(g,"success",`Key ${number} is yours!`);
+      if(g.pricingIndex<g.qualifiers.length){const next=g.qualifiers[g.pricingIndex];g.stage="pricing";g.mode="choice";g.options=next.choices.map(money);g.prompt=`Choose the correct price of the ${next.name}.`;introduceNext(g,next);}else prepareMasterKeyUnlock(g);
+    }else if(g.stage==="chooseKey"){
+      const number=Number(choice.match(/\d+/)?.[0]),key=g.earnedKeys.find(entry=>entry.number===number&&!entry.used);if(!key)throw new Error("That earned key is not available");key.used=true;g.activeKey=key;g.unlockQueue=g.targets.filter(target=>!target.unlocked).map(target=>target.id);beginMasterKeyTurn(g);
+    }else throw new Error("Wait for the current Master Key reveal to finish");
+  }
+  else if(g.type==="secretX"){
+    if(g.stage==="pricing"){
+      const beforeSeq=g.eventSeq,beforeOutcome=g.lastOutcome,i=g.qualifierIndex,selected=Number(choice.replace(/[$,]/g,"")),actual=g._qualifierPrices[i],prize=g.qualifiers[i],correct=selected===actual;
+      if(!prize.possiblePrices.includes(selected))throw new Error("Choose one of the two displayed prices");
+      if(correct){g.earnedXs+=1;g.smallWinnings+=actual;outcome(g,"success",`Correct! You won the ${prize.name} and another X.`);}else outcome(g,"failure",`The correct price was ${money(actual)}. No additional X.`);
+      const heldOutcome=g.lastOutcome;g.qualifierIndex+=1;
+      if(correct){g.xsToPlace=1;g.placementContext="earned";g.stage="placing";g.mode="xPlacement";g.options=[0,2,3,5,6,8].filter(index=>!g.board[index]).map(String);g.prompt="Place the X you just earned in the left or right column.";}
+      else if(g.qualifierIndex<g.qualifiers.length){const next=g.qualifiers[g.qualifierIndex];g.options=next.possiblePrices.map(money);g.prompt=`Which is the correct price of the ${next.name}?`;introduceNext(g,next);}
+      else{g.stage="secretReveal";g.mode="wait";g.options=[];g.prompt="All X's are placed. Where is the Secret X?";}
+      holdPriceReveal(g,beforeSeq,beforeOutcome,prize,money(selected),actual,heldOutcome);
+    }else if(g.stage==="placing"){
+      const position=Number(action.position??choice);if(![0,2,3,5,6,8].includes(position)||g.board[position])throw new Error("Choose an open square in the left or right column");g.board[position]="X";g.placedXs.push(position);g.xsToPlace-=1;outcome(g,"neutral",`X placed in square ${position+1}.`);
+      if(g.xsToPlace===0&&g.placementContext==="free"){const next=g.qualifiers[0];g.stage="pricing";g.mode="choice";g.options=next.possiblePrices.map(money);g.prompt=`Which is the correct price of the ${next.name}?`;introduceNext(g,next);}
+      else if(g.xsToPlace===0&&g.qualifierIndex<g.qualifiers.length){const next=g.qualifiers[g.qualifierIndex];g.stage="pricing";g.mode="choice";g.options=next.possiblePrices.map(money);g.prompt=`Which is the correct price of the ${next.name}?`;introduceNext(g,next);}
+      else if(g.xsToPlace===0){g.stage="secretReveal";g.mode="wait";g.options=[];g.prompt="All X's are placed. Where is the Secret X?";}
+    }else throw new Error("Wait for the Secret X reveal");
+  }
   else if(g.type==="tenChances"){
     if(g.chancesLeft<=0)return finish(g,false,"All ten chances have been used.",g.winnings);
     const i=g.prizeIndex,guess=String(action.value??"").replace(/\D/g,""),needed=i===0?2:i===1?3:5,available=g.digitSets[i];
@@ -523,6 +587,8 @@ export function initialPrizeAnnouncements(game) {
   if (game.type === "pickAPair") return [game.bonusPrize];
   if (game.type === "balanceGame") return [game.prize];
   if (game.type === "holeInOne") return [game.bonusPrize];
+  if (game.type === "masterKey") return [...game.targets,game.qualifiers[0]];
+  if (game.type === "secretX") return [game.bonusPrize];
   if (game.type === "shellGame") return [game.bonusPrize, game.items[0]];
   if (game.type === "tenChances") return [game.prizes[2], game.prizes[0]];
   if (game.type === "cliffHangers" || game.type === "clockGame") return [game.items[0]];
@@ -530,6 +596,30 @@ export function initialPrizeAnnouncements(game) {
 }
 
 export function settlePricingAnimation(game) {
+  if(game?.type==="masterKey"){
+    const pending=game._pendingKeyTurn;if(!pending)throw new Error("No Master Key turn is active");
+    if(game.stage==="keyTurning"){
+      const keyType=game._keyTypes[pending.keyNumber-1],target=game.targets.find(entry=>entry.id===pending.targetId),targetType=target?.id==="master-target-car"?"car":target?.id==="master-target-one"?"prize1":"prize2",opens=keyType==="master"||keyType===targetType;
+      if(opens){if(keyType==="master")game.targets.forEach(entry=>{entry.unlocked=true;});else target.unlocked=true;}
+      game.lastKeyTurn={...game.lastKeyTurn,result:opens?keyType==="master"?"master":"open":"locked"};game.stage="keyResult";game.prompt=opens?(keyType==="master"?"IT'S THE MASTER KEY! All three locks open!":`It opens the ${target.label} lock!`):`It does not open the ${target.label} lock.`;outcome(game,opens?"success":"failure",game.prompt);return game;
+    }
+    if(game.stage==="keyResult"){
+      const result=game.lastKeyTurn.result;game._pendingKeyTurn=null;
+      if(result==="master")return finish(game,true,"The Master Key opened all three locks! You won every prize!",game.smallWinnings+game.targets.reduce((sum,target)=>sum+target.value,0));
+      if(result==="open")return finishMasterKeyOrContinue(game);
+      game.unlockQueue.shift();
+      if(game.unlockQueue.length){beginMasterKeyTurn(game);return game;}
+      return finishMasterKeyOrContinue(game);
+    }
+    throw new Error("No Master Key turn is active");
+  }
+  if(game?.type==="secretX"){
+    if(game.stage!=="secretReveal")throw new Error("No Secret X reveal is active");
+    game.secretRevealed=true;game.board[game._secretIndex]="X";
+    const lines=[[0,1,2],[3,4,5],[6,7,8],[0,4,8],[2,4,6]],won=lines.some(line=>line.every(index=>game.board[index]==="X"));
+    game.winningLine=won?lines.find(line=>line.every(index=>game.board[index]==="X")):null;
+    return finish(game,won,won?`The Secret X completes a line! You won the ${game.bonusPrize.name}!`:`The Secret X was in square ${game._secretIndex+1}, but it did not complete a line.`,game.smallWinnings+(won?game._bonusPrice:0));
+  }
   if(game?.type==="luckySeven"){
     const pending=game._pendingLucky;
     if(!pending)throw new Error("No Lucky Seven reveal is active");

@@ -22,6 +22,8 @@ const GAMES = [
   ["pickAPair", "Pick-a-Pair", "Find two grocery products with exactly the same price."],
   ["balanceGame", "Balance Game", "Choose two money bags that balance with the grand prize."],
   ["holeInOne", "Hole in One (or Two)", "Order six groceries, earn a closer putting line, and time the perfect putt."],
+  ["masterKey", "Master Key", "Price two small prizes, earn keys, and try them in three giant prize locks."],
+  ["secretX", "Secret X", "Earn and place Xs, then reveal the hidden centre-column X."],
 ];
 
 export default function PricingGamesLab({ navigate }) {

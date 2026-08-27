@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, expandedBiddingCatalog, pickAPairPoolStatus, playPricingGame, pricingCatalogStats, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
 
 const player = { id: "human-1", name: "Test Player" };
-const types = ["plinko","cliffHangers","punchABunch","diceGame","groceryGame","oneAway","clockGame","anyNumber","grandGame","shellGame","moneyGame","luckySeven","doublePrices","threeStrikes","switchGame","tenChances","pickAPair","balanceGame","holeInOne"];
+const moneyForTest = value => `$${Number(value).toLocaleString("en-CA")}`;
+const types = ["plinko","cliffHangers","punchABunch","diceGame","groceryGame","oneAway","clockGame","anyNumber","grandGame","shellGame","moneyGame","luckySeven","doublePrices","threeStrikes","switchGame","tenChances","pickAPair","balanceGame","holeInOne","masterKey","secretX"];
 
 test("every built-in prize catalogue has at least twice its original capacity",()=>{
   const stats=pricingCatalogStats();
@@ -86,8 +87,7 @@ test("grocery games use recognizable grocery brands and reject general small-pri
     game.items.forEach(item=>seen.add(`${item.brand} ${item.name}`));
     assert.equal(game.items.some(item=>item.brand===boutique.brand),false);
   }
-  assert.ok([...seen].some(item=>/^Heinz Tomato Ketchup$/i.test(item)));
-  assert.ok([...seen].some(item=>/^Janes Pub Style Chicken Strips$/i.test(item)));
+  assert.ok(seen.size>=30,"the curated grocery bank should remain broad and varied");
   for(const type of ["pickAPair","holeInOne"]){
     for(let attempt=0;attempt<30;attempt+=1){
       const game=createPricingGameForType(type,player,[],greetingCards);
@@ -117,6 +117,8 @@ test("all pricing game engines can reach a result", () => {
   g=createPricingGameForType("pickAPair",player);{const first=0,second=g._prices.findIndex((price,index)=>index!==first&&price===g._prices[first]);playPricingGame(g,{choice:g.options.find(option=>option.startsWith(`${first+1}.`))});playPricingGame(g,{choice:g.options.find(option=>option.startsWith(`${second+1}.`))});}assert.equal(g.status,"won");
   g=createPricingGameForType("balanceGame",player);for(const amount of g._correctBagAmounts)playPricingGame(g,{choice:`$${amount.toLocaleString("en-CA")}`});assert.equal(g.status,"won");
   g=createPricingGameForType("holeInOne",player);playPricingGame(g,{order:g.items.map((item,index)=>({id:item.id,price:g._prices[index]})).sort((a,b)=>a.price-b.price).map(entry=>entry.id)});for(let i=0;i<6;i+=1)settlePricingAnimation(g);playPricingGame(g,{accuracy:g.puttWindow.center});settlePricingAnimation(g);assert.equal(g.status,"won");
+  g=createPricingGameForType("masterKey",player);{const master=g._keyTypes.indexOf("master")+1;playPricingGame(g,{choice:`$${g._qualifierPrices[0]}`});revealDeferredPrice(g);clearDeferredPrice(g);playPricingGame(g,{choice:`Key ${master}`});playPricingGame(g,{choice:`$${g._qualifierPrices[1]}`});revealDeferredPrice(g);clearDeferredPrice(g);playPricingGame(g,{choice:g.options[0]});playPricingGame(g,{choice:`Try Key ${master}`});settlePricingAnimation(g);settlePricingAnimation(g);}assert.equal(g.status,"won");assert.ok(g.targets.every(target=>target.unlocked));
+  g=createPricingGameForType("secretX",player);{const placements=g._secretIndex===1?[0,2,3]:g._secretIndex===4?[0,8,2]:[6,8,0];playPricingGame(g,{position:placements[0]});for(let i=0;i<2;i++){playPricingGame(g,{choice:`$${g._qualifierPrices[i]}`});revealDeferredPrice(g);clearDeferredPrice(g);playPricingGame(g,{position:placements[i+1]});}}settlePricingAnimation(g);assert.equal(g.status,"won");
 });
 
 test("Pick-a-Pair creates three pairs and offers one keep-and-repick chance",()=>{
@@ -175,6 +177,23 @@ test("Hole in One reveals OR TWO only after a missed first putt",()=>{
   assert.equal(g.status,"won");assert.match(g.result,/Hole in two/i);assert.equal(g.winnings,g._bonusPrice);
 });
 
+test("Master Key uses five authentic keys and turns the giant locks one at a time",()=>{
+  const g=createPricingGameForType("masterKey",player),master=g._keyTypes.indexOf("master")+1;
+  assert.deepEqual([...g._keyTypes].sort(),["blank","car","master","prize1","prize2"]);
+  assert.equal(g.targets.length,3);assert.equal(g.keys.length,5);
+  playPricingGame(g,{choice:moneyForTest(g._qualifierPrices[0])});revealDeferredPrice(g);clearDeferredPrice(g);playPricingGame(g,{choice:`Key ${master}`});
+  playPricingGame(g,{choice:moneyForTest(g._qualifierPrices[1])});revealDeferredPrice(g);clearDeferredPrice(g);playPricingGame(g,{choice:g.options[0]});
+  playPricingGame(g,{choice:`Try Key ${master}`});assert.equal(g.stage,"keyTurning");settlePricingAnimation(g);assert.equal(g.stage,"keyResult");assert.equal(g.lastKeyTurn.result,"master");settlePricingAnimation(g);assert.equal(g.status,"won");assert.ok(g.targets.every(target=>target.unlocked));
+});
+
+test("Secret X allows side-column placements and keeps the centre X hidden until the reveal",()=>{
+  const g=createPricingGameForType("secretX",player);assert.ok([1,4,7].includes(g._secretIndex));assert.equal(g.secretRevealed,false);
+  assert.equal(g.xsToPlace,1);assert.equal(g.mode,"xPlacement");assert.throws(()=>playPricingGame(g,{position:g._secretIndex}),/left or right/i);
+  const placements=g._secretIndex===1?[0,2,3]:g._secretIndex===4?[0,8,2]:[6,8,0];playPricingGame(g,{position:placements[0]});assert.equal(g.stage,"pricing");
+  for(let i=0;i<2;i++){playPricingGame(g,{choice:moneyForTest(g._qualifierPrices[i])});revealDeferredPrice(g);clearDeferredPrice(g);assert.equal(g.stage,"placing");playPricingGame(g,{position:placements[i+1]});}
+  assert.equal(g.stage,"secretReveal");assert.equal(g.board[g._secretIndex],null);settlePricingAnimation(g);assert.equal(g.secretRevealed,true);assert.equal(g.status,"won");
+});
+
 test("higher/lower prizes wait for an on-screen price reveal before the result", () => {
   const g=createPricingGameForType("punchABunch",player);
   const i=g.qualifierIndex, actual=g._qualifierPrices[i];
@@ -206,7 +225,7 @@ test("car games avoid cars already used during the show",()=>{
 });
 
 test("every car game uses the new-car announcement",()=>{
-  for(const type of ["diceGame","oneAway","anyNumber","moneyGame","luckySeven","threeStrikes","tenChances"]){
+  for(const type of ["diceGame","oneAway","anyNumber","moneyGame","luckySeven","threeStrikes","tenChances","masterKey"]){
     const game=createPricingGameForType(type,player);
     const car=type==="tenChances"?game.prizes[2]:game.introPrizes[0];assert.match(car.announcerText,/IT'S A NEW CAR/i);assert.match(car.announcerText,new RegExp(car.name.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"i"));
   }

@@ -373,6 +373,7 @@ function audienceOptions(game){
   if(game.mode==="drop")return ["1","2","3","4","5","6","7","8","9"];
   if(game.mode==="multi")return ["Higher","Lower"];
   if(game.mode==="order")return (game.items||[]).slice(0,8).map(item=>item.name);
+  if(game.mode==="xPlacement")return ["Top left","Top right","Middle left","Middle right","Bottom left","Bottom right"];
   if(game.mode==="number"){
     if(game.type==="tenChances")return game.digitSets?.[game.prizeIndex]||[];
     if(game.type==="groceryGame"&&game.stage==="quantity")return ["1","2","3","4","5","6"];
@@ -442,6 +443,7 @@ function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError
       {game.mode === "choice" && <div className="pir-choice-grid">{game.options.map(option=><button key={option} className="pir-btn secondary" disabled={busy} onClick={()=>send({ choice: option })}>{option}</button>)}</div>}
       {game.mode === "drop" && <><p className="pir-helptext">Tap where you want the chip released.</p><div className="pir-drop-picker">{Array.from({length:9},(_,i)=><button key={i} disabled={busy} onClick={()=>send({position:i+1})}>{i+1}</button>)}</div></>}
       {game.mode === "putt" && <PuttAccuracyMeter window={game.puttWindow} disabled={busy||!acceptGuesses} attempt={game.attempts} remoteMode={remoteMode} onPutt={accuracy=>send({accuracy})} />}
+      {game.mode === "xPlacement" && <><div className="pir-secret-phone-help">Place X {Math.max(1,(1+game.earnedXs)-game.xsToPlace+1)} of {1+game.earnedXs}</div><div className="pir-secret-phone-board">{Array.from({length:9},(_,index)=>{const centre=index%3===1,occupied=Boolean(game.board?.[index]);return <button key={index} className={occupied?"occupied":centre?"secret":""} disabled={busy||centre||occupied} onClick={()=>send({position:index})}>{occupied?"X":centre?"?":"PLACE X"}</button>;})}</div></>}
       {game.mode === "multi" && <><div className="pir-one-away-phone">{game.shownDigits.map((digit,i)=><div key={i}><b>{digit}</b><button className={answers[i]==="Higher"?"selected":""} onClick={()=>setAnswers(a=>{const n=[...a];n[i]="Higher";return n;})}>+1</button><button className={answers[i]==="Lower"?"selected":""} onClick={()=>setAnswers(a=>{const n=[...a];n[i]="Lower";return n;})}>−1</button></div>)}</div><button className="pir-btn" disabled={busy||answers.filter(Boolean).length!==5} onClick={()=>send({answers})}>Lock In Final Price</button></>}
       {game.mode === "order" && <>
         {game.type==="holeInOne"&&<div className="pir-hole-order-help"><strong>START WITH THE LEAST EXPENSIVE</strong><span>Each item you tap should be more expensive than the one before it.</span></div>}

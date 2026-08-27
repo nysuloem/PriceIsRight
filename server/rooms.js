@@ -14,7 +14,7 @@ const ROOM_TTL_MS = 4 * 60 * 60 * 1000;
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const MAX_PLAYERS = 8;   // how many humans can join
 const DICE_AUTO_REVEAL_DELAY_MS = 1600;
-const CAR_FIRST_GAMES = new Set(["diceGame", "oneAway", "anyNumber", "moneyGame", "luckySeven", "threeStrikes", "tenChances"]);
+const CAR_FIRST_GAMES = new Set(["diceGame", "oneAway", "anyNumber", "moneyGame", "luckySeven", "threeStrikes", "tenChances", "masterKey"]);
 const recentPricingPrizeNames=[];
 export const BIDDING_CATEGORY_SCHEDULE = ["Tools", "Appliances", "Jewellery", "Outdoor Equipment", "Electronics", "Furniture"];
 export const biddingCategoryForRound = round => BIDDING_CATEGORY_SCHEDULE[Math.max(0, Number(round) || 0) % BIDDING_CATEGORY_SCHEDULE.length];
@@ -460,6 +460,10 @@ export function pricingGameAction(room, playerId, action) {
     setHostLine(room,"","holePutt");
   } else if(g.type==="luckySeven"&&g.stage==="doorOpening"){
     setHostLine(room,`${g.playerName} says ${g.lastGuess.guess}. Open the next door!`,"luckySevenDoor");
+  } else if(g.type==="masterKey"&&g.stage==="keyTurning"){
+    const target=g.targets.find(entry=>entry.id===g.lastKeyTurn.targetId);setHostLine(room,`Let's try Key ${g.lastKeyTurn.keyNumber} in the ${target?.label||"prize"} lock. Turn the key!`,"masterKeyTurn");
+  } else if(g.type==="secretX"&&g.stage==="secretReveal"){
+    setHostLine(room,"The X's are in place. Now, where is the Secret X?","secretXReveal");
   } else if (g.pendingPrizeAnnouncement) {
     room.pricingAnnouncementQueue = [g.pendingPrizeAnnouncement];
     g.pendingPrizeAnnouncement = null;
@@ -510,12 +514,20 @@ export function settlePricingGame(room,action={}) {
   if(room.pricingGame.type==="cliffHangers"&&room.pricingGame.stage!=="climbing"&&room.pricingGame.priceReveal)return room;
   if(room.pricingGame.type==="holeInOne"&&action.kind){const g=room.pricingGame;if(action.kind==="holeOrder"&&(g.stage!=="orderReveal"||Number(action.index)!==g.revealedCount))return room;if(action.kind==="holePutt"&&(g.stage!=="putting"||Number(action.id)!==g.lastPutt?.id))return room;if(action.kind==="holeOrTwo"&&g.stage!=="orTwoReveal")return room;}
   if(room.pricingGame.type==="luckySeven"){const g=room.pricingGame;if(!["luckyDoor","luckyCost"].includes(action.kind)||Number(action.id)!==g.lastGuess?.id)return room;if(action.kind==="luckyDoor"&&g.stage!=="doorOpening")return room;if(action.kind==="luckyCost"&&g.stage!=="costReveal")return room;}
+  if(room.pricingGame.type==="masterKey"){const g=room.pricingGame;if(!["masterTurn","masterResult"].includes(action.kind)||Number(action.id)!==g.lastKeyTurn?.id)return room;if(action.kind==="masterTurn"&&g.stage!=="keyTurning")return room;if(action.kind==="masterResult"&&g.stage!=="keyResult")return room;}
+  if(room.pricingGame.type==="secretX"&&(action.kind!=="secretX"||room.pricingGame.stage!=="secretReveal"))return room;
   settlePricingAnimation(room.pricingGame);
   const g=room.pricingGame;
   if(g.type==="luckySeven"){
     if(g.stage==="costReveal"){setHostLine(room,g.prompt,"luckySevenCost");return room;}
     setHostLine(room,g.status==="playing"?g.prompt:g.result,g.status==="playing"?"pricingPrompt":"pricingResult");return room;
   }
+  if(g.type==="masterKey"){
+    if(g.stage==="keyResult"){setHostLine(room,g.prompt,"masterKeyResult");return room;}
+    if(g.stage==="keyTurning"){const target=g.targets.find(entry=>entry.id===g.lastKeyTurn.targetId);setHostLine(room,`Now try Key ${g.lastKeyTurn.keyNumber} in the ${target?.label||"prize"} lock. Turn it!`,"masterKeyTurn");return room;}
+    setHostLine(room,g.status==="playing"?g.prompt:g.result,g.status==="playing"?"pricingPrompt":"pricingResult");return room;
+  }
+  if(g.type==="secretX"){setHostLine(room,g.result,"pricingResult");return room;}
   if(g.type==="holeInOne"){
     if(g.stage==="orderReveal"){setHostLine(room,g.prompt,"holeOrderRevealStep");return room;}
     if(g.stage==="puttReady"){setHostLine(room,g.prompt,"holePuttReady");return room;}

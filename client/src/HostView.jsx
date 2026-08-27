@@ -145,6 +145,9 @@ function playWomp() {
 function playOrTwoSting(){
   try{const ctx=audioContext(),notes=[196,247,294,392,523];notes.forEach((frequency,index)=>{const oscillator=ctx.createOscillator(),gain=ctx.createGain(),start=ctx.currentTime+index*.14;oscillator.type=index<3?"sawtooth":"square";oscillator.frequency.value=frequency;gain.gain.setValueAtTime(.001,start);gain.gain.exponentialRampToValueAtTime(.16,start+.025);gain.gain.exponentialRampToValueAtTime(.001,start+.42);oscillator.connect(gain);gain.connect(ctx.destination);oscillator.start(start);oscillator.stop(start+.44);});}catch{}
 }
+function playSecretXSting(){
+  try{const ctx=audioContext();[220,277,330,440,659].forEach((frequency,index)=>{const oscillator=ctx.createOscillator(),gain=ctx.createGain(),start=ctx.currentTime+index*.16;oscillator.type=index<3?"triangle":"square";oscillator.frequency.value=frequency;gain.gain.setValueAtTime(.001,start);gain.gain.exponentialRampToValueAtTime(.15,start+.03);gain.gain.exponentialRampToValueAtTime(.001,start+.55);oscillator.connect(gain);gain.connect(ctx.destination);oscillator.start(start);oscillator.stop(start+.58);});}catch{}
+}
 
 function playWheelClicks(duration=3400){
   let stopped=false,timer=null,elapsed=0;
@@ -369,6 +372,14 @@ function HostViewInner({ code, remoteMode = false, controller = true, embedded =
     } else if(type==="luckySevenCost"){
       const guess=state.pricingGame?.lastGuess;
       playTTS(el,text,()=>setTimeout(()=>safely(()=>settlePricingGame(code,{kind:"luckyCost",id:guess?.id})),650),voice,"host");
+    } else if(type==="masterKeyTurn"){
+      const turn=state.pricingGame?.lastKeyTurn;
+      playTTS(el,text,()=>setTimeout(()=>safely(()=>settlePricingGame(code,{kind:"masterTurn",id:turn?.id})),850),voice,"host");
+    } else if(type==="masterKeyResult"){
+      const turn=state.pricingGame?.lastKeyTurn;
+      playTTS(el,text,()=>setTimeout(()=>safely(()=>settlePricingGame(code,{kind:"masterResult",id:turn?.id})),750),voice,"host");
+    } else if(type==="secretXReveal"){
+      playTTS(el,text,()=>{playSecretXSting();setTimeout(()=>safely(()=>settlePricingGame(code,{kind:"secretX"})),1100);},voice,"host");
     } else if (type === "pricingGame" || type === "pricingPrompt") {
       const diceReveal=state.pricingGame?.type==="diceGame"&&state.pricingGame?.stage==="reveal";
       if(diceReveal)playTTS(ann,text,()=>{},config.announcerVoice||"cedar","announcer");
@@ -802,6 +813,27 @@ function LuckySevenBoard({game}){
 function ContestantAction({game}){
   return game.lastAction?<div key={game.lastAction.seq} className="pir-contestant-action" aria-live="polite"><small>{game.lastAction.playerName}</small><strong>{game.lastAction.text}</strong></div>:null;
 }
+function MasterKeyBoard({game}){
+  const qualifier=game.qualifiers[Math.min(game.pricingIndex,game.qualifiers.length-1)];
+  return <div className="pir-master-stage">
+    <div className="pir-master-logo"><span>MASTER</span><b>KEY</b></div>
+    <div className="pir-master-locks">{game.targets.map(target=><div key={target.id} className={`pir-master-lock ${target.unlocked?"unlocked":""} ${game.lastKeyTurn?.targetId===target.id?"turning":""}`}><small>{target.label}</small><div className="pir-padlock"><i/><strong>{target.unlocked?"OPEN":"🔒"}</strong></div><b>{target.brand}</b><span>{target.name}</span></div>)}</div>
+    <div className="pir-master-keys">{game.keys.map(key=><div key={key.number} className={`${key.selected?"earned":""} ${game.activeKey?.number===key.number?"active":""}`}><span>KEY</span><b>{key.number}</b><i>⚿</i></div>)}</div>
+    {(game.stage==="pricing"||game.stage==="keySelect")&&qualifier&&<div className="pir-master-small"><GameCards items={[qualifier]}/><div className="pir-master-code">{qualifier.code.split("").map((digit,index)=><b key={index}>{digit}</b>)}</div><small>FIRST TWO OR LAST TWO?</small></div>}
+    {game.lastKeyTurn&&<div className={`pir-master-turn ${game.lastKeyTurn.result||"turning"}`}>KEY {game.lastKeyTurn.keyNumber} · {game.lastKeyTurn.result==="master"?"MASTER KEY!":game.lastKeyTurn.result==="open"?"IT OPENS!":game.lastKeyTurn.result==="locked"?"NO": "TURNING..."}</div>}
+  </div>;
+}
+function SecretXBoard({game}){
+  const qualifier=game.qualifiers[Math.min(game.qualifierIndex,game.qualifiers.length-1)],winning=new Set(game.winningLine||[]);
+  return <div className="pir-secret-stage">
+    <div className="pir-secret-logo">SECRET <b>“X”</b></div>
+    <div className="pir-secret-layout">
+      <div className="pir-secret-prize"><small>PLAYING FOR</small><GameCards items={[game.bonusPrize]}/></div>
+      <div className={`pir-secret-board ${game.secretRevealed?"revealed":""}`}>{game.board.map((cell,index)=>{const centre=index%3===1;return <div key={index} className={`${centre?"secret":""} ${cell?"has-x":""} ${winning.has(index)?"winner":""}`}><i>{centre&&!game.secretRevealed?"?":cell||""}</i></div>;})}</div>
+      {(game.stage==="pricing")&&qualifier?<div className="pir-secret-small"><GameCards items={[qualifier]}/><div>{qualifier.possiblePrices.map(price=><b key={price}>${Number(price).toLocaleString("en-CA")}</b>)}</div></div>:<div className="pir-secret-status"><b>{game.xsToPlace||0}</b><span>X{game.xsToPlace===1?"":"s"} TO PLACE</span></div>}
+    </div>
+  </div>;
+}
 
 export function PricingGameView({ game, poolWarnings = [], spotlight = null, rulesOnly = false, onSkipRules = null, onPlinkoLanded = null, onCliffStopped = null, onPuttStopped = null }) {
   if (!game) return <div className="pir-loading">Loading pricing game…</div>;
@@ -854,6 +886,8 @@ export function PricingGameView({ game, poolWarnings = [], spotlight = null, rul
         </div>
       </div>}
       {game.type === "holeInOne" && <HoleInOneBoard game={game} onPuttStopped={()=>onPuttStopped?.(game.lastPutt?.id)} />}
+      {game.type === "masterKey" && <MasterKeyBoard game={game}/>}
+      {game.type === "secretX" && <SecretXBoard game={game}/>}
       {game.type === "tenChances" && <div className="pir-ten-stage">
         <div className="pir-ten-logo"><b>10</b><span>CHANCES</span></div>
         <div className="pir-ten-prizes">{game.prizes.map((prize,i)=><div key={prize.name} className={`${i===game.prizeIndex?"active":""} ${i<game.prizeIndex?"won":""}`}><small>{i===0?"2 DIGITS":i===1?"3 DIGITS":"NEW CAR"}</small><strong>{prize.name}</strong></div>)}</div>

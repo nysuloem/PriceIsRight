@@ -135,6 +135,35 @@ test("every accepted pricing-game choice is exposed to the audience",()=>{
   assert.equal(publicState(room).pricingGame.lastAction.text,room.pricingGame.lastAction.text);
 });
 
+test("Master Key narrates each physical lock turn and result",()=>{
+  const room=createRoom();room.pricingGame=createPricingGameForType("masterKey",{id:"p",name:"Jamie"});room.phase="pricingGame";const g=room.pricingGame,master=g._keyTypes.indexOf("master")+1;
+  g.earnedKeys=[{number:master,used:false}];g.stage="chooseKey";g.mode="choice";g.options=[`Try Key ${master}`];
+  pricingGameAction(room,"p",{choice:`Try Key ${master}`});assert.equal(room.hostLine.type,"masterKeyTurn");
+  settlePricingGame(room,{kind:"masterTurn",id:g.lastKeyTurn.id});assert.equal(g.stage,"keyResult");assert.equal(room.hostLine.type,"masterKeyResult");assert.match(room.hostLine.text,/MASTER KEY/i);
+  settlePricingGame(room,{kind:"masterResult",id:g.lastKeyTurn.id});assert.equal(g.status,"won");assert.ok(g.targets.every(target=>target.unlocked));
+});
+
+test("Secret X waits for the concealed centre-column reveal",()=>{
+  const room=createRoom();room.pricingGame=createPricingGameForType("secretX",{id:"p",name:"Jamie"});room.phase="pricingGame";const g=room.pricingGame;
+  g._secretIndex=1;g.board[0]="X";g.xsToPlace=1;g.placementContext="earned";g.qualifierIndex=2;g.stage="placing";g.mode="xPlacement";
+  pricingGameAction(room,"p",{position:2});assert.equal(g.stage,"secretReveal");assert.equal(g.board[1],null);assert.equal(room.hostLine.type,"secretXReveal");
+  settlePricingGame(room,{kind:"secretX"});assert.equal(g.board[1],"X");assert.equal(g.status,"won");assert.equal(room.hostLine.type,"pricingResult");
+});
+
+test("Master Key introduces the car and both locked prizes before the rules",()=>{
+  const {room}=createPricingGameDemo("masterKey");joinRoom(room,"Key Player");
+  assert.equal(room.phase,"pricingPrizeIntro");assert.equal(room.pricingAnnouncement.id,room.pricingGame.targets[0].id);
+  beginPricingGame(room);assert.equal(room.pricingAnnouncement.id,room.pricingGame.targets[1].id);
+  beginPricingGame(room);assert.equal(room.pricingAnnouncement.id,room.pricingGame.targets[2].id);
+  beginPricingGame(room);assert.equal(room.phase,"pricingIntro");assert.equal(room.hostLine.type,"pricingGameIntro");
+});
+
+test("Secret X places the free X before introducing its first small prize",()=>{
+  const {room}=createPricingGameDemo("secretX"),player=joinRoom(room,"X Player");
+  assert.equal(room.phase,"pricingPrizeIntro");beginPricingGame(room);assert.equal(room.phase,"pricingIntro");beginPricingGame(room);assert.equal(room.phase,"pricingGame");assert.equal(room.pricingGame.stage,"placing");assert.equal(room.pricingGame.placedXs.length,0);
+  pricingGameAction(room,player.id,{position:0});assert.equal(room.pricingGame.placedXs.length,1);assert.equal(room.phase,"pricingPrizeIntro");assert.equal(room.pricingAnnouncement.id,room.pricingGame.qualifiers[0].id);
+});
+
 test("car games introduce the car before the host explains the rules",()=>{
   const {room}=createPricingGameDemo("diceGame");
   joinRoom(room,"Car Player");
