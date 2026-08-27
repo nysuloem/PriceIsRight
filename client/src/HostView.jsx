@@ -801,20 +801,16 @@ function DiceGameBoard({game}){
     <div className="pir-dice-car"><small>PLAYING FOR</small><GameCards items={[game.car]}/></div>
     <div className="pir-dice-tv-board">
       <div className="pir-dice-logo"><span>DICE</span><b>GAME</b></div>
-      <div className="pir-dice-price" aria-label="Car price">
-        <em>$</em><strong className="given">{game.firstDigit}</strong>
-        {game.revealed.map((digit,index)=><strong key={index} className={`${digit==null?"hidden":"revealed"} ${game.correct[index]===true?"right":game.correct[index]===false?"wrong":""}`}><span>{digit??""}</span></strong>)}
-      </div>
-      <div className="pir-dice-playfield">
-        {game.rolls.map((roll,index)=>{
-          const choice=game.choices[index],active=index===game.digitIndex&&(game.stage==="roll"||game.stage==="direction"),result=game.correct[index];
-          return <div key={index} className={`pir-dice-lane ${active?"active":""} ${result===true?"right":result===false?"wrong":""}`}>
-            <div className={`pir-dice-direction higher ${choice==="Higher"?"chosen":""}`}><i>▲</i><b>HIGHER</b></div>
-            <DiceFace value={roll} rolling={active&&game.stage==="roll"}/>
-            <div className={`pir-dice-direction lower ${choice==="Lower"?"chosen":""}`}><b>LOWER</b><i>▼</i></div>
-            <small>{choice==="Exact"?"EXACT!":choice?`${choice.toUpperCase()} LOCKED`:roll!=null?"CHOOSE":"ROLL"}</small>
+      <div className="pir-dice-rack" aria-label="Dice Game price board">
+        <div className="pir-dice-first"><span>$</span><strong>{game.firstDigit}</strong></div>
+        <div className="pir-dice-tracks">{game.rolls.map((roll,index)=>{
+          const choice=game.choices[index],digit=game.revealed[index],result=game.correct[index],active=index===game.digitIndex&&(game.stage==="roll"||game.stage==="direction"),actualSide=digit==null||digit===roll?null:digit>roll?"higher":"lower";
+          return <div key={index} className={`pir-dice-track ${active?"active":""} ${result===true?"right":result===false?"wrong":""}`}>
+            <div className={`pir-dice-number-window upper ${choice==="Higher"?"chosen":""} ${actualSide==="higher"?"revealed":""}`}><strong>{actualSide==="higher"?digit:""}</strong><small>HIGHER</small></div>
+            <div className={`pir-dice-middle ${choice==="Exact"?"exact":""} ${digit!=null&&digit===roll?"revealed":""}`}><DiceFace value={roll} rolling={active&&game.stage==="roll"}/><small>{choice==="Exact"?"EXACT":roll==null?"ROLL":""}</small></div>
+            <div className={`pir-dice-number-window lower ${choice==="Lower"?"chosen":""} ${actualSide==="lower"?"revealed":""}`}><small>LOWER</small><strong>{actualSide==="lower"?digit:""}</strong></div>
           </div>;
-        })}
+        })}</div>
       </div>
       <div className="pir-dice-status">{game.stage==="reveal"?"REVEALING THE ACTUAL PRICE…":game.stage==="direction"?`IS THE NEXT DIGIT HIGHER OR LOWER THAN ${game.rolls[game.digitIndex]}?`:"ROLL THE DICE!"}</div>
     </div>
