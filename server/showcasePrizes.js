@@ -279,10 +279,10 @@ const SHOWCASE_REPLACEMENTS = [
 ].map(([name, brand, description, price, image], index) => ({ id: `showcase-replacement-${index + 1}`, name, brand, retailer: brand, description, price, image, imageAlt: name }));
 SHOWCASE_REPLACEMENTS.push(...ADDITIONAL_SHOWCASE_REPLACEMENTS);
 
-const STATIC_IMAGE_FAMILIES=new Map();
-for(const item of [...TRIP_PRIZES,...THEMES.flatMap(theme=>theme.prizes),...SHOWCASE_REPLACEMENTS])if(item.image){const families=STATIC_IMAGE_FAMILIES.get(item.image)||new Set();families.add(prizeFamilyKey(item));STATIC_IMAGE_FAMILIES.set(item.image,families);}
 function showcaseVisual(prize){const text=`${prize?.name||""} ${prize?.description||""}`.toLowerCase();if(prize?.isTripPrize||/trip|holiday|vacation|journey|escape|adventure|cruise|getaway/.test(text))return "✈️";if(/car|vehicle|sedan|suv|crossover|pickup/.test(text))return "🚗";if(/kitchen|cook|baker|barbecue|grill/.test(text))return "🍳";if(/furniture|living room|bedroom|dining|office|library/.test(text))return "🛋️";if(/fitness|sport|hockey|golf|ski|cycling/.test(text))return "🏅";if(/technology|computer|gaming|cinema|theatre/.test(text))return "💻";if(/camp|canoe|kayak|outdoor|garden|backyard/.test(text))return "🏕️";if(/music|studio|piano|guitar/.test(text))return "🎵";return "🎁";}
-function verifiedShowcasePrize(prize){const imageTrusted=Boolean(prize.image&&prize.imageVerified!==false&&((STATIC_IMAGE_FAMILIES.get(prize.image)?.size||1)===1));return {...prize,image:imageTrusted?prize.image:null,imageVerified:imageTrusted,visual:prize.visual||showcaseVisual(prize),imageAlt:prize.imageAlt||prize.name};}
+function verifiedShowcasePrize(prize){const imageTrusted=Boolean(prize.image&&prize.imageVerified!==false);return {...prize,image:imageTrusted?prize.image:null,imageVerified:imageTrusted,visual:prize.visual||showcaseVisual(prize),imageAlt:prize.imageAlt||prize.name};}
+const showcasePhotoQuality=prize=>{const verified=verifiedShowcasePrize(prize);return verified.image?(prize.imageVerified===true||prize.imageKind==="experience"?2:1):0;};
+const photoFirst=prizes=>{const best=Math.max(0,...prizes.map(showcasePhotoQuality));return best?prizes.filter(prize=>showcasePhotoQuality(prize)===best):prizes;};
 
 const shuffle=(a)=>{const c=[...a];for(let i=c.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[c[i],c[j]]=[c[j],c[i]];}return c;};
 const showcaseThemeKey=showcase=>`showcase-theme-${showcase.id}`;
@@ -304,6 +304,48 @@ const GENERATED_FOCUSES=[
 ];
 const GENERATED_SPACES=["living room","chef's kitchen","backyard pavilion","games room","home cinema","library","music room","garden room","fitness studio","home office","craft workshop","four-season sunroom"];
 const GENERATED_MOBILITY=["electric bicycles","touring kayaks","camping trailer","snowmobile pair","all-terrain vehicles","sailboat package","canoe expedition","rail journey","motorcycle pair","ski holiday","road-trip package","island-hopping holiday"];
+const GENERATED_FOCUS_IMAGES=[
+  "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1441829266145-6d4bfbd38eb4?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1583416750470-965b2707b355?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1549490349-8643362247b5?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1540946485063-a40da27545f8?auto=format&fit=crop&w=1000&q=85",
+];
+const GENERATED_SPACE_IMAGES=[
+  "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1511882150382-421056c89033?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1581092160562-40aa08e78837?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1617325247661-675ab4b64ae2?auto=format&fit=crop&w=1000&q=85",
+];
+const GENERATED_MOBILITY_IMAGES=[
+  "https://images.unsplash.com/photo-1571068316344-75bc76f77890?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1533632359083-0185df1be85d?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1486911278844-a81c5267e227?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1504215680853-026ed2a45def?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1540946485063-a40da27545f8?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1441829266145-6d4bfbd38eb4?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1478059299873-f047d8c5fe1a?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1486911278844-a81c5267e227?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1000&q=85",
+  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1000&q=85",
+];
 const GENERATED_SIGNATURE_WORDS=["Golden","Maple","Aurora","Cedar","Granite","Harbour","Summit","Wildflower","Starlight","Evergreen","Copper","Silver","Crystal","Horizon","Heritage","Discovery","Jubilee","Northern","Coastal","Prairie","Alpine","Lakeside","Grand","Royal"];
 
 function generationSignature(serial){
@@ -322,9 +364,9 @@ function generatedShowcase(serial){
     intro:`This entirely new Showcase celebrates ${region} style with three prizes created just for today's show!`,
     generated:true,
     prizes:[
-      {id:`generated-${serial}-signature`,name:`${region} ${signature} ${focus[1]}`,brand:focus[2],description:focus[3],price:basePrice+1450,image:null,imageVerified:false},
-      {id:`generated-${serial}-home`,name:`${region} ${signature} ${space} transformation`,brand:"Canadian Living",description:`A complete ${space} redesign with Canadian furniture, décor, delivery and professional installation.`,price:basePrice+3180,image:null,imageVerified:false},
-      {id:`generated-${serial}-adventure`,name:`${region} ${signature} ${mobility}`,brand:"Explore Canada",description:`A premium ${mobility} package for two with equipment, training, transportation and accommodations.`,price:basePrice+6890,image:null,imageVerified:false},
+      {id:`generated-${serial}-signature`,name:`${region} ${signature} ${focus[1]}`,brand:focus[2],description:focus[3],price:basePrice+1450,image:GENERATED_FOCUS_IMAGES[Math.floor(index/GENERATED_REGIONS.length)%GENERATED_FOCUS_IMAGES.length],imageKind:"experience",imageVerified:true},
+      {id:`generated-${serial}-home`,name:`${region} ${signature} ${space} transformation`,brand:"Canadian Living",description:`A complete ${space} redesign with Canadian furniture, décor, delivery and professional installation.`,price:basePrice+3180,image:GENERATED_SPACE_IMAGES[(index*5+3)%GENERATED_SPACE_IMAGES.length],imageKind:"experience",imageVerified:true},
+      {id:`generated-${serial}-adventure`,name:`${region} ${signature} ${mobility}`,brand:"Explore Canada",description:`A premium ${mobility} package for two with equipment, training, transportation and accommodations.`,price:basePrice+6890,image:GENERATED_MOBILITY_IMAGES[(index*7+2)%GENERATED_MOBILITY_IMAGES.length],imageKind:"experience",imageVerified:true},
     ],
   };
 }
@@ -339,7 +381,7 @@ function takeFreshTrip(){
   const retired=retiredKeys("trips");
   const available=TRIP_PRIZES.filter(trip=>!retired.exact.has(exactPrizeKey(trip))&&!retired.families.has(prizeFamilyKey(trip)));
   if(!available.length)throw new Error("The Canadian trip pool is exhausted; add genuinely new destinations before continuing.");
-  const trip=shuffle(available)[0];
+  const trip=shuffle(photoFirst(available))[0];
   retireKeys("trips",{exact:[exactPrizeKey(trip)],families:[prizeFamilyKey(trip)]});
   return verifiedShowcasePrize(trip);
 }
@@ -350,8 +392,8 @@ function fillShowcasePrize(prize){
     return {...filled,announcerText:`It's ${filled.name}, from ${filled.brand}! ${filled.description}`};
   }
   const retired=retiredKeys("showcase");
-  const candidates=[prize,...shuffle(SHOWCASE_REPLACEMENTS)];
-  const filled=candidates.find(item=>!retired.exact.has(exactPrizeKey(item))&&!retired.families.has(prizeFamilyKey(item)));
+  const candidates=[prize,...shuffle(SHOWCASE_REPLACEMENTS)].filter(item=>!retired.exact.has(exactPrizeKey(item))&&!retired.families.has(prizeFamilyKey(item)));
+  const filled=photoFirst(candidates)[0];
   if(!filled)throw new Error("The Canadian showcase pool is exhausted; add a genuinely new prize family before continuing.");
   retireKeys("showcase",{exact:[exactPrizeKey(filled)],families:[prizeFamilyKey(filled)]});
   return {...verifiedShowcasePrize(filled),announcerText:`It's ${filled.name}, from ${filled.brand}! ${filled.description}`};

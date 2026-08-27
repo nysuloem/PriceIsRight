@@ -138,6 +138,45 @@ export const ADDITIONAL_TRIPS = [
   ["switzerland","Swiss Alps rail holiday","Air Canada Vacations",18980],["seoul","Seoul food and culture journey","Air Canada Vacations",17980],["singapore","Singapore city adventure","Air Canada Vacations",18840],["new-zealand","New Zealand scenic journey","Air New Zealand Holidays",22980],["south-africa","South Africa city and safari holiday","Air Canada Vacations",24980],
 ].map(([id,name,brand,price])=>({id:`trip-${id}`,name,brand,retailer:brand,price,isTripPrize:true,image:null,imageVerified:false,imageAlt:name,description:`Round-trip travel for two, premium accommodations, guided sightseeing, local experiences, and airport transfers.`}));
 
+const TRIP_DESTINATION_PHOTOS = {
+  "trip-gros-morne": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Western_Brook_Pond_Newfoundland_Canada_DSC_6405.jpg/3840px-Western_Brook_Pond_Newfoundland_Canada_DSC_6405.jpg",
+  "trip-fundy": "https://upload.wikimedia.org/wikipedia/commons/e/e3/Nova_Scotia_and_the_Bay_of_Fundy.jpg",
+  "trip-magdalen-islands": "https://upload.wikimedia.org/wikipedia/commons/6/60/Magdalen_Islands%2C_Quebec_5.jpg",
+  "trip-ottawa": "https://upload.wikimedia.org/wikipedia/commons/2/22/Parliament-Ottawa.jpg",
+  "trip-toronto-theatre": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/Toronto_Skyline_from_Olympic_Island%2C_June_20_2026_%285-3_cropped%29.jpg/3840px-Toronto_Skyline_from_Olympic_Island%2C_June_20_2026_%285-3_cropped%29.jpg",
+  "trip-manitoulin": "https://upload.wikimedia.org/wikipedia/commons/7/74/Gore_Bay_Airport%2C_Manitoulin_Island_-_Canadian_Autumn_Road_Trip_%2830211108665%29.jpg",
+  "trip-thousand-islands": "https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=1000&q=85",
+  "trip-algonquin": "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1000&q=85",
+  "trip-jasper": "https://upload.wikimedia.org/wikipedia/commons/4/47/Pyramid_Mountain_Jasper_Alberta_05-A.jpg",
+  "trip-okanagan": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Kelowna_Vineyards_%28114204%29.jpg/3840px-Kelowna_Vineyards_%28114204%29.jpg",
+  "trip-vancouver-island": "https://images.unsplash.com/photo-1559511260-66a654ae982a?auto=format&fit=crop&w=1000&q=85",
+  "trip-haida-gwaii": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Gwaii_Haanas_%2826924832433%29.jpg/3840px-Gwaii_Haanas_%2826924832433%29.jpg",
+  "trip-nunavut": "https://images.unsplash.com/photo-1483347756197-71ef80e95f73e?auto=format&fit=crop&w=1000&q=85",
+  "trip-thompson": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Spirit_Way_Wolf_Mural.jpg/3840px-Spirit_Way_Wolf_Mural.jpg",
+  "trip-badlands": "https://images.unsplash.com/photo-1527489377706-5bf97e608852?auto=format&fit=crop&w=1000&q=85",
+  "trip-chicago": "https://upload.wikimedia.org/wikipedia/commons/a/a5/Chicago_River_ferry_b.jpg",
+  "trip-boston": "https://upload.wikimedia.org/wikipedia/commons/9/96/ISH_WC_Boston4.jpg",
+  "trip-washington": "https://upload.wikimedia.org/wikipedia/commons/e/e4/12-07-13-washington-by-RalfR-08.jpg",
+  "trip-nashville": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Nashville%2C_TN_skyline.jpg/3840px-Nashville%2C_TN_skyline.jpg",
+  "trip-new-orleans": "https://upload.wikimedia.org/wikipedia/commons/c/cb/New_Orleans_from_the_Air_September_2019_-_Central_Business_District_Skyline_%28cropped%29.jpg",
+  "trip-mexico-city": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Sobrevuelos_CDMX_HJ2A4913_%2825514321687%29_%28cropped%29.jpg/3840px-Sobrevuelos_CDMX_HJ2A4913_%2825514321687%29_%28cropped%29.jpg",
+  "trip-belize": "https://images.unsplash.com/photo-1518182170546-07661fd94144?auto=format&fit=crop&w=1000&q=85",
+  "trip-aruba": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1000&q=85",
+  "trip-bermuda": "https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?auto=format&fit=crop&w=1000&q=85",
+  "trip-dublin": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Dublin_-_aerial_-_2025-07-07_01.jpg/3840px-Dublin_-_aerial_-_2025-07-07_01.jpg",
+  "trip-edinburgh": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Skyline_of_Edinburgh.jpg/3840px-Skyline_of_Edinburgh.jpg",
+  "trip-lisbon": "https://upload.wikimedia.org/wikipedia/commons/f/f2/Lisboa_-_Portugal_%2852597836992%29.jpg",
+  "trip-amsterdam": "https://upload.wikimedia.org/wikipedia/commons/5/57/Imagen_de_los_canales_conc%C3%A9ntricos_en_%C3%81msterdam.png",
+  "trip-vienna": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Schoenbrunn_philharmoniker_2012.jpg/3840px-Schoenbrunn_philharmoniker_2012.jpg",
+  "trip-prague": "https://upload.wikimedia.org/wikipedia/commons/a/a7/Prague_%286365119737%29.jpg",
+  "trip-switzerland": "https://images.unsplash.com/photo-1486911278844-a81c5267e227?auto=format&fit=crop&w=1000&q=85",
+  "trip-seoul": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/%EC%A4%91%ED%99%94%EC%A0%84%EC%9D%98_%EB%82%AE.jpg/3840px-%EC%A4%91%ED%99%94%EC%A0%84%EC%9D%98_%EB%82%AE.jpg",
+  "trip-singapore": "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?auto=format&fit=crop&w=1000&q=85",
+  "trip-new-zealand": "https://images.unsplash.com/photo-1469521669194-babb45599def?auto=format&fit=crop&w=1000&q=85",
+  "trip-south-africa": "https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&w=1000&q=85",
+};
+for (const trip of ADDITIONAL_TRIPS) Object.assign(trip, { image: TRIP_DESTINATION_PHOTOS[trip.id], imageKind: "destination", imageVerified: true });
+
 const THEME_ROWS = [
   ["reading","A READER'S DREAM","books and reading","Indigo","Home library","California Closets"],["winter","WINTER WONDERLAND","winter recreation","Sport Chek","Four-season mudroom","Canadian Tire"],["cycling","RIDE INTO ADVENTURE","cycling","Trek","Bicycle workshop","RONA"],["photography","CAPTURE THE MOMENT","photography","Henry's","Editing studio","Best Buy Canada"],["gaming","GAME ON","video gaming","Nintendo","Premium games room","The Brick"],["art","THE ART OF LIVING","Canadian art","Art Gallery of Ontario","Artist studio","DeSerres"],
   ["bbq","FIRE UP THE GRILL","outdoor cooking","Napoleon","Backyard dining pavilion","Toja Grid"],["hockey","HOCKEY NIGHT","hockey","CCM","Home sports lounge","Leon's"],["paddling","PADDLE CANADA","paddling","Nova Craft Canoe","Waterfront gear room","MEC"],["fashion","CANADIAN STYLE","fashion","Simons","Walk-in wardrobe","California Closets"],["baking","BAKE SOMETHING GREAT","baking","KitchenAid","Baker's kitchen","Canadian Appliance Source"],["crafting","MAKE IT YOURSELF","crafting","Cricut","Craft workshop","IKEA"],
@@ -145,11 +184,38 @@ const THEME_ROWS = [
   ["fitness-plus","STRONGER EVERY DAY","fitness","Northern Fitness","Recovery suite","Therabody"],["smart-kitchen","THE FUTURE OF COOKING","smart kitchen","Breville","Connected chef's kitchen","Bosch"],["road-cycling","THE OPEN ROAD","road cycling","Cervélo","Cycling support vehicle","Volvo Canada"],["canadian-design","DESIGNED IN CANADA","Canadian design","EQ3","Designer living room","Palliser"],["film-making","LIGHTS, CAMERA, ACTION","film production","Canon","Home screening room","Samsung"],["lake-cottage","THE GREAT CANADIAN COTTAGE","cottage living","Canadian Tire","Lakeside bunkhouse","Muskoka Living"],
 ];
 
+const SHOWCASE_SCENES = {
+  reading: ["https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=1000&q=85"],
+  winter: ["https://images.unsplash.com/photo-1486911278844-a81c5267e227?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=1000&q=85"],
+  cycling: ["https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1530124566582-a618bc2615dc?auto=format&fit=crop&w=1000&q=85"],
+  photography: ["https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1000&q=85"],
+  gaming: ["https://images.unsplash.com/photo-1598550476439-6847785fcea6?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1511882150382-421056c89033?auto=format&fit=crop&w=1000&q=85"],
+  art: ["https://images.unsplash.com/photo-1549490349-8643362247b5?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1577083552431-6e5fd01aa342?auto=format&fit=crop&w=1000&q=85"],
+  bbq: ["https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=1000&q=85"],
+  hockey: ["https://images.unsplash.com/photo-1580748141549-71748dbe0bdc?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1000&q=85"],
+  paddling: ["https://images.unsplash.com/photo-1441829266145-6d4bfbd38eb4?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1000&q=85"],
+  fashion: ["https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?auto=format&fit=crop&w=1000&q=85"],
+  baking: ["https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=1000&q=85"],
+  crafting: ["https://images.unsplash.com/photo-1549490349-8643362247b5?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1581092160562-40aa08e78837?auto=format&fit=crop&w=1000&q=85"],
+  astronomy: ["https://images.unsplash.com/photo-1444703686981-a3abbc4d4fe3?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=1000&q=85"],
+  "board-games": ["https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1511882150382-421056c89033?auto=format&fit=crop&w=1000&q=85"],
+  skiing: ["https://images.unsplash.com/photo-1486911278844-a81c5267e227?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1530124566582-a618bc2615dc?auto=format&fit=crop&w=1000&q=85"],
+  golf: ["https://images.unsplash.com/photo-1535131749006-b7f58c99034b?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1511882150382-421056c89033?auto=format&fit=crop&w=1000&q=85"],
+  "pets-plus": ["https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1450778869180-41d0601e046e?auto=format&fit=crop&w=1000&q=85"],
+  "gardening-plus": ["https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=1000&q=85"],
+  "fitness-plus": ["https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=1000&q=85"],
+  "smart-kitchen": ["https://images.unsplash.com/photo-1511081692775-05d0f180a065?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=1000&q=85"],
+  "road-cycling": ["https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1590362891991-f776e747a588?auto=format&fit=crop&w=1000&q=85"],
+  "canadian-design": ["https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1617325247661-675ab4b64ae2?auto=format&fit=crop&w=1000&q=85"],
+  "film-making": ["https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1000&q=85"],
+  "lake-cottage": ["https://images.unsplash.com/photo-1540946485063-a40da27545f8?auto=format&fit=crop&w=1000&q=85", "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85d?auto=format&fit=crop&w=1000&q=85"],
+};
+
 export const ADDITIONAL_SHOWCASE_THEMES = THEME_ROWS.map(([id,title,focus,brand,space,spaceBrand],index)=>({
   id:`expanded-${id}`,title,intro:`This entirely new Showcase celebrates ${focus} with three distinctly Canadian prizes!`,
   prizes:[
-    {id:`expanded-${id}-collection`,name:`Complete ${focus} collection`,brand,price:6200+index*310,image:null,imageVerified:false,description:`Premium ${focus} equipment, accessories, expert instruction, and a year of Canadian experiences.`},
-    {id:`expanded-${id}-space`,name:space,brand:spaceBrand,price:10800+index*440,image:null,imageVerified:false,description:`A professionally designed and installed ${space.toLowerCase()} with Canadian furnishings, storage, lighting, and décor.`},
+    {id:`expanded-${id}-collection`,name:`Complete ${focus} collection`,brand,price:6200+index*310,image:SHOWCASE_SCENES[id][0],imageKind:"experience",imageVerified:true,description:`Premium ${focus} equipment, accessories, expert instruction, and a year of Canadian experiences.`},
+    {id:`expanded-${id}-space`,name:space,brand:spaceBrand,price:10800+index*440,image:SHOWCASE_SCENES[id][1],imageKind:"experience",imageVerified:true,description:`A professionally designed and installed ${space.toLowerCase()} with Canadian furnishings, storage, lighting, and décor.`},
     {tripSlot:true},
   ],
 }));

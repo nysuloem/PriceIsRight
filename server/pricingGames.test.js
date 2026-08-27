@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, expandedBiddingCatalog, hasMinimumPriceSpread, isSingleGrandPrize, pickAPairPoolStatus, playPricingGame, pricingCatalogStats, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
+import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, expandedBiddingCatalog, hasMinimumPriceSpread, isSingleGrandPrize, pickAPairPoolStatus, playPricingGame, pricingCatalogStats, pricingPrizes, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
 import { ADDITIONAL_GRAND_PRIZES } from "./prizePoolExpansion.js";
 
 const player = { id: "human-1", name: "Test Player" };
@@ -414,6 +414,17 @@ test("live retailer pricing prizes keep the photo from their own product record"
   const g=createPricingGameForType("plinko",player,[],live);
   assert.equal(g.qualifiers.length,4);
   for(const prize of g.qualifiers){const source=live.find(item=>item.name===prize.name);assert.ok(source);assert.equal(prize.id,source.id);assert.equal(prize.image,source.image);assert.equal(prize.imageAlt,source.imageAlt);assert.equal(prize.imageKey,`${source.id}|${source.image}`);assert.equal(prize.imageVerified,true);}
+});
+
+test("every pricing-game prize role prefers a real photograph",()=>{
+  const prices=[29,35,48,55,69,89,129,245,399,1200,3100,4800];
+  const live=prices.map((price,index)=>({id:`photo-product-${index}`,name:`Exact live product ${index}`,brand:`Brand ${index}`,description:`An exact retailer product number ${index}.`,price,image:`https://retailer.example/product-${index}.jpg`,imageKind:"product",imageVerified:true,priceIsLive:true,category:`category-${index}`}));
+  for(let attempt=0;attempt<20;attempt+=1){
+    for(const type of types){
+      const game=createPricingGameForType(type,player,[],live);
+      for(const prize of pricingPrizes(game))assert.ok(prize.image,`${type} shows a real photo for ${prize.name}`);
+    }
+  }
 });
 
 test("unverified or reused stock photos are replaced by matched prize visuals",()=>{

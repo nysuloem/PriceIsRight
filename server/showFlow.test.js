@@ -15,6 +15,18 @@ const players=[
 
 test("trip and prepared Showcase banks are doubled",()=>{resetTripBankForTests();assert.equal(tripBankStats().total,70);assert.equal(showcaseBankStats().preparedTotal,48);});
 
+test("prepared, replacement, trip, and generated Showcases always have real scene photos",()=>{
+  resetTripBankForTests();
+  for(let show=0;show<30;show+=1){
+    const showcases=createFinalShowcase(players.slice(1)).showcases;
+    for(const showcase of showcases)for(const prize of showcase.prizes){
+      assert.ok(prize.image,`${showcase.title}: ${prize.name} has a photo`);
+      assert.equal(prize.imageVerified,true);
+    }
+  }
+  resetTripBankForTests();
+});
+
 function spinTo(showdown,index){wheelAction(showdown,showdown.participants[showdown.currentIndex].id,"spin");showdown.pendingIndex=index;settleWheel(showdown);}
 
 test("Showcase Showdown runs in winnings order with stay, second spin and dollar bonus",()=>{
