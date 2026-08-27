@@ -181,6 +181,7 @@ function HostViewInner({ code, remoteMode = false, controller = true, embedded =
   const lastShirtRef=useRef(0);
   const lastAudienceRef=useRef(0);
   const openingSeenRef=useRef(false);
+  const soundUnlockedRef=useRef(false);
   const isDriver=!remoteMode||controller;
   const finishPlinkoDrop=useCallback((dropId)=>{if(!isDriver||!dropId||dropId===lastSettledDropRef.current)return;lastSettledDropRef.current=dropId;settlePricingGame(code).catch(e=>{lastSettledDropRef.current=0;setError(e.message);});},[code,isDriver]);
   const finishCliffClimb=useCallback((climbId)=>{if(!isDriver||!climbId||climbId===lastSettledClimbRef.current)return;lastSettledClimbRef.current=climbId;settlePricingGame(code).catch(e=>{lastSettledClimbRef.current=0;setError(e.message);});},[code,isDriver]);
@@ -197,12 +198,17 @@ function HostViewInner({ code, remoteMode = false, controller = true, embedded =
   useEffect(()=>{
     if(!remoteMode)return;
     const unlock=()=>{
-      [audioRef.current,announcerRef.current,gameClipRef.current].forEach(audio=>{
-        if(!audio)return;
-        const oldSrc=audio.getAttribute("src");
-        audio.src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
-        audio.play().then(()=>{audio.pause();audio.currentTime=0;if(oldSrc)audio.src=oldSrc;else audio.removeAttribute("src");}).catch(()=>{});
-      });
+      if(soundUnlockedRef.current)return;
+      soundUnlockedRef.current=true;
+      // Never use the host, announcer, or game-clip elements for the browser's
+      // one-time mobile audio unlock. Replacing one of their sources while a
+      // finger begins to scroll cancels its `ended` callback—and that callback
+      // is often what advances the show to the next state.
+      try{
+        const silent=new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
+        silent.volume=.01;
+        silent.play().then(()=>{silent.pause();silent.removeAttribute("src");}).catch(()=>{soundUnlockedRef.current=false;});
+      }catch{soundUnlockedRef.current=false;}
       try{audioContext();}catch{}
     };
     window.addEventListener("pir:unlock-audio",unlock);
