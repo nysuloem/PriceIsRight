@@ -73,7 +73,7 @@ function requireRoom(req) {
 app.post(
   "/api/rooms",
   wrap(async (req, res) => {
-    const room = createRoom();
+    const room = createRoom(req.body?.mode);
     res.json({ code: room.code });
   })
 );

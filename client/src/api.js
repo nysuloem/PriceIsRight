@@ -10,7 +10,10 @@ async function request(path, options = {}) {
   return data;
 }
 
-export const createRoom = () => request("/rooms", { method: "POST" });
+export const createRoom = (mode = "sharedScreen") => request("/rooms", {
+  method: "POST",
+  body: JSON.stringify({ mode }),
+});
 
 export const joinRoom = (code, name, photo, shirtMessage = "") =>
   request(`/rooms/${code}/join`, {

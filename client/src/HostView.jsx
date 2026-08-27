@@ -152,7 +152,7 @@ function playWheelClicks(duration=3400){
   click();return()=>{stopped=true;clearTimeout(timer);};
 }
 
-function HostViewInner({ code }) {
+function HostViewInner({ code, remoteMode = false, controller = true, embedded = false }) {
   const [state, setState] = useState(null);
   const [phase, setPhase] = useState("lobby"); // "lobby" | "opening" | "game"
   const [error, setError] = useState("");
@@ -177,11 +177,34 @@ function HostViewInner({ code }) {
   const lastKissRef=useRef(0);
   const lastShirtRef=useRef(0);
   const lastAudienceRef=useRef(0);
-  const finishPlinkoDrop=useCallback((dropId)=>{if(!dropId||dropId===lastSettledDropRef.current)return;lastSettledDropRef.current=dropId;settlePricingGame(code).catch(e=>{lastSettledDropRef.current=0;setError(e.message);});},[code]);
-  const finishCliffClimb=useCallback((climbId)=>{if(!climbId||climbId===lastSettledClimbRef.current)return;lastSettledClimbRef.current=climbId;settlePricingGame(code).catch(e=>{lastSettledClimbRef.current=0;setError(e.message);});},[code]);
-  const finishHolePutt=useCallback((puttId)=>{if(!puttId||puttId===lastSettledPuttRef.current)return;lastSettledPuttRef.current=puttId;settlePricingGame(code,{kind:"holePutt",id:puttId}).catch(e=>{lastSettledPuttRef.current=0;setError(e.message);});},[code]);
+  const openingSeenRef=useRef(false);
+  const isDriver=!remoteMode||controller;
+  const finishPlinkoDrop=useCallback((dropId)=>{if(!isDriver||!dropId||dropId===lastSettledDropRef.current)return;lastSettledDropRef.current=dropId;settlePricingGame(code).catch(e=>{lastSettledDropRef.current=0;setError(e.message);});},[code,isDriver]);
+  const finishCliffClimb=useCallback((climbId)=>{if(!isDriver||!climbId||climbId===lastSettledClimbRef.current)return;lastSettledClimbRef.current=climbId;settlePricingGame(code).catch(e=>{lastSettledClimbRef.current=0;setError(e.message);});},[code,isDriver]);
+  const finishHolePutt=useCallback((puttId)=>{if(!isDriver||!puttId||puttId===lastSettledPuttRef.current)return;lastSettledPuttRef.current=puttId;settlePricingGame(code,{kind:"holePutt",id:puttId}).catch(e=>{lastSettledPuttRef.current=0;setError(e.message);});},[code,isDriver]);
 
   useEffect(() => { if (state?.isDemo && phase !== "game") setPhase("game"); }, [state?.isDemo]);
+
+  useEffect(()=>{
+    if(!remoteMode||openingSeenRef.current||phase!=="lobby"||state?.phase!=="calling")return;
+    openingSeenRef.current=true;
+    setPhase("opening");
+  },[remoteMode,phase,state?.phase]);
+
+  useEffect(()=>{
+    if(!remoteMode)return;
+    const unlock=()=>{
+      [audioRef.current,announcerRef.current,gameClipRef.current].forEach(audio=>{
+        if(!audio)return;
+        const oldSrc=audio.getAttribute("src");
+        audio.src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+        audio.play().then(()=>{audio.pause();audio.currentTime=0;if(oldSrc)audio.src=oldSrc;else audio.removeAttribute("src");}).catch(()=>{});
+      });
+      try{audioContext();}catch{}
+    };
+    window.addEventListener("pir:unlock-audio",unlock);
+    return()=>window.removeEventListener("pir:unlock-audio",unlock);
+  },[remoteMode]);
 
   useEffect(() => {
     const event = state?.pricingGame?.lastOutcome;
@@ -198,7 +221,7 @@ function HostViewInner({ code }) {
   useEffect(()=>{const event=state?.shirtEvent;if(!event||event.seq===lastShirtRef.current)return;lastShirtRef.current=event.seq;setShirtBurst(event);const timer=setTimeout(()=>setShirtBurst(current=>current?.seq===event.seq?null:current),3000);return()=>clearTimeout(timer);},[state?.shirtEvent?.seq]);
   useEffect(()=>{const suggestions=state?.pricingGame?.audienceSuggestions;if(!suggestions?.latest||suggestions.seq===lastAudienceRef.current)return;lastAudienceRef.current=suggestions.seq;setAudienceBurst({...suggestions.latest,count:suggestions.counts?.[suggestions.latest.choice]||1});const timer=setTimeout(()=>setAudienceBurst(null),2200);return()=>clearTimeout(timer);},[state?.pricingGame?.audienceSuggestions?.seq]);
 
-  useEffect(()=>{const s=state?.showdown;if(!s||!["spinning","bonusSpinning","automaticSpinning"].includes(s.stage))return;const key=`${s.half}-${s.spinSeq}`;if(key===lastSettledWheelRef.current)return;lastSettledWheelRef.current=key;let stopped=false;const attempt=async(retries=0)=>{try{await settleWheel(code);}catch(e){if(!stopped&&retries<2)setTimeout(()=>attempt(retries+1),1200);else if(!stopped){lastSettledWheelRef.current="";setError(e.message);}}};const timer=setTimeout(()=>attempt(),(s.spinDuration||3400)+150);return()=>{stopped=true;clearTimeout(timer);};},[state?.showdown?.half,state?.showdown?.spinSeq,state?.showdown?.stage,state?.showdown?.spinDuration,code]);
+  useEffect(()=>{const s=state?.showdown;if(!isDriver||!s||!["spinning","bonusSpinning","automaticSpinning"].includes(s.stage))return;const key=`${s.half}-${s.spinSeq}`;if(key===lastSettledWheelRef.current)return;lastSettledWheelRef.current=key;let stopped=false;const attempt=async(retries=0)=>{try{await settleWheel(code);}catch(e){if(!stopped&&retries<2)setTimeout(()=>attempt(retries+1),1200);else if(!stopped){lastSettledWheelRef.current="";setError(e.message);}}};const timer=setTimeout(()=>attempt(),(s.spinDuration||3400)+150);return()=>{stopped=true;clearTimeout(timer);};},[state?.showdown?.half,state?.showdown?.spinSeq,state?.showdown?.stage,state?.showdown?.spinDuration,code,isDriver]);
   useEffect(()=>{const s=state?.showdown;if(!s||!["spinning","bonusSpinning","automaticSpinning"].includes(s.stage))return;return playWheelClicks(s.spinDuration||3400);},[state?.showdown?.spinSeq,state?.showdown?.stage]);
 
   // TV browsers occasionally omit Web Animations' finished Promise. The
@@ -215,7 +238,7 @@ function HostViewInner({ code }) {
   useEffect(()=>{const game=state?.pricingGame,id=game?.lastClimb?.id;if(game?.type!=="cliffHangers"||!game.cliffFinalWin||!id||id===lastCliffCelebrationRef.current)return;lastCliffCelebrationRef.current=id;playShowcaseCelebration();},[state?.pricingGame?.cliffFinalWin,state?.pricingGame?.lastClimb?.id]);
 
   // AI turns must not depend on speech audio reaching its `ended` event.
-  useEffect(()=>{const s=state?.showdown,p=s?.participants?.[s.currentIndex];if(!s||!p?.isAI||!["turn","decision","bonusTurn"].includes(s.stage))return;const key=`${s.half}-${s.currentIndex}-${s.stage}-${p.spins?.length||0}-${s.spinSeq}`;if(key===lastAIWheelActionRef.current)return;lastAIWheelActionRef.current=key;let stopped=false;const timer=setTimeout(async()=>{try{await resolveWheelAI(code);}catch(e){if(!stopped){lastAIWheelActionRef.current="";setError(e.message);}}},1800);return()=>{stopped=true;clearTimeout(timer);};},[state?.showdown?.half,state?.showdown?.currentIndex,state?.showdown?.stage,state?.showdown?.spinSeq,code]);
+  useEffect(()=>{const s=state?.showdown,p=s?.participants?.[s.currentIndex];if(!isDriver||!s||!p?.isAI||!["turn","decision","bonusTurn"].includes(s.stage))return;const key=`${s.half}-${s.currentIndex}-${s.stage}-${p.spins?.length||0}-${s.spinSeq}`;if(key===lastAIWheelActionRef.current)return;lastAIWheelActionRef.current=key;let stopped=false;const timer=setTimeout(async()=>{try{await resolveWheelAI(code);}catch(e){if(!stopped){lastAIWheelActionRef.current="";setError(e.message);}}},1800);return()=>{stopped=true;clearTimeout(timer);};},[state?.showdown?.half,state?.showdown?.currentIndex,state?.showdown?.stage,state?.showdown?.spinSeq,code,isDriver]);
 
   // Poll server state
   useEffect(() => {
@@ -247,7 +270,7 @@ function HostViewInner({ code }) {
     const clip=gameClipRef.current;
     [el, ann, clip].forEach(audio => { if (audio) { audio.pause(); audio.currentTime = 0; } });
     const current = (fn) => { if (speechRun === speechRunRef.current) fn(); };
-    const safely = (fn) => current(() => fn().catch((e) => setError(e.message)));
+    const safely = (fn) => { if(isDriver) current(() => fn().catch((e) => setError(e.message))); };
 
     const voice = config.hostVoice || "coral";
     // "welcome" and "call" types are handled by the opening sequence.
@@ -369,10 +392,11 @@ function HostViewInner({ code }) {
       // The supplied recording owns this sequence, including Rod Roddy's
       // sign-off. No synthesized announcer voice should overlap it.
     }
-  }, [state, code, phase]);
+  }, [state, code, phase, isDriver]);
 
-  const action = (fn) => () => fn().catch((e) => setError(e.message));
+  const action = (fn) => () => { if(isDriver) fn().catch((e) => setError(e.message)); };
   const forceAction = (fn) => () => {
+    if(!isDriver)return;
     speechRunRef.current += 1;
     [audioRef.current, announcerRef.current].forEach(audio => {
       if (audio) { audio.pause(); audio.currentTime = 0; }
@@ -383,6 +407,7 @@ function HostViewInner({ code }) {
   // "Start Game" — unlock audio, start game (builds lineup), wait for
   // contestants to appear in state, THEN show opening.
   const handleStart = async () => {
+    if(!isDriver)return;
     const el = audioRef.current;
     // Unlock browser autoplay with a silent data URI triggered by this gesture
     el.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
@@ -411,6 +436,7 @@ function HostViewInner({ code }) {
   };
 
   const handleOpeningDone = async () => {
+    if(!isDriver){setPhase("game");return;}
     // The opening already called all contestants — skip the server's "calling"
     // phase by advancing straight through it to "item".
     // First call-next enough times to exhaust the calling phase,
@@ -438,9 +464,10 @@ function HostViewInner({ code }) {
 
 
 
+  const joinPath=remoteMode?`/remote/${code}`:`/play/${code}`;
   const joinUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/play/${code}`
-    : `/play/${code}`;
+    ? `${window.location.origin}${joinPath}`
+    : joinPath;
 
   return (
     <>
@@ -465,7 +492,7 @@ function HostViewInner({ code }) {
       )}
 
       {phase !== "opening" && (
-        <div className="pir-root pir-host-root">
+        <div className={`pir-root pir-host-root ${embedded?"pir-host-embedded":""}`}>
           {!state && (
             <div className="pir-loading">
               <div className="pir-title">Come On Down!</div>
@@ -481,7 +508,7 @@ function HostViewInner({ code }) {
               </div>
 
               {state.phase === "lobby" && (
-                <Lobby state={state} code={code} joinUrl={joinUrl} onStart={handleStart} />
+                <Lobby state={state} code={code} joinUrl={joinUrl} onStart={isDriver?handleStart:null} remoteMode={remoteMode} />
               )}
               {state.phase === "demoLobby" && <DemoLobby state={state} joinUrl={joinUrl} />}
               {state.phase === "calling" && <CallingView state={state} code={code} />}
@@ -492,12 +519,12 @@ function HostViewInner({ code }) {
               {state.phase === "bidding" && <BiddingView state={state} code={code} />}
               {state.phase === "reveal" && (
                 <RevealView state={state} code={code}
-                  onStartPricing={forceAction(() => startPricingGame(code))}
-                  onNextRound={forceAction(() => restartGame(code, "sameLineup"))}
-                  onNewPlayers={action(() => restartGame(code, "newPlayers"))} />
+                  onStartPricing={isDriver?forceAction(() => startPricingGame(code)):null}
+                  onNextRound={isDriver?forceAction(() => restartGame(code, "sameLineup")):null}
+                  onNewPlayers={isDriver?action(() => restartGame(code, "newPlayers")):null} />
               )}
               {(state.phase === "pricingIntro" || state.phase === "pricingPrizeIntro" || state.phase === "pricingGame" || state.phase === "pricingRevealCue" || state.phase === "pricingPriceShown") && (
-                <PricingGameView game={state.pricingGame} poolWarnings={state.prizePoolWarnings} spotlight={state.phase === "pricingPrizeIntro" ? state.pricingAnnouncement : null} rulesOnly={state.phase === "pricingIntro"} onSkipRules={state.phase==="pricingIntro"?forceAction(()=>beginPricingGame(code)):null} onPlinkoLanded={finishPlinkoDrop} onCliffStopped={finishCliffClimb} onPuttStopped={finishHolePutt} />
+                <PricingGameView game={state.pricingGame} poolWarnings={state.prizePoolWarnings} spotlight={state.phase === "pricingPrizeIntro" ? state.pricingAnnouncement : null} rulesOnly={state.phase === "pricingIntro"} onSkipRules={state.phase==="pricingIntro"&&isDriver?forceAction(()=>beginPricingGame(code)):null} onPlinkoLanded={finishPlinkoDrop} onCliffStopped={finishCliffClimb} onPuttStopped={finishHolePutt} />
               )}
               {state.phase === "showcaseShowdown" && <WheelView showdown={state.showdown} />}
               {(state.phase.startsWith("showcase")||state.phase.startsWith("credits")) && state.finalShowcase && (state.phase.startsWith("credits")?<EndCredits state={state} config={config}/>:<FinalShowcaseView state={state} />)}
@@ -573,7 +600,7 @@ function DemoLobby({ state, joinUrl }) {
 // ---------------------------------------------------------------------------
 // Lobby
 // ---------------------------------------------------------------------------
-function Lobby({ state, code, joinUrl, onStart }) {
+function Lobby({ state, code, joinUrl, onStart, remoteMode = false }) {
   return (
     <div className="pir-panel">
       <div className="pir-lobby-layout">
@@ -581,7 +608,7 @@ function Lobby({ state, code, joinUrl, onStart }) {
           <div className="pir-qr-box">
             <QRCodeSVG value={joinUrl} size={160} fgColor="#fff8e7" bgColor="transparent" level="M" />
           </div>
-          <p className="pir-helptext" style={{ fontSize: 13 }}>Scan to join on your phone</p>
+          <p className="pir-helptext" style={{ fontSize: 13 }}>{remoteMode?"Share the room link or code":"Scan to join on your phone"}</p>
         </div>
         <div className="pir-lobby-players">
           <div style={{ fontWeight: 700, marginBottom: 8, color: "var(--gold)" }}>
@@ -599,11 +626,11 @@ function Lobby({ state, code, joinUrl, onStart }) {
           {state.players.length === 0 && <p className="pir-helptext">At least one human player must join to begin.</p>}
         </div>
       </div>
-      <div className="pir-actions">
-        <button className="pir-btn" onClick={onStart}>
+      {onStart?<div className="pir-actions">
+        <button className="pir-btn" disabled={!state.players.length} onClick={onStart}>
           Start Game <ArrowRight size={18} />
         </button>
-      </div>
+      </div>:<p className="pir-helptext">Waiting for the room creator to start the show…</p>}
     </div>
   );
 }
@@ -727,12 +754,12 @@ function RevealView({ state, code, onStartPricing, onNextRound, onNewPlayers }) 
       <div className="pir-fineprint">
         {item.name} · {prizeSellerLine(item)} · ${item.price}
       </div>
-      <div className="pir-actions">
+      {(onStartPricing||onNextRound||onNewPlayers)&&<div className="pir-actions">
         {winnerIndices.some(i => !contestants[i]?.isAI)
           ? <button className="pir-btn" onClick={onStartPricing}>Start Pricing Game Now</button>
           : <button className="pir-btn" onClick={onNextRound}>Call Next Contestant Now</button>}
         <button className="pir-btn secondary" onClick={onNewPlayers}>New Players</button>
-      </div>
+      </div>}
     </>
   );
 }
@@ -1019,10 +1046,10 @@ function ItemImage({ item }) {
   );
 }
 
-export default function HostView({ code }) {
+export default function HostView({ code, remoteMode = false, controller = true, embedded = false }) {
   return (
     <ErrorBoundary>
-      <HostViewInner code={code} />
+      <HostViewInner code={code} remoteMode={remoteMode} controller={controller} embedded={embedded} />
     </ErrorBoundary>
   );
 }

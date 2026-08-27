@@ -4,6 +4,11 @@ A "Price is Right"-style Item Up For Bid game. One screen acts as the host
 (TV/laptop); up to 4 players join from their phones. Empty seats are filled
 by AI contestants with their own bidding personalities.
 
+The landing page also offers **Remote Play**. It creates one shareable
+`/remote/CODE` link so every household gets the synchronized show, audio, and
+its own contestant controls on the same device. The room creator starts the
+show and is the only browser that drives automatic game transitions.
+
 Prizes come from Canadian retailer feeds plus curated Canadian fallback banks.
 Regular CAD prices are refreshed from the feeds, while a unified persistent
 ledger prevents used prizes—or cosmetic variants of them—from returning.
@@ -59,6 +64,8 @@ dev server proxies `/api/*` to `http://localhost:3001`.
   (the landing page creates the room and redirects you to `/host/<CODE>`).
 - Players: on the landing page, enter the room code + a name, or visit
   `http://localhost:5173/play/<CODE>` directly.
+- Remote players: choose "Start Remote Play," then share the generated
+  `http://localhost:5173/remote/<CODE>` link with every household.
 
 ## Deploying to Railway
 

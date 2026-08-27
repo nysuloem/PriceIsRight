@@ -54,10 +54,11 @@ function genCode() {
   return code;
 }
 
-export function createRoom() {
+export function createRoom(playMode = "sharedScreen") {
   const code = genCode();
   const room = {
     code,
+    playMode: playMode === "remote" ? "remote" : "sharedScreen",
     createdAt: Date.now(),
     updatedAt: Date.now(),
     phase: "lobby",
@@ -153,6 +154,7 @@ export function publicState(room) {
   if(syncClockGame(room.pricingGame)&&room.phase==="pricingGame")setHostLine(room,`Time is up! The actual retail price of the ${room.pricingGame.items[room.pricingGame.itemIndex]?.name||"prize"} was $${Number(room.pricingGame.timeoutPrice).toLocaleString("en-CA")}.`,"pricingResult");
   return {
     code: room.code,
+    playMode: room.playMode || "sharedScreen",
     phase: room.phase,
     players: room.players.map(({ id, name, hasPhoto, shirtMessage }) => ({ id, name, hasPhoto: !!hasPhoto, shirtMessage: shirtMessage || "" })),
     contestants: room.contestants

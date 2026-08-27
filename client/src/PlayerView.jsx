@@ -4,7 +4,7 @@ import { getState, joinRoom, submitBid, kissHost, showShirt, beginPricingGame, p
 
 const POLL_MS = 500;
 
-export default function PlayerView({ code, navigate }) {
+export default function PlayerView({ code, navigate, embedded = false, remoteMode = false }) {
   const [state, setState] = useState(null);
   const [error, setError] = useState("");
   const [playerId, setPlayerId] = useState(
@@ -136,7 +136,7 @@ export default function PlayerView({ code, navigate }) {
   // ── Not connected yet ──────────────────────────────────────────────
   if (!state) {
     return (
-      <div className="pir-root pir-loading">
+      <div className={`pir-root pir-loading ${embedded?"pir-player-embedded":""}`}>
         <div className="pir-title">Come On Down!</div>
         <p className="pir-helptext">Connecting to room {code}…</p>
       </div>
@@ -147,7 +147,7 @@ export default function PlayerView({ code, navigate }) {
   if (!playerId) {
     if (state.phase !== "lobby" && state.phase !== "demoLobby") {
       return (
-        <div className="pir-root pir-player pir-center">
+        <div className={`pir-root pir-player pir-center ${embedded?"pir-player-embedded":""}`}>
           <h1 className="pir-title">Come On Down!</h1>
           <p className="pir-helptext">
             Game already started — ask the host for a new room code.
@@ -157,8 +157,8 @@ export default function PlayerView({ code, navigate }) {
     }
 
     return (
-      <div className="pir-root pir-player">
-        <h1 className="pir-title">Come On Down!</h1>
+      <div className={`pir-root pir-player ${embedded?"pir-player-embedded":""}`}>
+        {!embedded&&<h1 className="pir-title">Come On Down!</h1>}
         <div className="pir-subtitle">Room {code}</div>
 
         <div className="pir-photo-area">
@@ -242,8 +242,8 @@ export default function PlayerView({ code, navigate }) {
   const myName = me?.name || localStorage.getItem(`pir_name_${code}`) || "You";
 
   return (
-    <div className="pir-root pir-player">
-      <h1 className="pir-title">Come On Down!</h1>
+    <div className={`pir-root pir-player ${embedded?"pir-player-embedded":""}`}>
+      {!embedded&&<h1 className="pir-title">Come On Down!</h1>}
       <div className="pir-subtitle">{myName} · Room {code}</div>
 
       {state.phase === "lobby" && (
@@ -255,7 +255,7 @@ export default function PlayerView({ code, navigate }) {
       {state.phase === "calling" && (
         <div className="pir-panel pir-center">
           {myIndex !== -1 && myIndex <= state.callIndex
-            ? <p>You've been called — watch the big screen!</p>
+            ? <p>You've been called — watch the {remoteMode?"show above":"big screen"}!</p>
             : <p>Get ready — the host is introducing everyone…</p>}
         </div>
       )}
@@ -264,7 +264,7 @@ export default function PlayerView({ code, navigate }) {
         <div className="pir-panel pir-center">
           {state.replacementVisible && state.replacementContestantId === playerId
             ? <p><b>Come on down!</b> You are the next contestant on The Price Is Right!</p>
-            : <p>A new contestant is being called—watch the big screen!</p>}
+            : <p>A new contestant is being called—watch the {remoteMode?"show above":"big screen"}!</p>}
         </div>
       )}
 
@@ -298,33 +298,34 @@ export default function PlayerView({ code, navigate }) {
       )}
 
       {state.phase === "pricingIntro" && (
-        <><WinnerCelebrationButtons player={pricingWinner} onCelebrate={celebrate} /><SkipRulesPhone code={code} game={state.pricingGame} playerId={playerId} onError={setError} /></>
+        <><WinnerCelebrationButtons player={pricingWinner} onCelebrate={celebrate} /><SkipRulesPhone code={code} game={state.pricingGame} playerId={playerId} remoteMode={remoteMode} onError={setError} /></>
       )}
       {state.phase === "pricingPrizeIntro" && !(state.pricingGame?.type === "clockGame" && state.pricingGame?.clockEndsAt) && (
-        <div className="pir-panel pir-center"><h2>Here comes the next prize!</h2><p>Watch the main screen while the announcer introduces it.</p><WinnerCelebrationButtons player={pricingWinner} onCelebrate={celebrate} /></div>
+        <div className="pir-panel pir-center"><h2>Here comes the next prize!</h2><p>Watch the {remoteMode?"show above":"main screen"} while the announcer introduces it.</p><WinnerCelebrationButtons player={pricingWinner} onCelebrate={celebrate} /></div>
       )}
       {(state.phase === "pricingRevealCue" || state.phase === "pricingPriceShown") && (
-        <div className="pir-panel pir-center"><h2>Show us the price!</h2><p>Your choice is locked in. Watch the reveal on the main screen.</p></div>
+        <div className="pir-panel pir-center"><h2>Show us the price!</h2><p>Your choice is locked in. Watch the reveal in the {remoteMode?"show above":"main screen"}.</p></div>
       )}
 
       {(state.phase === "pricingGame" || (state.phase === "pricingPrizeIntro" && state.pricingGame?.type === "clockGame" && state.pricingGame?.clockEndsAt)) && (
         <>
           <PricingGamePhone game={state.pricingGame} playerId={playerId} code={code}
             isDemo={state.isDemo} onBackToGames={() => navigate?.("/games")}
+            remoteMode={remoteMode}
             acceptGuesses={state.phase === "pricingGame"}
             onError={(message) => setError(message)} />
         </>
       )}
-      {state.phase === "showcaseShowdown" && <WheelPhone showdown={state.showdown} playerId={playerId} code={code} onError={setError} />}
-      {state.phase.startsWith("showcase") && state.finalShowcase && <ShowcasePhone finalShowcase={state.finalShowcase} playerId={playerId} code={code} onError={setError} />}
-      {state.phase.startsWith("credits") && <div className="pir-panel pir-center"><h2>Thanks for playing!</h2><p>Watch the closing credits on the big screen.</p></div>}
+      {state.phase === "showcaseShowdown" && <WheelPhone showdown={state.showdown} playerId={playerId} code={code} remoteMode={remoteMode} onError={setError} />}
+      {state.phase.startsWith("showcase") && state.finalShowcase && <ShowcasePhone finalShowcase={state.finalShowcase} playerId={playerId} code={code} remoteMode={remoteMode} onError={setError} />}
+      {state.phase.startsWith("credits") && <div className="pir-panel pir-center"><h2>Thanks for playing!</h2><p>Watch the closing credits in the {remoteMode?"show above":"big screen"}.</p></div>}
 
       {error && <div className="pir-error">{error}</div>}
     </div>
   );
 }
 
-function SkipRulesPhone({ code, game, playerId, onError }) {
+function SkipRulesPhone({ code, game, playerId, remoteMode = false, onError }) {
   const [busy, setBusy] = useState(false);
   const canSkip = !game?.playerId || game.playerId === playerId;
   const skip = async () => {
@@ -341,7 +342,7 @@ function SkipRulesPhone({ code, game, playerId, onError }) {
   return (
     <div className="pir-panel pir-center">
       <h2>Get ready!</h2>
-      <p>The host is explaining the rules on the main screen.</p>
+      <p>The host is explaining the rules in the {remoteMode?"show above":"main screen"}.</p>
       {canSkip
         ? <button className="pir-btn" disabled={busy} onClick={skip}>SKIP RULES — LET'S PLAY!</button>
         : <p className="pir-helptext">{game?.playerName || "The contestant"} can skip the rules from their phone.</p>}
@@ -349,9 +350,9 @@ function SkipRulesPhone({ code, game, playerId, onError }) {
   );
 }
 
-function WheelPhone({showdown,playerId,code,onError}){const[busy,setBusy]=useState(false);const[strength,setStrength]=useState("medium");const p=showdown?.participants?.[showdown.currentIndex];const mine=p?.id===playerId||p?.controllerPlayerId===playerId;const send=async action=>{setBusy(true);try{await wheelAction(code,playerId,action);}catch(e){onError(e.message);}finally{setBusy(false);}};if(!showdown)return null;if(showdown.stage==="complete")return <div className="pir-panel pir-center"><h2>Showcase Showdown</h2><p>{showdown.result}</p></div>;if(!mine)return <div className="pir-panel pir-center"><h2>The Big Wheel</h2><p>{p?.name} is at the wheel. Watch the main screen!</p></div>;if(showdown.stage==="announcing")return <div className="pir-panel pir-center"><h2>Your spin has stopped!</h2><p>Listen to the result on the main screen. Your controls will unlock afterward.</p></div>;const spinning=["spinning","bonusSpinning","automaticSpinning"].includes(showdown.stage);const spinControl=<><p><b>Choose your spin strength</b></p><div className="pir-strength-picker">{[["gentle","GENTLE"],["medium","GOOD SPIN"],["mighty","MIGHTY"]].map(([v,label])=><button key={v} className={`pir-btn small ${strength===v?"selected":"secondary"}`} disabled={busy} onClick={()=>setStrength(v)}>{label}</button>)}</div><button className="pir-btn" disabled={busy} onClick={()=>send({type:"spin",strength})}>SPIN THE WHEEL</button></>;return <div className="pir-panel pir-center"><h2 className="pir-pricing-title">THE BIG WHEEL</h2><p>{spinning?"Watch your spin on the main screen!":showdown.stage==="decision"?`Your total is ${p.score}¢.`:showdown.stage==="bonusTurn"?"Spin for your cash bonus!":showdown.stage==="automaticTurn"?"You already won—spin once for bonus money!":"Give the wheel a mighty spin!"}</p>{["turn","bonusTurn","automaticTurn"].includes(showdown.stage)&&spinControl}{showdown.stage==="decision"&&<div className="pir-actions">{spinControl}<button className="pir-btn secondary" disabled={busy||p.score<showdown.leaderScore} onClick={()=>send("stay")}>STAY ON {p.score}¢</button></div>}</div>}
+function WheelPhone({showdown,playerId,code,remoteMode=false,onError}){const[busy,setBusy]=useState(false);const[strength,setStrength]=useState("medium");const p=showdown?.participants?.[showdown.currentIndex],screen=remoteMode?"show above":"main screen";const mine=p?.id===playerId||p?.controllerPlayerId===playerId;const send=async action=>{setBusy(true);try{await wheelAction(code,playerId,action);}catch(e){onError(e.message);}finally{setBusy(false);}};if(!showdown)return null;if(showdown.stage==="complete")return <div className="pir-panel pir-center"><h2>Showcase Showdown</h2><p>{showdown.result}</p></div>;if(!mine)return <div className="pir-panel pir-center"><h2>The Big Wheel</h2><p>{p?.name} is at the wheel. Watch the {screen}!</p></div>;if(showdown.stage==="announcing")return <div className="pir-panel pir-center"><h2>Your spin has stopped!</h2><p>Listen to the result in the {screen}. Your controls will unlock afterward.</p></div>;const spinning=["spinning","bonusSpinning","automaticSpinning"].includes(showdown.stage);const spinControl=<><p><b>Choose your spin strength</b></p><div className="pir-strength-picker">{[["gentle","GENTLE"],["medium","GOOD SPIN"],["mighty","MIGHTY"]].map(([v,label])=><button key={v} className={`pir-btn small ${strength===v?"selected":"secondary"}`} disabled={busy} onClick={()=>setStrength(v)}>{label}</button>)}</div><button className="pir-btn" disabled={busy} onClick={()=>send({type:"spin",strength})}>SPIN THE WHEEL</button></>;return <div className="pir-panel pir-center"><h2 className="pir-pricing-title">THE BIG WHEEL</h2><p>{spinning?`Watch your spin in the ${screen}!`:showdown.stage==="decision"?`Your total is ${p.score}¢.`:showdown.stage==="bonusTurn"?"Spin for your cash bonus!":showdown.stage==="automaticTurn"?"You already won—spin once for bonus money!":"Give the wheel a mighty spin!"}</p>{["turn","bonusTurn","automaticTurn"].includes(showdown.stage)&&spinControl}{showdown.stage==="decision"&&<div className="pir-actions">{spinControl}<button className="pir-btn secondary" disabled={busy||p.score<showdown.leaderScore} onClick={()=>send("stay")}>STAY ON {p.score}¢</button></div>}</div>}
 
-function ShowcasePhone({finalShowcase,playerId,code,onError}){const[bid,setBid]=useState("");const[busy,setBusy]=useState(false);const send=async action=>{setBusy(true);try{await showcaseAction(code,playerId,action);setBid("");}catch(e){onError(e.message);}finally{setBusy(false);}};const f=finalShowcase,controls=c=>c?.id===playerId||c?.controllerPlayerId===playerId;if(f.stage==="complete")return <div className="pir-panel pir-center"><h2>Final Showcase</h2><p className="pir-pricing-result">{f.result}</p></div>;if(f.stage==="choice"&&controls(f.contestants[0]))return <div className="pir-panel pir-center"><h2>Bid or Pass?</h2><p>As the top winner, the first Showcase is yours to bid on—or pass to your opponent.</p><div className="pir-actions"><button className="pir-btn" disabled={busy} onClick={()=>send({choice:"bid"})}>BID ON IT</button><button className="pir-btn secondary" disabled={busy} onClick={()=>send({choice:"pass"})}>PASS</button></div></div>;const i=f.stage==="firstBid"?0:f.stage==="secondBid"?1:-1,assigned=i>=0?f.contestants.find(c=>c.id===f.assignments[i]):null;if(i>=0&&controls(assigned))return <div className="pir-panel pir-center"><h2>Your Showcase Bid</h2><div className="pir-led pir-bid-input"><span>$</span><input type="number" min="1" value={bid} onChange={e=>setBid(e.target.value)}/></div><button className="pir-btn" disabled={busy||!bid} onClick={()=>send({bid})}>LOCK IN BID</button></div>;return <div className="pir-panel pir-center"><h2>The Final Showcase</h2><p>Watch the prizes and bidding on the main screen!</p></div>}
+function ShowcasePhone({finalShowcase,playerId,code,remoteMode=false,onError}){const[bid,setBid]=useState("");const[busy,setBusy]=useState(false);const send=async action=>{setBusy(true);try{await showcaseAction(code,playerId,action);setBid("");}catch(e){onError(e.message);}finally{setBusy(false);}};const f=finalShowcase,controls=c=>c?.id===playerId||c?.controllerPlayerId===playerId;if(f.stage==="complete")return <div className="pir-panel pir-center"><h2>Final Showcase</h2><p className="pir-pricing-result">{f.result}</p></div>;if(f.stage==="choice"&&controls(f.contestants[0]))return <div className="pir-panel pir-center"><h2>Bid or Pass?</h2><p>As the top winner, the first Showcase is yours to bid on—or pass to your opponent.</p><div className="pir-actions"><button className="pir-btn" disabled={busy} onClick={()=>send({choice:"bid"})}>BID ON IT</button><button className="pir-btn secondary" disabled={busy} onClick={()=>send({choice:"pass"})}>PASS</button></div></div>;const i=f.stage==="firstBid"?0:f.stage==="secondBid"?1:-1,assigned=i>=0?f.contestants.find(c=>c.id===f.assignments[i]):null;if(i>=0&&controls(assigned))return <div className="pir-panel pir-center"><h2>Your Showcase Bid</h2><div className="pir-led pir-bid-input"><span>$</span><input type="number" min="1" value={bid} onChange={e=>setBid(e.target.value)}/></div><button className="pir-btn" disabled={busy||!bid} onClick={()=>send({bid})}>LOCK IN BID</button></div>;return <div className="pir-panel pir-center"><h2>The Final Showcase</h2><p>Watch the prizes and bidding in the {remoteMode?"show above":"main screen"}!</p></div>}
 
 function parseSpokenNumber(transcript){
   const numeric=String(transcript).replace(/[$,]/g,"").match(/\d+/);
@@ -382,15 +383,15 @@ function audienceOptions(game){
   return [];
 }
 
-function PuttAccuracyMeter({window:target,disabled,onPutt,attempt}){
+function PuttAccuracyMeter({window:target,disabled,onPutt,attempt,remoteMode=false}){
   const [position,setPosition]=useState(0),positionRef=useRef(0),startRef=useRef(0);
   useEffect(()=>{let frame;startRef.current=performance.now();const cycle=Math.max(1200,target?.cycleMs||2400),half=cycle/2,animate=now=>{const elapsed=(now-startRef.current)%cycle,phase=elapsed/half,next=phase<=1?phase*100:(2-phase)*100;positionRef.current=next;setPosition(next);frame=requestAnimationFrame(animate);};frame=requestAnimationFrame(animate);return()=>cancelAnimationFrame(frame);},[target?.center,target?.tolerance,target?.cycleMs,attempt]);
-  if(!target)return <p className="pir-helptext">Watch the main screen while your putting line is prepared.</p>;
+  if(!target)return <p className="pir-helptext">Watch the {remoteMode?"show above":"main screen"} while your putting line is prepared.</p>;
   const left=Math.max(0,target.center-target.tolerance),width=Math.min(100-left,target.tolerance*2);
   return <div className="pir-putt-phone"><p><b>{attempt?"SECOND PUTT":"FIRST PUTT"}</b></p><div className="pir-putt-meter"><span className="target" style={{left:`${left}%`,width:`${width}%`}}>SWEET SPOT</span><i style={{left:`${position}%`}} /></div><button className="pir-btn" disabled={disabled} onClick={()=>onPutt(positionRef.current)}>PUTT!</button><small>Tap when the moving marker is inside the green zone.</small></div>;
 }
 
-function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError, acceptGuesses = true }) {
+function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError, acceptGuesses = true, remoteMode = false }) {
   const [number, setNumber] = useState("");
   const [order, setOrder] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -423,14 +424,14 @@ function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError
     recognition.start();
   };
   if (game.status !== "playing") return <div className="pir-panel pir-center"><h2>{game.title}</h2><p className="pir-pricing-result">{game.result}</p>{isDemo && <button className="pir-btn" onClick={onBackToGames}>Try Another Game</button>}</div>;
-  if (!isPlayer){const suggestions=audienceOptions(game);return <div className="pir-panel pir-center pir-audience-phone"><h2>{game.title}</h2><p><b>{game.playerName}</b> is playing. Help them like the studio audience!</p><div className="pir-audience-buttons">{suggestions.map(option=><button key={option} className="pir-btn secondary" disabled={busy} onClick={()=>send({audienceChoice:option})}>{option}</button>)}</div><small>Your shout will pop up on the big screen.</small></div>;}
+  if (!isPlayer){const suggestions=audienceOptions(game);return <div className="pir-panel pir-center pir-audience-phone"><h2>{game.title}</h2><p><b>{game.playerName}</b> is playing. Help them like the studio audience!</p><div className="pir-audience-buttons">{suggestions.map(option=><button key={option} className="pir-btn secondary" disabled={busy} onClick={()=>send({audienceChoice:option})}>{option}</button>)}</div><small>Your shout will pop up in the {remoteMode?"show above":"big screen"}.</small></div>;}
   const addOrder = (id) => { if (!order.includes(id)) setOrder([...order, id]); };
   const orderedProducts = order.map(id => game.items?.find(x => x.id === id)).filter(Boolean);
   return (
     <div className="pir-panel pir-pricing-phone">
       <h2 className="pir-pricing-title">{game.title}</h2>
       <p className="pir-helptext">{game.instructions}</p>
-      {!acceptGuesses&&game.type==="clockGame"&&<div className="pir-clock-mic-paused">{listening?"Microphone is still on — listening resumes after the prize announcement.":"Watch the main screen for the second prize. Guessing resumes automatically afterward."}</div>}
+      {!acceptGuesses&&game.type==="clockGame"&&<div className="pir-clock-mic-paused">{listening?"Microphone is still on — listening resumes after the prize announcement.":`Watch the ${remoteMode?"show above":"main screen"} for the second prize. Guessing resumes automatically afterward.`}</div>}
       <div className="pir-pricing-prompt">{game.prompt}</div>
       {game.mode === "number" && <>
         {game.type==="tenChances"&&<><div className="pir-ten-phone-prize">Pricing: <strong>{game.prizes[game.prizeIndex]?.name}</strong> · {game.chancesLeft} chances left</div><div className="pir-ten-digits">{game.digitSets[game.prizeIndex]?.map((digit,i)=><span key={`${digit}-${i}`}>{digit}</span>)}</div>{!!game.guesses?.length&&<div className="pir-ten-phone-history"><b>Previous guesses</b>{game.guesses.map(entry=><span key={entry.chance}>#{entry.chance} · ${Number(entry.guess).toLocaleString("en-CA")} {entry.correct?"✓":""}</span>)}</div>}</>}
@@ -440,7 +441,7 @@ function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError
       </>}
       {game.mode === "choice" && <div className="pir-choice-grid">{game.options.map(option=><button key={option} className="pir-btn secondary" disabled={busy} onClick={()=>send({ choice: option })}>{option}</button>)}</div>}
       {game.mode === "drop" && <><p className="pir-helptext">Tap where you want the chip released.</p><div className="pir-drop-picker">{Array.from({length:9},(_,i)=><button key={i} disabled={busy} onClick={()=>send({position:i+1})}>{i+1}</button>)}</div></>}
-      {game.mode === "putt" && <PuttAccuracyMeter window={game.puttWindow} disabled={busy||!acceptGuesses} attempt={game.attempts} onPutt={accuracy=>send({accuracy})} />}
+      {game.mode === "putt" && <PuttAccuracyMeter window={game.puttWindow} disabled={busy||!acceptGuesses} attempt={game.attempts} remoteMode={remoteMode} onPutt={accuracy=>send({accuracy})} />}
       {game.mode === "multi" && <><div className="pir-one-away-phone">{game.shownDigits.map((digit,i)=><div key={i}><b>{digit}</b><button className={answers[i]==="Higher"?"selected":""} onClick={()=>setAnswers(a=>{const n=[...a];n[i]="Higher";return n;})}>+1</button><button className={answers[i]==="Lower"?"selected":""} onClick={()=>setAnswers(a=>{const n=[...a];n[i]="Lower";return n;})}>−1</button></div>)}</div><button className="pir-btn" disabled={busy||answers.filter(Boolean).length!==5} onClick={()=>send({answers})}>Lock In Final Price</button></>}
       {game.mode === "order" && <>
         {game.type==="holeInOne"&&<div className="pir-hole-order-help"><strong>START WITH THE LEAST EXPENSIVE</strong><span>Each item you tap should be more expensive than the one before it.</span></div>}

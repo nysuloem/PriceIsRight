@@ -14,6 +14,23 @@ test("each half schedules exactly one car game and two non-car games",()=>{
   }
 });
 
+test("remote rooms expose their play mode without changing shared-screen defaults",()=>{
+  assert.equal(publicState(createRoom()).playMode,"sharedScreen");
+  assert.equal(publicState(createRoom("remote")).playMode,"remote");
+  assert.equal(publicState(createRoom("unexpected")).playMode,"sharedScreen");
+});
+
+test("remote households join one authoritative room state",()=>{
+  const room=createRoom("remote");
+  joinRoom(room,"Ottawa");
+  joinRoom(room,"London");
+  joinRoom(room,"Gatineau");
+  const state=publicState(room);
+  assert.equal(state.playMode,"remote");
+  assert.deepEqual(state.players.map(player=>player.name),["Ottawa","London","Gatineau"]);
+  assert.equal(state.code,room.code);
+});
+
 test("the six bidding rounds visit six different prize departments",()=>{
   assert.deepEqual(BIDDING_CATEGORY_SCHEDULE,["Tools","Appliances","Jewellery","Outdoor Equipment","Electronics","Furniture"]);
   assert.deepEqual(Array.from({length:6},(_,round)=>biddingCategoryForRound(round)),BIDDING_CATEGORY_SCHEDULE);
