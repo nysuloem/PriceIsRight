@@ -1,4 +1,14 @@
 const activeRuns = new WeakMap();
+const activeAudioElements = new Set();
+
+// Called from the user's touch-end gesture. Android Chrome can pause media
+// while it owns a scrolling gesture; replaying the same element after the
+// finger lifts restores it without creating a competing audio source.
+export function resumeActiveAudio() {
+  for (const audioEl of activeAudioElements) {
+    activeRuns.get(audioEl)?.resume();
+  }
+}
 
 // Mobile browsers occasionally pause an <audio> element while the page is
 // being scrolled or the browser chrome is changing size. Game progression
@@ -42,7 +52,10 @@ export function playAudioReliably(audioEl, src, onDone, options = {}) {
     finished = true;
     clearTimers();
     detach();
-    if (activeRuns.get(audioEl)?.finish === finish) activeRuns.delete(audioEl);
+    if (activeRuns.get(audioEl)?.finish === finish) {
+      activeRuns.delete(audioEl);
+      activeAudioElements.delete(audioEl);
+    }
     if (stopAudio) {
       audioEl.pause();
       audioEl.removeAttribute("src");
@@ -55,6 +68,7 @@ export function playAudioReliably(audioEl, src, onDone, options = {}) {
     finished = true;
     clearTimers();
     detach();
+    activeAudioElements.delete(audioEl);
   };
   const armPlaybackWatchdog = () => {
     clearTimeout(playbackTimer);
@@ -64,8 +78,15 @@ export function playAudioReliably(audioEl, src, onDone, options = {}) {
       : unknownDurationTimeout;
     playbackTimer = setTimeout(() => finish(true), remaining);
   };
+  const retryResume = () => {
+    clearTimeout(resumeTimer);
+    if (finished || audioEl.ended || !audioEl.paused) return;
+    audioEl.play().catch(() => {});
+    resumeTimer = setTimeout(retryResume, 750);
+  };
 
-  activeRuns.set(audioEl, { cancel, finish });
+  activeRuns.set(audioEl, { cancel, finish, resume: retryResume });
+  activeAudioElements.add(audioEl);
   audioEl.pause();
   audioEl.currentTime = 0;
   audioEl.src = src;
@@ -84,9 +105,9 @@ export function playAudioReliably(audioEl, src, onDone, options = {}) {
     onTimeUpdate?.(audioEl);
   };
   audioEl.onpause = () => {
-    if (finished || audioEl.ended || audioEl.currentTime <= 0) return;
+    if (finished || audioEl.ended) return;
     clearTimeout(resumeTimer);
-    resumeTimer = setTimeout(() => audioEl.play().catch(() => {}), 300);
+    resumeTimer = setTimeout(retryResume, 300);
   };
   loadTimer = setTimeout(() => finish(true), loadTimeout);
   audioEl.play().catch(() => {

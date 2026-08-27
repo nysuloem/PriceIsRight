@@ -1,19 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { playAudioReliably } from "./mediaPlayback.js";
+import { playAudioReliably, resumeActiveAudio } from "./mediaPlayback.js";
 
 class FakeAudio {
   constructor() {
     this.currentTime = 0;
     this.duration = 8;
     this.ended = false;
+    this.paused = true;
     this.playCount = 0;
   }
   play() {
     this.playCount += 1;
+    this.paused = false;
     return Promise.resolve();
   }
-  pause() {}
+  pause() { this.paused = true; }
   load() {}
   removeAttribute(name) {
     if (name === "src") this.src = "";
@@ -24,8 +26,29 @@ test("a mobile pause retries the active narration", async () => {
   const audio = new FakeAudio();
   const cancel = playAudioReliably(audio, "/host.mp3", () => {});
   audio.currentTime = 2;
+  audio.paused = true;
   audio.onpause();
   await new Promise((resolve) => setTimeout(resolve, 340));
+  assert.equal(audio.playCount, 2);
+  cancel();
+});
+
+test("touch-end resumes the same audio element after Android scrolling", () => {
+  const audio = new FakeAudio();
+  const cancel = playAudioReliably(audio, "/host.mp3", () => {});
+  audio.currentTime = 3;
+  audio.paused = true;
+  resumeActiveAudio();
+  assert.equal(audio.playCount, 2);
+  cancel();
+});
+
+test("Android touch-end resumes a line paused before its first frame", () => {
+  const audio = new FakeAudio();
+  const cancel = playAudioReliably(audio, "/host.mp3", () => {});
+  audio.currentTime = 0;
+  audio.paused = true;
+  resumeActiveAudio();
   assert.equal(audio.playCount, 2);
   cancel();
 });

@@ -3,6 +3,7 @@ import { Check, Copy, Maximize2, Volume2 } from "lucide-react";
 import HostView, { unlockSoundEffects } from "./HostView.jsx";
 import PlayerView from "./PlayerView.jsx";
 import { getState } from "./api.js";
+import { resumeActiveAudio } from "./mediaPlayback.js";
 
 export default function RemotePlayView({ code, navigate }) {
   const [room, setRoom] = useState(null);
@@ -67,7 +68,7 @@ export default function RemotePlayView({ code, navigate }) {
   if (!room && !error) return <div className="pir-root pir-loading"><div className="pir-title">Remote Play</div><p>Connecting to room {code}…</p></div>;
 
   return (
-    <div className={`pir-remote-root ${showExpanded ? "show-expanded" : ""}`}>
+    <div className={`pir-remote-root ${showExpanded ? "show-expanded" : ""}`} onTouchEndCapture={resumeActiveAudio} onTouchCancelCapture={resumeActiveAudio}>
       <header className="pir-remote-toolbar">
         <div><b>REMOTE PLAY</b><span>Room {code}</span></div>
         <div>

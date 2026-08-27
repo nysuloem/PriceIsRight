@@ -38,7 +38,9 @@ export function unlockSoundEffects(){
 // ---------------------------------------------------------------------------
 function playTTS(audioEl, text, onDone, voice, style = "host") {
   if (!text) { onDone(); return; }
-  playAudioReliably(audioEl, ttsUrl(text, voice, style), onDone);
+  const wordCount=text.trim().split(/\s+/).length;
+  const speechFallback=Math.min(65000,Math.max(9000,Math.ceil(wordCount/2.2*1000)+5000));
+  playAudioReliably(audioEl, ttsUrl(text, voice, style), onDone,{unknownDurationTimeout:speechFallback});
 }
 
 function playRecorded(audioEl,src,onDone){
