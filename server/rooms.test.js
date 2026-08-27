@@ -115,6 +115,26 @@ test("Hole in One reveals groceries, animates a putt, and unlocks OR TWO only af
   settlePricingGame(room,{kind:"holeOrTwo"});assert.equal(g.stage,"puttReady");assert.equal(g.attempts,1);
 });
 
+test("Lucky Seven opens each door before Bob charges the difference",()=>{
+  const room=createRoom();room.pricingGame=createPricingGameForType("luckySeven",{id:"p",name:"Jamie"});room.phase="pricingGame";const g=room.pricingGame;
+  const index=g.digitIndex,actual=g._digits[index],guess=actual===9?7:actual+2,startingDollars=g.dollars;
+  pricingGameAction(room,"p",{choice:String(guess)});
+  assert.equal(g.stage,"doorOpening");assert.equal(g.revealed[index],null);assert.equal(g.dollars,startingDollars);assert.equal(room.hostLine.type,"luckySevenDoor");assert.match(room.hostLine.text,new RegExp(`says ${guess}`));
+  assert.equal(g.lastAction.text,`GUESSED ${guess}`);
+  settlePricingGame(room,{kind:"luckyDoor",id:g.lastGuess.id});
+  assert.equal(g.stage,"costReveal");assert.equal(g.revealed[index],actual);assert.equal(g.dollars,startingDollars-2);assert.equal(room.hostLine.type,"luckySevenCost");assert.match(room.hostLine.text,/2 away/i);
+  settlePricingGame(room,{kind:"luckyDoor",id:g.lastGuess.id});assert.equal(g.stage,"costReveal");assert.equal(g.dollars,startingDollars-2,"a duplicate door callback must not take the money twice");
+  settlePricingGame(room,{kind:"luckyCost",id:g.lastGuess.id});
+  assert.equal(g.stage,"guess");assert.equal(g.digitIndex,index+1);assert.equal(g.mode,"choice");
+});
+
+test("every accepted pricing-game choice is exposed to the audience",()=>{
+  const room=createRoom();room.pricingGame=createPricingGameForType("doublePrices",{id:"p",name:"Jamie"});room.phase="pricingGame";
+  const choice=room.pricingGame.options[0];pricingGameAction(room,"p",{choice});
+  assert.equal(room.pricingGame.lastAction.playerName,"Jamie");assert.match(room.pricingGame.lastAction.text,/CHOSE \$/);
+  assert.equal(publicState(room).pricingGame.lastAction.text,room.pricingGame.lastAction.text);
+});
+
 test("car games introduce the car before the host explains the rules",()=>{
   const {room}=createPricingGameDemo("diceGame");
   joinRoom(room,"Car Player");

@@ -215,7 +215,7 @@ const prizeIntro = (p) => {
 const carIntro = (p) => ({...prizeIntro(p),visual:"🚗",announcerText:prizeAnnouncementText(p,"IT'S A NEW CAR!!! It's")});
 
 function base(type,title,player,instructions,introPrizes=[]) {
-  return { type,title,playerId:player.id,playerName:player.name,instructions,introPrizes,status:"playing",result:"",winnings:0,history:[],eventSeq:0,lastOutcome:null };
+  return { type,title,playerId:player.id,playerName:player.name,instructions,introPrizes,status:"playing",result:"",winnings:0,history:[],eventSeq:0,lastOutcome:null,actionSeq:0,lastAction:null };
 }
 function outcome(g, kind, text) { g.eventSeq += 1; g.lastOutcome={ kind,text,seq:g.eventSeq }; }
 function holdPriceReveal(g, beforeSeq, beforeOutcome, prize, guess, actual, heldOutcome=g.lastOutcome) {
@@ -291,7 +291,7 @@ function makeGrand(player,excluded=[],liveItems=[]) { const available=familiarGr
 function makeShell(player,excluded=[],liveItems=[]) { const items=requireItems(diverseSmallItems(4,excluded,item=>item.price>=20&&item.price<=500,liveItems),4,"Shell Game small-prize bank"), shown=items.map((x,i)=>wrongHigherLowerPrice(x.price,i)), bonus=pick(requireItems(grandPrizeCandidates(excluded,liveItems),1,"Shell Game grand-prize bank")),bonusPrize={...prizeIntro(bonus),announcerText:prizeAnnouncementText(bonus,"You could win this spectacular grand prize! It's")}; return {...base("shellGame","SHELL GAME",player,"Price four small prizes. Every correct higher-or-lower decision wins that prize and earns a marker for one shell. Then choose from the shells you earned. Find the hidden ball to win the grand prize. Earn all four shells and the grand prize is guaranteed.",[bonusPrize,...items.map(prizeIntro)]),bonusPrize,_bonusPrice:bonus.price,items:items.map((x,i)=>({...prizeIntro(x),shownPrice:shown[i]})),_prices:items.map(i=>i.price),itemIndex:0,shells:0,wonSmallValue:0,_ball:Math.floor(Math.random()*4),chosenShells:[],prompt:`${items[0].name}: higher or lower than ${money(shown[0])}?`,mode:"choice",options:["Higher","Lower"],stage:"prices"}; }
 
 function makeMoneyGame(player,excluded=[]) { const car=freshCar(excluded,()=>true,"Money Game car bank"),digits=String(car.price),front=digits.slice(0,2),middleDigit=Number(digits[2]),back=digits.slice(-2),decoys=new Set([front,back]);while(decoys.size<9)decoys.add(String(10+Math.floor(Math.random()*90)));const options=shuffle([...decoys]);return {...base("moneyGame","MONEY GAME",player,"The middle digit in the car's five-digit price is free. Pick the first two digits and the last two digits. Wrong choices go on your cash line; four wrong choices end the game.",[carIntro(car)]),car:prizeIntro(car),middleDigit,_digits:digits.split("").map(Number),_front:front,_back:back,frontFound:false,backFound:false,cash:0,wrong:[],choices:options,prompt:"Pick a number pair.",mode:"choice",options}; }
-function makeLuckySeven(player,excluded=[]) { const car=freshCar(excluded,()=>true,"Lucky Seven car bank"),digits=String(car.price).split("").map(Number);return {...base("luckySeven","LUCKY SEVEN",player,"The first digit is free. Guess each remaining digit; you lose one dollar for every number you are away. Keep at least one of your seven dollars to buy the car.",[carIntro(car)]),car:prizeIntro(car),_digits:digits,revealed:[digits[0],null,null,null,null],digitIndex:1,dollars:7,prompt:"Guess the second digit.",mode:"choice",options:Array.from({length:10},(_,i)=>String(i))}; }
+function makeLuckySeven(player,excluded=[]) { const car=freshCar(excluded,()=>true,"Lucky Seven car bank"),digits=String(car.price).split("").map(Number);return {...base("luckySeven","LUCKY SEVEN",player,"The first digit is free. Guess each remaining digit. After every guess, a door opens to reveal the actual digit, and you hand the host one dollar for every number you are away. Keep at least one of your seven dollars to buy the car.",[carIntro(car)]),car:prizeIntro(car),_digits:digits,revealed:[digits[0],null,null,null,null],digitIndex:1,dollars:7,prompt:"Guess the second digit.",mode:"choice",options:Array.from({length:10},(_,i)=>String(i)),stage:"guess",lastGuess:null}; }
 function makeDoublePrices(player,excluded=[],liveItems=[]){const raw=pick(requireItems(grandPrizeCandidates(excluded,liveItems),1,"Double Prices bank")),prize=prizeIntro(raw),wrong=raw.price+pick([1500,1750,2000,2500]),options=shuffle([raw.price,wrong]);return {...base("doublePrices","DOUBLE PRICES",player,"The grand prize has two possible prices. Choose the correct price to win it.",[prize]),featuredIntroCount:1,prize,_actual:raw.price,prices:options,prompt:"Which is the correct price?",mode:"choice",options:options.map(money)};}
 function makeThreeStrikes(player,excluded=[]){const raw=freshCar(excluded,car=>new Set(String(car.price)).size===5,"3 Strikes car bank"),digits=String(raw.price).split("").map(Number),car=prizeIntro(raw),bag=[...digits,"X1","X2","X3"];return {...base("threeStrikes","3 STRIKES",player,"Five numbered balls—one for each digit in the car price—and three strike balls are mixed in the hopper. Draw a ball. Place a number in its correct position to remove it; a wrong placement returns it to the hopper. Place all five digits before drawing three strikes to win the car.",[carIntro(raw)]),car,_digits:digits,_bag:shuffle(bag),revealed:[null,null,null,null,null],strikes:0,currentBall:null,drawSeq:0,stage:"draw",prompt:"Draw a ball from the hopper.",mode:"choice",options:["DRAW A BALL"]};}
 function separatedPrizePair(candidates,minDifference=1500){const pool=shuffle(candidates);for(let i=0;i<pool.length;i+=1)for(let j=i+1;j<pool.length;j+=1)if(Math.abs(pool[i].price-pool[j].price)>=minDifference)return [pool[i],pool[j]];throw new Error(`Switch? needs two fresh prizes at least $${minDifference.toLocaleString("en-CA")} apart. Refill the Canadian prize feed instead of using an unfair pair.`);}
@@ -299,8 +299,10 @@ function makeSwitch(player,excluded=[],liveItems=[]){const raw=separatedPrizePai
 function pickPairOption(item,index,prefix=""){return `${prefix}${index+1}. ${item.brand} ${item.name}`;}
 function matchingGroceryPairs(excluded=[],liveItems=[]){
   const makeGroups=products=>{const groups=new Map();for(const product of products){const key=Number(product.price).toFixed(2);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(product);}return [...groups.entries()].filter(([,products])=>products.length>=2);};
-  const liveGroceries=liveItems.filter(item=>Number(item.price)>=1&&Number(item.price)<=10&&item.image);
-  const available=fresh([...PICK_A_PAIR_CATALOG,...liveGroceries],excluded);
+  // The general live small-item feed also contains stationery, cosmetics and
+  // gifts. Price alone is not proof that something is food. Grocery games use
+  // only the curated, recognizable brand-name grocery catalogue.
+  const available=fresh(PICK_A_PAIR_CATALOG,excluded);
   const groups=makeGroups(available);
   // The reserve is deliberately deep. In the extreme case where a very old
   // volume has retired it all and the live feed is offline, keep the game
@@ -309,7 +311,7 @@ function matchingGroceryPairs(excluded=[],liveItems=[]){
   if(groups.length<3)return shuffle(makeGroups(PICK_A_PAIR_CATALOG)).slice(0,3).flatMap(([price,products])=>shuffle(products).slice(0,2).map(product=>({product,price:Number(price)})));
   return shuffle(groups).slice(0,3).flatMap(([price,products])=>shuffle(products).slice(0,2).map(product=>({product,price:Number(price)})));
 }
-export function pickAPairPoolStatus(excluded=[],liveItems=[]){const groups=new Map();for(const item of fresh([...PICK_A_PAIR_CATALOG,...liveItems.filter(x=>Number(x.price)>=1&&Number(x.price)<=10&&x.image)],excluded)){const price=Number(item.price).toFixed(2);groups.set(price,(groups.get(price)||0)+1);}const usablePairs=[...groups.values()].reduce((sum,count)=>sum+Math.floor(count/2),0);return {usablePairs,completeGames:Math.floor(usablePairs/3),low:usablePairs<6,autoRefill:true};}
+export function pickAPairPoolStatus(excluded=[]){const groups=new Map();for(const item of fresh(PICK_A_PAIR_CATALOG,excluded)){const price=Number(item.price).toFixed(2);groups.set(price,(groups.get(price)||0)+1);}const usablePairs=[...groups.values()].reduce((sum,count)=>sum+Math.floor(count/2),0);return {usablePairs,completeGames:Math.floor(usablePairs/3),low:usablePairs<6,autoRefill:true};}
 function makePickAPair(player,excluded=[],liveItems=[]){
   const entries=shuffle(matchingGroceryPairs(excluded,liveItems)),assignments=entries.map(entry=>entry.price);
   const items=entries.map((entry,index)=>({...prizeIntro(entry.product),id:`pick-pair-${prizeIdentity(entry.product)}`,displayNumber:index+1,selected:false,used:false,revealedPrice:null}));
@@ -328,7 +330,7 @@ function makeBalanceGame(player,excluded=[],liveItems=[]){
   return {...base("balanceGame","BALANCE GAME",player,"The small bag, showing the last three digits of the prize price, is yours automatically. Choose exactly two of the three larger bags. If your bags balance with the prize's actual retail price, you win it.",[prize]),featuredIntroCount:1,prize,_actual:raw.price,_correctBagAmounts:amounts.correct,smallBag,bags:amounts.bags.map((value,index)=>({id:`balance-bag-${index}`,value,selected:false})),chosenBagValues:[],balanceTotal:smallBag,balanceState:"waiting",stage:"choose",prompt:"Choose the first large money bag.",mode:"choice",options:amounts.bags.map(money)};
 }
 function holeInOneGroceries(excluded=[],liveItems=[]){
-  const source=fresh([...PICK_A_PAIR_CATALOG,...GROCERIES,...liveItems.filter(item=>Number(item.price)>=1&&Number(item.price)<=15&&item.image)],excluded),byPrice=new Map(),families=new Set();
+  const source=fresh([...PICK_A_PAIR_CATALOG,...GROCERIES],excluded),byPrice=new Map(),families=new Set();
   for(const item of shuffle(source)){const key=Number(item.price).toFixed(2),family=prizeFamilyKey(item);if(!byPrice.has(key)&&!families.has(family)){byPrice.set(key,item);families.add(family);}}
   const available=shuffle([...byPrice.values()]);
   if(available.length>=6)return available.slice(0,6);
@@ -362,6 +364,33 @@ export function createPricingGame(player,previous=[],excluded=[],liveItems=[],al
 export function pricingPrizeNames(game){return [...(game?.qualifiers||[]),...(game?.items||[]),...(game?.introPrizes||[])].map(x=>x?.name).filter(Boolean);}
 export function pricingPrizes(game){return [...(game?.qualifiers||[]),...(game?.items||[]),...(game?.introPrizes||[])].filter(Boolean);}
 
+export function recordPricingAction(game,action={}){
+  if(!game)return null;
+  let text="";
+  if(Array.isArray(action.order)){
+    const names=action.order.map(id=>game.items?.find(item=>item.id===String(id))).filter(Boolean).map(item=>`${item.brand} ${item.name}`);
+    text=`ORDERED ${names.join(" → ")}`;
+  }else if(Array.isArray(action.answers)){
+    const digits=game.shownDigits?.map((digit,index)=>digit+(String(action.answers[index]).toLowerCase()==="higher"?1:-1));
+    text=digits?.length?`LOCKED IN ${digits.join("")}`:"LOCKED IN THE FINAL CHOICES";
+  }else if(action.accuracy!=null)text="TOOK THE PUTT";
+  else if(action.position!=null)text=`DROPPED AT POSITION ${Number(action.position)}`;
+  else if(action.value!=null){
+    const value=Number(action.value);
+    text=game.type==="groceryGame"?`CHOSE ${value} ITEM${value===1?"":"S"}`:`GUESSED ${money(value)}`;
+  }else if(action.choice!=null){
+    const choice=String(action.choice).replace(/^Keep\s+/i,"KEPT ").replace(/^\d+\.\s*/,"");
+    if(/roll/i.test(choice))text="ROLLED THE DICE";
+    else if(/draw/i.test(choice))text="DREW FROM THE HOPPER";
+    else if(game.type==="luckySeven")text=`GUESSED ${choice}`;
+    else text=`CHOSE ${choice}`;
+  }
+  if(!text)return null;
+  game.actionSeq=(game.actionSeq||0)+1;
+  game.lastAction={seq:game.actionSeq,playerName:game.playerName,text};
+  return game.lastAction;
+}
+
 export function playPricingGame(g,action={}) {
   if(!g||g.status!=="playing") throw new Error("Pricing game is not active"); const choice=String(action.choice??""); const value=Math.round(Number(action.value));
   if(g.type==="plinko") {
@@ -389,7 +418,11 @@ export function playPricingGame(g,action={}) {
   } else if(g.type==="grandGame") {const i=Number(choice.split(".")[0])-1;if(g.items[i]?.selected)throw new Error("Already selected");g.items[i].selected=true;const actual=g._prices[i];g.history.push(`${g.items[i].name}: ${money(actual)}.`);if(actual>=g.target)finish(g,false,`That item was not below ${money(g.target)}.`);else{g.correct+=1;g.winnings*=10;outcome(g,"success","Correct!");if(g.correct===4)finish(g,true,"Four correct products — you won $10,000!",10000);else{g.options=g.items.map((x,n)=>x.selected?null:`${n+1}. ${x.name}`).filter(Boolean);g.prompt="Pick another product.";}}
   } else if(g.type==="shellGame") {if(g.stage==="prices"){const beforeSeq=g.eventSeq,beforeOutcome=g.lastOutcome,i=g.itemIndex,correct=choice.toLowerCase()===(g._prices[i]>g.items[i].shownPrice?"higher":"lower");if(correct){g.shells+=1;g.wonSmallValue+=g._prices[i];}outcome(g,correct?"success":"failure",correct?"Correct — you won the small prize and earned a shell marker!":"Incorrect.");const revealOutcome=g.lastOutcome;g.itemIndex+=1;if(g.itemIndex===4){if(!g.shells)finish(g,false,"No shell markers were earned.",0);else if(g.shells===4){g.stage="complete";g.mainPrizeWon=true;g.revealedBall=g._ball+1;finish(g,true,`All four shell markers! You automatically win the ${g.bonusPrize.name}!`,g.wonSmallValue+g._bonusPrice);}else{g.options=["1","2","3","4"];g.stage="shell";g.prompt=`You earned ${g.shells} shell marker${g.shells===1?"":"s"}. Pick a shell.`;}}else{g.prompt=`${g.items[g.itemIndex].name}: higher or lower than ${money(g.items[g.itemIndex].shownPrice)}?`;introduceNext(g,g.items[g.itemIndex]);}holdPriceReveal(g,beforeSeq,beforeOutcome,g.items[i],choice,g._prices[i],revealOutcome);}else{const selected=Number(choice);if(g.chosenShells.includes(selected))throw new Error("That shell was already chosen");g.chosenShells.push(selected);const hit=selected-1===g._ball;g.shells-=1;if(hit){g.revealedBall=g._ball+1;g.mainPrizeWon=true;finish(g,true,`Lift it up... the ball is under shell ${choice}! You won the ${g.bonusPrize.name}!`,g.wonSmallValue+g._bonusPrice);}else if(!g.shells){g.revealedBall=g._ball+1;finish(g,false,`Let's lift the shells. The ball was under shell ${g._ball+1}. You keep the small prizes you priced correctly.`,g.wonSmallValue);}else{g.options=g.options.filter(x=>Number(x)!==selected);g.prompt="Pick another shell.";}}}
   else if(g.type==="moneyGame"){if(!g.options.includes(choice))throw new Error("That number is not available");g.options=g.options.filter(x=>x!==choice);if(choice===g._front){g.frontFound=true;g.frontValue=choice;}else if(choice===g._back){g.backFound=true;g.backValue=choice;}else{g.wrong.push(choice);g.cash+=Number(choice);}if(g.frontFound&&g.backFound)finish(g,true,`You completed the price and won the ${g.car.name}!`);else if(g.wrong.length===4)finish(g,false,`Four wrong choices. You won ${money(g.cash)}, but not the car.`);else{outcome(g,choice===g._front||choice===g._back?"success":"failure",choice===g._front||choice===g._back?"That's part of the car price!":`${money(Number(choice))} goes on your cash line.`);g.prompt="Pick another number pair.";}}
-  else if(g.type==="luckySeven"){const guess=Math.max(0,Math.min(9,Number(choice))),actual=g._digits[g.digitIndex],cost=Math.abs(guess-actual);g.dollars-=cost;g.revealed[g.digitIndex]=actual;g.history.push(`You guessed ${guess}; the digit was ${actual}. Cost: $${cost}.`);g.digitIndex+=1;if(g.dollars<1)return finish(g,false,"You ran out of dollars before completing the car price.");if(g.digitIndex===5)return finish(g,true,`You have $${g.dollars} left—pay one dollar and the ${g.car.name} is yours!`);outcome(g,cost===0?"success":"neutral",cost===0?"Exactly right!":`That costs $${cost}. You have $${g.dollars} left.`);g.prompt=`Guess digit ${g.digitIndex+1}.`;}
+  else if(g.type==="luckySeven"){
+    if(g.stage!=="guess")throw new Error("Wait for the next Lucky Seven door to open");
+    const guess=Math.max(0,Math.min(9,Number(choice))),actual=g._digits[g.digitIndex],cost=Math.abs(guess-actual),id=(g.lastGuess?.id||0)+1;
+    g.lastGuess={id,index:g.digitIndex,guess,openingDigit:actual,cost};g._pendingLucky={id,index:g.digitIndex,guess,actual,cost};g.stage="doorOpening";g.mode="wait";g.options=[];g.prompt=`${g.playerName} guessed ${guess}. Open the next door!`;
+  }
   else if(g.type==="doublePrices"){const selected=Number(choice.replace(/[$,]/g,"")),won=selected===g._actual;g.revealedPrice=g._actual;finish(g,won,won?`That's the correct price! You won the ${g.prize.name}!`:`The actual retail price was ${money(g._actual)}.`,won?g._actual:0);}
   else if(g.type==="threeStrikes"){if(g.stage==="draw"){const index=Math.floor(Math.random()*g._bag.length),ball=g._bag.splice(index,1)[0];g.currentBall=String(ball).startsWith("X")?"X":Number(ball);g.drawSeq+=1;if(g.currentBall==="X"){g.strikes+=1;outcome(g,"failure",`Strike ${g.strikes}!`);if(g.strikes===3)return finish(g,false,`Strike three! The car's actual retail price was ${money(Number(g._digits.join("")))}.`);g.prompt="Draw another ball from the hopper.";g.options=["DRAW ANOTHER BALL"];}else{g.stage="place";g.prompt=`You drew the number ${g.currentBall}. Where does it belong in the car price?`;g.options=g.revealed.map((digit,i)=>digit==null?`Position ${i+1}`:null).filter(Boolean);}}else{const position=Number(choice.match(/\d+/)?.[0])-1,digit=g.currentBall;if(g._digits[position]===digit){g.revealed[position]=digit;outcome(g,"success",`${digit} belongs in position ${position+1}!`);if(g.revealed.every(x=>x!=null))return finish(g,true,`You completed the price and won the ${g.car.name}!`,Number(g._digits.join("")));}else{g._bag.push(digit);outcome(g,"failure",`${digit} does not belong in position ${position+1}. Back into the hopper!`);}g.currentBall=null;g.stage="draw";g.prompt="Draw another ball from the hopper.";g.options=["DRAW ANOTHER BALL"];}}
   else if(g.type==="switchGame"){const selected=choice==="Switch them"?[g.shownPrices[1],g.shownPrices[0]]:g.shownPrices,won=selected.every((price,i)=>price===g._prices[i]);g.finalPrices=g._prices;finish(g,won,won?"The prices are right! You won both prizes!":`The correct prices were ${money(g._prices[0])} and ${money(g._prices[1])}.`,won?g._prices.reduce((a,b)=>a+b,0):0);}
@@ -497,6 +530,28 @@ export function initialPrizeAnnouncements(game) {
 }
 
 export function settlePricingAnimation(game) {
+  if(game?.type==="luckySeven"){
+    const pending=game._pendingLucky;
+    if(!pending)throw new Error("No Lucky Seven reveal is active");
+    if(game.stage==="doorOpening"){
+      game.revealed[pending.index]=pending.actual;
+      game.dollars=Math.max(0,game.dollars-pending.cost);
+      game.history.push(`Guessed ${pending.guess}; the digit was ${pending.actual}. ${pending.cost?`${money(pending.cost)} taken.`:"Exact! No dollars taken."}`);
+      game.stage="costReveal";
+      game.prompt=pending.cost===0?`${pending.guess} was exactly right. No dollars taken!`:`The digit is ${pending.actual}. You were ${pending.cost} away, so the host takes ${money(pending.cost)}. ${money(game.dollars)} remain${game.dollars===1?"s":""}.`;
+      outcome(game,pending.cost===0?"success":"neutral",game.prompt);
+      return game;
+    }
+    if(game.stage==="costReveal"){
+      game.digitIndex=pending.index+1;
+      game._pendingLucky=null;
+      if(game.dollars<1)return finish(game,false,`You ran out of dollars. The car price was ${money(Number(game._digits.join("")))}.`);
+      if(game.digitIndex===game._digits.length)return finish(game,true,`You have ${money(game.dollars)} left—pay one dollar and the ${game.car.name} is yours!`);
+      game.stage="guess";game.mode="choice";game.options=Array.from({length:10},(_,index)=>String(index));game.prompt=`Guess digit ${game.digitIndex+1}.`;
+      return game;
+    }
+    throw new Error("No Lucky Seven reveal is active");
+  }
   if(game?.type==="holeInOne"){
     if(game.stage==="orderReveal"){
       const index=game.revealedCount,item=game.items.find(entry=>entry.id===game.orderedIds[index]),price=game._prices[game.items.indexOf(item)];if(!item)throw new Error("The grocery order could not be revealed");item.revealedPrice=price;game.revealedCount+=1;

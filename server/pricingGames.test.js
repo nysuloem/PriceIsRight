@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, expandedBiddingCatalog, pickAPairPoolStatus, playPricingGame, pricingCatalogStats, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
 
 const player = { id: "human-1", name: "Test Player" };
-const types = ["plinko","cliffHangers","punchABunch","diceGame","groceryGame","oneAway","clockGame","anyNumber","grandGame","shellGame","moneyGame","luckySeven","doublePrices","threeStrikes","switchGame","tenChances","pickAPair","balanceGame"];
+const types = ["plinko","cliffHangers","punchABunch","diceGame","groceryGame","oneAway","clockGame","anyNumber","grandGame","shellGame","moneyGame","luckySeven","doublePrices","threeStrikes","switchGame","tenChances","pickAPair","balanceGame","holeInOne"];
 
 test("every built-in prize catalogue has at least twice its original capacity",()=>{
   const stats=pricingCatalogStats();
@@ -77,8 +77,9 @@ test("Grocery Game has a grand prize and awards its actual value",()=>{
   assert.equal(g.winnings,g._bonusPrice);
 });
 
-test("grocery games use familiar national brands instead of boutique feed items",()=>{
+test("grocery games use recognizable grocery brands and reject general small-prize feed items",()=>{
   const boutique={id:"boutique",name:"Organic einkorn cake mix",brand:"Tiny Farm Pantry",description:"A niche organic cake mix.",price:5.49,image:"https://example.com/cake.jpg"};
+  const greetingCards=Array.from({length:6},(_,index)=>({id:`card-${index}`,name:`Greeting Card ${index+1}`,brand:"Stationery Shop",description:"A greeting card.",price:[2.99,2.99,3.99,3.99,4.99,4.99][index],image:`https://example.com/card-${index}.jpg`}));
   const seen=new Set();
   for(let attempt=0;attempt<80;attempt+=1){
     const game=createPricingGameForType("groceryGame",player,[],[boutique]);
@@ -87,6 +88,13 @@ test("grocery games use familiar national brands instead of boutique feed items"
   }
   assert.ok([...seen].some(item=>/^Heinz Tomato Ketchup$/i.test(item)));
   assert.ok([...seen].some(item=>/^Janes Pub Style Chicken Strips$/i.test(item)));
+  for(const type of ["pickAPair","holeInOne"]){
+    for(let attempt=0;attempt<30;attempt+=1){
+      const game=createPricingGameForType(type,player,[],greetingCards);
+      assert.equal(game.items.some(item=>/greeting card|stationery/i.test(`${item.brand} ${item.name}`)),false,`${type} must not borrow stationery from the live feed`);
+      assert.ok(game.items.every(item=>item.brand&&item.name),`${type} groceries must be branded`);
+    }
+  }
 });
 
 test("all pricing game engines can reach a result", () => {
@@ -101,7 +109,7 @@ test("all pricing game engines can reach a result", () => {
   g = createPricingGameForType("grandGame", player); for (const i of g._prices.map((p,i)=>p<g.target?i:-1).filter(i=>i>=0)) { if(g.status === "playing") playPricingGame(g,{choice:`${i+1}. item`}); } assert.equal(g.status,"won");
   g = createPricingGameForType("shellGame", player); while(g.stage === "prices") { const i=g.itemIndex; playPricingGame(g,{choice:g._prices[i]>g.items[i].shownPrice?"Higher":"Lower"}); } assert.equal(g.stage,"complete"); assert.equal(g.status,"won");
   g = createPricingGameForType("moneyGame", player); playPricingGame(g,{choice:g._front}); playPricingGame(g,{choice:g._back}); assert.equal(g.status,"won");
-  g = createPricingGameForType("luckySeven", player); for(let i=1;i<5;i++)playPricingGame(g,{choice:String(g._digits[i])}); assert.equal(g.status,"won");
+  g = createPricingGameForType("luckySeven", player); for(let i=1;i<5;i++){playPricingGame(g,{choice:String(g._digits[i])});settlePricingAnimation(g);settlePricingAnimation(g);} assert.equal(g.status,"won");
   g=createPricingGameForType("doublePrices",player);playPricingGame(g,{choice:`$${g._actual}`});assert.equal(g.status,"won");
   g=createPricingGameForType("threeStrikes",player);g._bag=[...g._digits];while(g.status==="playing"){playPricingGame(g,{choice:"DRAW A BALL"});if(g.stage==="place")playPricingGame(g,{choice:`Position ${g._digits.indexOf(g.currentBall)+1}`});}assert.equal(g.status,"won");
   g=createPricingGameForType("switchGame",player);playPricingGame(g,{choice:g.shownPrices[0]===g._prices[0]?"Leave them":"Switch them"});assert.equal(g.status,"won");

@@ -363,6 +363,12 @@ function HostViewInner({ code, remoteMode = false, controller = true, embedded =
       playTTS(el,text,()=>{},voice,"host");
     } else if(type==="holeOrTwoReveal"){
       playOrTwoSting();setTimeout(()=>current(()=>playTTS(el,text,()=>setTimeout(()=>safely(()=>settlePricingGame(code,{kind:"holeOrTwo"})),900),voice,"host")),700);
+    } else if(type==="luckySevenDoor"){
+      const guess=state.pricingGame?.lastGuess;
+      playTTS(el,text,()=>setTimeout(()=>safely(()=>settlePricingGame(code,{kind:"luckyDoor",id:guess?.id})),850),voice,"host");
+    } else if(type==="luckySevenCost"){
+      const guess=state.pricingGame?.lastGuess;
+      playTTS(el,text,()=>setTimeout(()=>safely(()=>settlePricingGame(code,{kind:"luckyCost",id:guess?.id})),650),voice,"host");
     } else if (type === "pricingGame" || type === "pricingPrompt") {
       const diceReveal=state.pricingGame?.type==="diceGame"&&state.pricingGame?.stage==="reveal";
       if(diceReveal)playTTS(ann,text,()=>{},config.announcerVoice||"cedar","announcer");
@@ -777,17 +783,38 @@ function MoneyBag({ value, selected = false, automatic = false, onScale = false 
   </div>;
 }
 
+function LuckySevenBoard({game}){
+  return <div className="pir-lucky-stage">
+    <div className="pir-lucky-logo">LUCKY <span>$</span>EVEN</div>
+    <div className="pir-lucky-doors">
+      {game.revealed.map((digit,index)=>{
+        const opening=game.stage==="doorOpening"&&game.lastGuess?.index===index;
+        return <div key={index} className={`pir-lucky-door ${digit!=null?"open":""} ${opening?"opening":""}`}>
+          <strong>{digit??(opening?game.lastGuess?.openingDigit:"")}</strong>
+          <i><span>»</span></i>
+          {opening&&<small>GUESS {game.lastGuess.guess}</small>}
+        </div>;
+      })}
+    </div>
+    <div className="pir-lucky-bank"><small>DOLLARS LEFT</small><div className="pir-lucky-dollars">{Array.from({length:Math.max(0,game.dollars)},(_,i)=><b key={i}>$</b>)}</div></div>
+  </div>;
+}
+function ContestantAction({game}){
+  return game.lastAction?<div key={game.lastAction.seq} className="pir-contestant-action" aria-live="polite"><small>{game.lastAction.playerName}</small><strong>{game.lastAction.text}</strong></div>:null;
+}
+
 export function PricingGameView({ game, poolWarnings = [], spotlight = null, rulesOnly = false, onSkipRules = null, onPlinkoLanded = null, onCliffStopped = null, onPuttStopped = null }) {
   if (!game) return <div className="pir-loading">Loading pricing game…</div>;
   if (rulesOnly) return <div className={`pir-pricing-board pir-game-${game.type} pir-rules-only ${game.type==="plinko"?"pir-plinko-intro":""}`}>{game.type==="plinko"&&<><div className="pir-plinko-logo">PLINKO!</div><div className="pir-plinko-jackpot">A CHANCE TO WIN<br/><strong>$50,000!!!</strong></div></>}<div className="pir-pricing-kicker">HOW TO PLAY</div>{game.type!=="plinko"&&<h2 className="pir-pricing-title">{game.title}</h2>}<p className="pir-pricing-rules">{game.instructions}</p>{game.type==="cliffHangers"&&<CliffBoard game={game} /> }<div className="pir-pricing-prompt">Listen to the rules…</div>{onSkipRules&&<button className="pir-btn pir-skip-rules" onClick={onSkipRules}>SKIP RULES — LET'S PLAY!</button>}</div>;
   if (spotlight) { const isCar=/IT'S A NEW CAR/i.test(spotlight.announcerText||""),isGrand=!isCar&&(spotlight.id===game.bonusPrize?.id||Boolean(game.featuredIntroCount)); return <div className={`pir-pricing-board pir-game-${game.type} pir-model-presentation ${isCar?"pir-new-car-stage":""} ${isGrand?"pir-shell-grand-intro":""}`}><div className="pir-pricing-kicker">PRIZE INTRODUCTION</div>{isCar&&<div className="pir-new-car-flash">IT'S A NEW CAR!!!</div>}{isGrand&&<div className="pir-shell-grand-flash">PLAYING FOR THIS GRAND PRIZE!</div>}<h2 className="pir-pricing-title">{game.title}</h2><img className="pir-prize-models" src={prizeModelsUrl} alt="Prize models presenting the prize"/><div className="pir-model-prize"><GameCards items={[spotlight]} /></div><div className="pir-pricing-prompt">Listen to the announcer…</div></div>; }
-  if(game.priceReveal&&game.type==="cliffHangers")return <div className={`pir-pricing-board pir-game-cliffHangers ${game.cliffFinalWin?"pir-cliff-victory":""}`}><div className="pir-pricing-kicker">CLIFF HANGERS</div><h2 className="pir-pricing-title">{game.title}</h2><GameCards items={[game.priceReveal]} /><CliffBoard game={game} reveal={game.priceReveal}/>{game.cliffFinalWin&&game.priceReveal.actual==null&&<div className="pir-cliff-win-flash">HE MADE IT!<small>YOU WON ALL THREE PRIZES!</small></div>}</div>;
-  if (game.priceReveal) return <div className={`pir-pricing-board pir-game-${game.type}`}><div className="pir-pricing-kicker">PRICE REVEAL</div><h2 className="pir-pricing-title">{game.title}</h2><GameCards items={[{...game.priceReveal,revealedPrice:game.priceReveal.actual}]} /><div className={`pir-pricing-prompt ${game.priceReveal.actual==null?"":"revealed"}`}>{game.priceReveal.actual==null?"SHOW ME THE PRICE!":game.priceReveal.correct?"THAT'S RIGHT!":"OH, SO CLOSE!"}</div></div>;
+  if(game.priceReveal&&game.type==="cliffHangers")return <div className={`pir-pricing-board pir-game-cliffHangers ${game.cliffFinalWin?"pir-cliff-victory":""}`}><div className="pir-pricing-kicker">CLIFF HANGERS</div><h2 className="pir-pricing-title">{game.title}</h2><ContestantAction game={game}/><GameCards items={[game.priceReveal]} /><CliffBoard game={game} reveal={game.priceReveal}/>{game.cliffFinalWin&&game.priceReveal.actual==null&&<div className="pir-cliff-win-flash">HE MADE IT!<small>YOU WON ALL THREE PRIZES!</small></div>}</div>;
+  if (game.priceReveal) return <div className={`pir-pricing-board pir-game-${game.type}`}><div className="pir-pricing-kicker">PRICE REVEAL</div><h2 className="pir-pricing-title">{game.title}</h2><ContestantAction game={game}/><GameCards items={[{...game.priceReveal,revealedPrice:game.priceReveal.actual}]} /><div className={`pir-pricing-prompt ${game.priceReveal.actual==null?"":"revealed"}`}>{game.priceReveal.actual==null?"SHOW ME THE PRICE!":game.priceReveal.correct?"THAT'S RIGHT!":"OH, SO CLOSE!"}</div></div>;
   return (
     <div className={`pir-pricing-board pir-game-${game.type}`}>
       <div className="pir-pricing-kicker">{game.playerName}, COME ON UP!</div>
       <h2 className="pir-pricing-title">{game.title}</h2>
       <p className="pir-pricing-rules">{game.instructions}</p>
+      <ContestantAction game={game}/>
 
       {game.type === "plinko" && (
         <div className="pir-plinko-board">
@@ -809,7 +836,7 @@ export function PricingGameView({ game, poolWarnings = [], spotlight = null, rul
       {game.type === "grandGame" && <><div className="pir-grand-money">${game.winnings}</div><div>Target: under ${game.target}</div><GameCards items={game.items} /></>}
       {game.type === "shellGame" && <><div className={`pir-shell-prize-stage ${game.stage==="prices"?"pricing":""}`}><div className="pir-shell-bonus"><b>GRAND PRIZE</b><GameCards items={[game.bonusPrize].filter(Boolean)} /></div>{game.stage==="prices"&&<div className="pir-shell-small"><div className="pir-small-prize-label">SMALL PRIZE {game.itemIndex+1} OF 4</div><GameCards items={[game.items[game.itemIndex]].filter(Boolean)} /></div>}</div><div className="pir-shell-status">SHELL MARKERS EARNED: {game.shells} · SMALL PRIZES WON: ${Number(game.wonSmallValue||0).toLocaleString("en-CA")}</div><div className="pir-shell-board">{[1,2,3,4].map(n=><div key={n} className={game.revealedBall===n?"ball-revealed":game.chosenShells?.includes(n)?"shell-lifted":""}><span className="pir-shell-cup">🐚</span><i>{game.revealedBall===n?"●":""}</i><b>{n}</b></div>)}</div></>}
       {game.type === "moneyGame" && <><GameCards items={[game.car]} /><div className="pir-money-board"><div className="pir-money-price"><span>{game.frontValue||"??"}</span><span className="given">{game.middleDigit}</span><span>{game.backValue||"??"}</span></div><small>MIDDLE DIGIT GIVEN FREE</small><b>CASH LINE: ${game.cash}</b><div>{game.wrong?.join(" · ")||"No wrong picks"}</div></div></>}
-      {game.type === "luckySeven" && <><GameCards items={[game.car]} /><div className="pir-price-digits">{game.revealed.map((n,i)=><span key={i}>{n??"?"}</span>)}</div><div className="pir-lucky-dollars">{Array.from({length:Math.max(0,game.dollars)},(_,i)=><b key={i}>$</b>)}</div></>}
+      {game.type === "luckySeven" && <><GameCards items={[game.car]} /><LuckySevenBoard game={game}/></>}
       {game.type === "doublePrices" && <><GameCards items={[game.prize]} /><div className="pir-double-prices">{game.prices.map(price=><span key={price} className={game.revealedPrice===price?"right":""}>${Number(price).toLocaleString("en-CA")}</span>)}</div></>}
       {game.type === "threeStrikes" && <><GameCards items={[game.car]} /><div className="pir-three-strikes"><div className="pir-strike-price">{game.revealed.map((digit,i)=><span key={i}>{digit??"_"}</span>)}</div><div className="pir-strike-hopper"><div key={game.drawSeq} className={`pir-drawn-ball ${game.currentBall==="X"?"strike":""}`}>{game.currentBall??"?"}</div><small>{game.stage==="place"?"PLACE THIS DIGIT":"DRAW FROM THE HOPPER"}</small></div><div className="pir-strike-count">{[0,1,2].map(i=><b key={i} className={i<game.strikes?"lit":""}>X</b>)}</div></div></>}
       {game.type === "switchGame" && <><GameCards items={game.items.map((item,i)=>({...item,shownPrice:game.finalPrices?.[i]??game.shownPrices[i]}))}/><div className="pir-switch-sign">SWITCH?</div></>}

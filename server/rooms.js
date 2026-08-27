@@ -3,7 +3,7 @@ import {
   buildLineup, computeAIBid, computeWinners, shuffle,
 } from "./gameLogic.js";
 import { getPrizePool, pickRandomItem, prizeBankStats, retirePrize } from "./prizeSource.js";
-import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, PRICING_GAME_TYPES, clearDeferredPrice, createPricingGameForType, initialPrizeAnnouncements, pickAPairPoolStatus, playPricingGame, pricingPrizeNames, pricingPrizes, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
+import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, PRICING_GAME_TYPES, clearDeferredPrice, createPricingGameForType, initialPrizeAnnouncements, pickAPairPoolStatus, playPricingGame, pricingPrizeNames, pricingPrizes, publicPricingGame, recordPricingAction, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
 import { retirePricingPrizes, retiredPricingPrizeNamesList } from "./pricingPrizeBank.js";
 import { getSmallPrizePool, smallPrizePoolStats } from "./smallPrizeSource.js";
 import { markPricingGamePlayed, pricingGameCandidates, pricingGameRotationStatus } from "./gameRotation.js";
@@ -448,6 +448,7 @@ export function pricingGameAction(room, playerId, action) {
   if (room.pricingGame.playerId !== playerId) throw new Error("This is not your pricing game");
   playPricingGame(room.pricingGame, action || {});
   const g = room.pricingGame;
+  recordPricingAction(g,action||{});
   if (g._pendingPriceReveal) {
     room.phase = "pricingRevealCue";
     setHostLine(room, `${g.priceReveal.guess ? `You said ${g.priceReveal.guess}. ` : ""}Show me the price!`, "pricingRevealCue");
@@ -457,6 +458,8 @@ export function pricingGameAction(room, playerId, action) {
     setHostLine(room,"Let's reveal your grocery prices, starting with the least expensive.","holeOrderReveal");
   } else if(g.type==="holeInOne"&&g.stage==="putting"){
     setHostLine(room,"","holePutt");
+  } else if(g.type==="luckySeven"&&g.stage==="doorOpening"){
+    setHostLine(room,`${g.playerName} says ${g.lastGuess.guess}. Open the next door!`,"luckySevenDoor");
   } else if (g.pendingPrizeAnnouncement) {
     room.pricingAnnouncementQueue = [g.pendingPrizeAnnouncement];
     g.pendingPrizeAnnouncement = null;
@@ -506,8 +509,13 @@ export function settlePricingGame(room,action={}) {
   if(room.pricingGame.type==="plinko"&&room.pricingGame.stage!=="dropping"&&room.pricingGame.lastDrop?.value!=null)return room;
   if(room.pricingGame.type==="cliffHangers"&&room.pricingGame.stage!=="climbing"&&room.pricingGame.priceReveal)return room;
   if(room.pricingGame.type==="holeInOne"&&action.kind){const g=room.pricingGame;if(action.kind==="holeOrder"&&(g.stage!=="orderReveal"||Number(action.index)!==g.revealedCount))return room;if(action.kind==="holePutt"&&(g.stage!=="putting"||Number(action.id)!==g.lastPutt?.id))return room;if(action.kind==="holeOrTwo"&&g.stage!=="orTwoReveal")return room;}
+  if(room.pricingGame.type==="luckySeven"){const g=room.pricingGame;if(!["luckyDoor","luckyCost"].includes(action.kind)||Number(action.id)!==g.lastGuess?.id)return room;if(action.kind==="luckyDoor"&&g.stage!=="doorOpening")return room;if(action.kind==="luckyCost"&&g.stage!=="costReveal")return room;}
   settlePricingAnimation(room.pricingGame);
   const g=room.pricingGame;
+  if(g.type==="luckySeven"){
+    if(g.stage==="costReveal"){setHostLine(room,g.prompt,"luckySevenCost");return room;}
+    setHostLine(room,g.status==="playing"?g.prompt:g.result,g.status==="playing"?"pricingPrompt":"pricingResult");return room;
+  }
   if(g.type==="holeInOne"){
     if(g.stage==="orderReveal"){setHostLine(room,g.prompt,"holeOrderRevealStep");return room;}
     if(g.stage==="puttReady"){setHostLine(room,g.prompt,"holePuttReady");return room;}
