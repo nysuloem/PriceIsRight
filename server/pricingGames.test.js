@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, expandedBiddingCatalog, pickAPairPoolStatus, playPricingGame, pricingCatalogStats, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
+import { CAR_PRICING_GAME_TYPES, NON_CAR_PRICING_GAME_TYPES, clearDeferredPrice, createPricingGame, createPricingGameForType, expandedBiddingCatalog, isSingleGrandPrize, pickAPairPoolStatus, playPricingGame, pricingCatalogStats, publicPricingGame, revealDeferredPrice, settlePricingAnimation, syncClockGame } from "./pricingGames.js";
+import { ADDITIONAL_GRAND_PRIZES } from "./prizePoolExpansion.js";
 
 const player = { id: "human-1", name: "Test Player" };
 const moneyForTest = value => `$${Number(value).toLocaleString("en-CA")}`;
@@ -10,6 +11,33 @@ test("every built-in prize catalogue has at least twice its original capacity",(
   const stats=pricingCatalogStats();
   assert.ok(stats.smallPrizes>=240);assert.ok(stats.groceries>=120);assert.ok(stats.cars>=48);assert.ok(stats.anyNumberPrizes>=12);assert.ok(stats.grandPrizes>=20);
   assert.ok(stats.pickAPairProducts>=180);assert.ok(pickAPairPoolStatus().usablePairs>=82);
+});
+
+test("pricing-game grand prizes are individual products from $1,000 to $5,000",()=>{
+  assert.equal(isSingleGrandPrize({name:"Complete living-room collection",description:"A sofa, chairs and tables.",price:4500}),false);
+  assert.equal(isSingleGrandPrize({name:"OLED television",description:"One 4K OLED smart television.",price:2499}),true);
+  assert.equal(isSingleGrandPrize({name:"OLED television",description:"One 4K OLED smart television.",price:999}),false);
+  assert.ok(ADDITIONAL_GRAND_PRIZES.length>=40);
+  for(const prize of ADDITIONAL_GRAND_PRIZES){
+    assert.equal(isSingleGrandPrize(prize),true,`${prize.name} is eligible`);
+    assert.match(prize.description,/^One\b/,`${prize.name} describes one product`);
+    assert.doesNotMatch(prize.name,/\b(collection|bundle|package|suite|set|pair|studio|room|wardrobe|renovation|retreat|cruise|getaway|vacation|trip|for two)\b/i);
+  }
+  const grandTypes=["groceryGame","shellGame","doublePrices","switchGame","pickAPair","balanceGame","holeInOne","masterKey","secretX"];
+  for(let attempt=0;attempt<40;attempt+=1){
+    for(const type of grandTypes){
+      const game=createPricingGameForType(type,player);
+      const entries=type==="switchGame"?game.items.map((prize,index)=>({prize,price:game._prices[index]}))
+        :type==="masterKey"?game.targets.filter(target=>target.label!=="NEW CAR").map(target=>({prize:target,price:target.value}))
+        :type==="doublePrices"?[{prize:game.prize,price:game._actual}]
+        :[{prize:game.bonusPrize||game.prize,price:game._bonusPrice||game._actual}];
+      for(const {prize,price} of entries){
+        assert.ok(prize,`${type} exposes its grand prize`);
+        assert.ok(price>=1000&&price<=5000,`${type} prize ${prize.name} stays in the $1,000-$5,000 range`);
+        assert.equal(isSingleGrandPrize({...prize,price}),true,`${type} prize ${prize.name} is one product`);
+      }
+    }
+  }
 });
 
 test("all pricing games can be created without leaking answers", () => {

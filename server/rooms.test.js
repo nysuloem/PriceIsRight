@@ -117,7 +117,7 @@ test("Hole in One reveals groceries, animates a putt, and unlocks OR TWO only af
 
 test("Lucky Seven opens each door before Bob charges the difference",()=>{
   const room=createRoom();room.pricingGame=createPricingGameForType("luckySeven",{id:"p",name:"Jamie"});room.phase="pricingGame";const g=room.pricingGame;
-  const index=g.digitIndex,actual=g._digits[index],guess=actual===9?7:actual+2,startingDollars=g.dollars;
+  const index=g.digitIndex,actual=g._digits[index],guess=actual>=8?actual-2:actual+2,startingDollars=g.dollars;
   pricingGameAction(room,"p",{choice:String(guess)});
   assert.equal(g.stage,"doorOpening");assert.equal(g.revealed[index],null);assert.equal(g.dollars,startingDollars);assert.equal(room.hostLine.type,"luckySevenDoor");assert.match(room.hostLine.text,new RegExp(`says ${guess}`));
   assert.equal(g.lastAction.text,`GUESSED ${guess}`);
