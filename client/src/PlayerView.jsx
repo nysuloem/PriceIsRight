@@ -402,16 +402,19 @@ function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError
   const [listening,setListening]=useState(false);
   const [heard,setHeard]=useState("");
   const recognitionRef=useRef(null);
+  const sendingRef=useRef(false);
   const continuousMicRef=useRef(false),micSendingRef=useRef(false),acceptGuessesRef=useRef(acceptGuesses);
   useEffect(()=>{acceptGuessesRef.current=acceptGuesses;},[acceptGuesses]);
   useEffect(()=>()=>{continuousMicRef.current=false;recognitionRef.current?.abort();},[]);
   if (!game) return <div className="pir-panel">Loading pricing game…</div>;
   const isPlayer = game.playerId === playerId;
   const send = async (action) => {
+    if(sendingRef.current)return;
+    sendingRef.current=true;
     setBusy(true); onError("");
     try { await pricingGameAction(code, playerId, action); setNumber(""); }
     catch (e) { onError(e.message); }
-    finally { setBusy(false); }
+    finally { sendingRef.current=false;setBusy(false); }
   };
   const speechRecognition=typeof window!=="undefined"&&(window.SpeechRecognition||window.webkitSpeechRecognition);
   const stopClockMic=()=>{continuousMicRef.current=false;recognitionRef.current?.stop();setListening(false);};
