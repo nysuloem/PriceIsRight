@@ -344,6 +344,22 @@ test("a pricing-game winner can hug Bob after every win",()=>{
   assert.throws(()=>hugBob(room,"other"),/after winning a pricing game/i);
 });
 
+test("late pricing-game actions and animation callbacks are harmless after a game ends",()=>{
+  const room=createRoom(),player={id:"player",name:"Player",isAI:false};
+  room.players=[player];room.contestants=[player];room.phase="pricingGame";
+  room.pricingGame=createPricingGameForType("doublePrices",player);
+  pricingGameAction(room,player.id,{choice:room.pricingGame.options.find(option=>Number(String(option).replace(/[$,]/g,""))===room.pricingGame._actual)});
+  assert.notEqual(room.pricingGame.status,"playing");
+  const result=room.pricingGame.result,updatedAt=room.updatedAt;
+  assert.doesNotThrow(()=>pricingGameAction(room,player.id,{choice:"stale duplicate"}));
+  assert.doesNotThrow(()=>settlePricingGame(room,{kind:"stale animation"}));
+  assert.equal(room.pricingGame.result,result);
+  assert.equal(room.updatedAt,updatedAt);
+  room.phase="item";room.pricingGame=null;
+  assert.doesNotThrow(()=>pricingGameAction(room,player.id,{choice:"late network request"}));
+  assert.doesNotThrow(()=>settlePricingGame(room));
+});
+
 test("winner shirt is optional and never pauses the pricing-game introduction",()=>{
   const room=createRoom(),winner={id:"winner",name:"Jamie",isAI:false,shirtMessage:"COME ON DOWN!"};
   room.contestants=[winner];room.players=[winner];room.pricingGame=createPricingGameForType("doublePrices",winner);
