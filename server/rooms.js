@@ -435,7 +435,8 @@ function scheduleDiceAutoReveal(room) {
 
 export function pricingGameAction(room, playerId, action) {
   // Remote phones can deliver a final tap after the result narration has
-  // already advanced the room. That request is stale, not a game error.
+  // already advanced the room. That request is stale, not a game error, and
+  // must never put an error screen over the next round.
   if (room.phase !== "pricingGame" || !room.pricingGame || room.pricingGame.status !== "playing") return room;
   if(action?.audienceChoice!=null){
     const audienceMember=room.players.find(player=>player.id===playerId);

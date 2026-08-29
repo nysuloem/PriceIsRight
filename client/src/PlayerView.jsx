@@ -409,6 +409,7 @@ function PricingGamePhone({ game, playerId, code, isDemo, onBackToGames, onError
   if (!game) return <div className="pir-panel">Loading pricing game…</div>;
   const isPlayer = game.playerId === playerId;
   const send = async (action) => {
+    // State updates render later; the ref closes the same-frame double-tap gap.
     if(sendingRef.current)return;
     sendingRef.current=true;
     setBusy(true); onError("");
