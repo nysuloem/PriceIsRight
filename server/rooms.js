@@ -434,9 +434,10 @@ function scheduleDiceAutoReveal(room) {
 }
 
 export function pricingGameAction(room, playerId, action) {
-  if (room.phase !== "pricingGame" || !room.pricingGame) throw new Error("No pricing game is active");
+  // Remote phones can deliver a final tap after the result narration has
+  // already advanced the room. That request is stale, not a game error.
+  if (room.phase !== "pricingGame" || !room.pricingGame || room.pricingGame.status !== "playing") return room;
   if(action?.audienceChoice!=null){
-    if(room.pricingGame.status!=="playing")throw new Error("This pricing game has ended");
     const audienceMember=room.players.find(player=>player.id===playerId);
     if(!audienceMember||playerId===room.pricingGame.playerId)throw new Error("Only non-playing human contestants may shout suggestions");
     const choice=String(action.audienceChoice).trim().slice(0,32);if(!choice)throw new Error("Choose a suggestion first");
@@ -508,7 +509,10 @@ export function continuePricingPrice(room) {
 }
 
 export function settlePricingGame(room,action={}) {
-  if (!room.pricingGame) throw new Error("No pricing game is active");
+  // Narration callbacks, animation-end events and watchdog timers may all
+  // report the same completion. Once the game has ended or the room has
+  // advanced, every later report must be a harmless no-op.
+  if (room.phase !== "pricingGame" || !room.pricingGame || room.pricingGame.status !== "playing") return room;
   // Animation completion can be reported by both the normal browser event and
   // its watchdog (or by two host displays). Treat repeats as harmless.
   if(room.pricingGame.type==="plinko"&&room.pricingGame.stage!=="dropping"&&room.pricingGame.lastDrop?.value!=null)return room;
