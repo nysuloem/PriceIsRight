@@ -48,6 +48,31 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "4mb" })); // allow base64 photo uploads
 
+// A completed pricing game normally advances after the host finishes the result
+// narration. That should never be a single point of failure: if a browser drops
+// the TTS completion callback, advance the game from the server after a generous
+// grace period. The identity/status checks make this safe alongside the normal
+// client-driven restart.
+const pricingAdvanceTimers = new WeakMap();
+function armPricingResultFailsafe(room) {
+  const previous = pricingAdvanceTimers.get(room);
+  if (previous) clearTimeout(previous);
+  pricingAdvanceTimers.delete(room);
+  const game = room?.pricingGame;
+  if (!room || room.isDemo || room.phase !== "pricingGame" || !game || game.status === "playing") return;
+  const timer = setTimeout(async () => {
+    pricingAdvanceTimers.delete(room);
+    if (room.phase !== "pricingGame" || room.pricingGame !== game || game.status === "playing") return;
+    try {
+      console.warn(`[pricing-game] result auto-advance failsafe fired for ${game.type || "unknown"}`);
+      await restart(room, "sameLineup");
+    } catch (err) {
+      console.error("[pricing-game] result auto-advance failsafe failed:", err?.message || err);
+    }
+  }, 15000);
+  pricingAdvanceTimers.set(room, timer);
+}
+
 // Wraps a route handler so thrown errors become JSON error responses
 // instead of crashing the process.
 function wrap(handler) {
@@ -208,6 +233,7 @@ app.post(
   wrap(async (req, res) => {
     const room = requireRoom(req);
     pricingGameAction(room, req.body?.playerId, req.body?.action);
+    armPricingResultFailsafe(room);
     res.json(publicState(room));
   })
 );
@@ -217,6 +243,7 @@ app.post(
   wrap(async (req, res) => {
     const room = requireRoom(req);
     beginPricingGame(room);
+    armPricingResultFailsafe(room);
     res.json(publicState(room));
   })
 );
@@ -226,17 +253,21 @@ app.post(
   wrap(async (req, res) => {
     const room = requireRoom(req);
     settlePricingGame(room,req.body||{});
+    armPricingResultFailsafe(room);
     res.json(publicState(room));
   })
 );
 
-app.post("/api/rooms/:code/pricing-game/reveal-price",wrap(async(req,res)=>{const room=requireRoom(req);revealPricingPrice(room);res.json(publicState(room));}));
-app.post("/api/rooms/:code/pricing-game/continue-price",wrap(async(req,res)=>{const room=requireRoom(req);continuePricingPrice(room);res.json(publicState(room));}));
+app.post("/api/rooms/:code/pricing-game/reveal-price",wrap(async(req,res)=>{const room=requireRoom(req);revealPricingPrice(room);armPricingResultFailsafe(room);res.json(publicState(room));}));
+app.post("/api/rooms/:code/pricing-game/continue-price",wrap(async(req,res)=>{const room=requireRoom(req);continuePricingPrice(room);armPricingResultFailsafe(room);res.json(publicState(room));}));
 
 app.post(
   "/api/rooms/:code/restart",
   wrap(async (req, res) => {
     const room = requireRoom(req);
+    const pending = pricingAdvanceTimers.get(room);
+    if (pending) clearTimeout(pending);
+    pricingAdvanceTimers.delete(room);
     await restart(room, req.body?.mode);
     res.json(publicState(room));
   })
